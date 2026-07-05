@@ -1,0 +1,16 @@
+{
+  "name": "labyrinthium",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Web clone of the pencil-and-paper game Labyrinth — the computer is the game master",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --filter @labyrinthium/server dev"
+  }
+}

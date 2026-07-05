@@ -1,0 +1,11 @@
+{
+  "name": "@labyrinthium/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'web: phase 4, nothing to build yet'",
+    "typecheck": "echo 'web: phase 4, nothing to typecheck yet'",
+    "test": "echo 'web: phase 4, no tests yet'"
+  }
+}

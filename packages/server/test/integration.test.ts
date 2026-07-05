@@ -1,0 +1,244 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { buildApp } from '../src/app.js';
+import { simpleTestMap, TestClient } from './helpers.js';
+
+let app: FastifyInstance;
+let wsUrl: string;
+
+beforeAll(async () => {
+  app = await buildApp({ dbPath: ':memory:' });
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const address = app.server.address();
+  if (typeof address === 'string' || !address) throw new Error('no address');
+  wsUrl = `ws://127.0.0.1:${address.port}/ws`;
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+describe('REST map API', () => {
+  it('generates valid maps on demand', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/maps/generate',
+      payload: { preset: 'medium', complexity: 'advanced', seed: 'demo' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { map: unknown; seed: string };
+    expect(body.seed).toBe('demo');
+
+    const validation = await app.inject({ method: 'POST', url: '/api/maps/validate', payload: body.map });
+    expect(validation.json()).toMatchObject({ ok: true, issues: [] });
+  });
+
+  it('stores, lists, fetches and deletes maps', async () => {
+    const doc = simpleTestMap();
+    const created = await app.inject({ method: 'POST', url: '/api/maps', payload: doc });
+    expect(created.statusCode).toBe(201);
+    const { id } = created.json() as { id: string };
+
+    const listed = await app.inject({ method: 'GET', url: '/api/maps' });
+    expect((listed.json() as { maps: { id: string }[] }).maps.some((m) => m.id === id)).toBe(true);
+
+    const fetched = await app.inject({ method: 'GET', url: '/api/maps/' + id });
+    expect(fetched.statusCode).toBe(200);
+
+    const deleted = await app.inject({ method: 'DELETE', url: '/api/maps/' + id });
+    expect(deleted.statusCode).toBe(200);
+    const gone = await app.inject({ method: 'GET', url: '/api/maps/' + id });
+    expect(gone.statusCode).toBe(404);
+  });
+
+  it('rejects structurally broken maps with structured issues', async () => {
+    const doc = simpleTestMap();
+    doc.entrance = { level: 0, x: 1, y: 1 }; // not on the border
+    const res = await app.inject({ method: 'POST', url: '/api/maps/validate', payload: doc });
+    const body = res.json() as { ok: boolean; issues: { code: string }[] };
+    expect(body.ok).toBe(false);
+    expect(body.issues.map((i) => i.code)).toContain('ENTRANCE_INVALID');
+  });
+});
+
+describe('full game over WebSockets', () => {
+  it('two players race for the treasure; private and public events differ; the winner is announced', async () => {
+    // Store a hand-built map so the run is fully scripted.
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    const bobSession = await bob.next('session.created');
+
+    alice.send({ type: 'room.start' });
+    const aliceStart = await alice.next('game.started');
+    const bobStart = await bob.next('game.started');
+    expect(aliceStart.yourPlayerId).toBe(aliceSession.playerId);
+    expect(bobStart.yourPlayerId).toBe(bobSession.playerId);
+    // Players learn dimensions + entrance, nothing else about the map.
+    expect(aliceStart.levelSizes).toEqual([{ width: 3, height: 3 }]);
+    expect(aliceStart.entrance).toMatchObject({ x: 0, y: 0 });
+
+    const turn1 = await alice.next('game.turn');
+    expect(turn1.activePlayerId).toBe(aliceSession.playerId);
+
+    // Alice: E (grab treasure), Bob: S; Alice: E; Bob: N; Alice: E -> exits with loot.
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    const aliceMoved = await alice.next('game.events');
+    const types = aliceMoved.events.map((e) => e.payload.type);
+    expect(types).toEqual(expect.arrayContaining(['moved', 'treasurePickedUp']));
+
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
+    await bob.next('game.events');
+
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    await alice.next('game.events');
+
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'N' } });
+    await bob.next('game.events');
+
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+
+    const aliceFinish = await alice.next('game.finished');
+    const bobFinish = await bob.next('game.finished');
+    expect(aliceFinish.winnerId).toBe(aliceSession.playerId);
+    expect(bobFinish.winnerName).toBe('Alice');
+    expect(bobFinish.mapReveal.levels).toHaveLength(1); // the reveal
+
+    // Visibility: Bob never saw Alice's private movement events.
+    const bobEventTypes = bob.all
+      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
+      .flatMap((m) => m.events)
+      .map((e) => `${e.visibility.kind}:${e.payload.type}`);
+    expect(bobEventTypes.every((t) => !t.startsWith('private:') || !t.includes('treasurePickedUp'))).toBe(true);
+    const bobSawAliceMoves = bob.all
+      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
+      .flatMap((m) => m.events)
+      .some((e) => e.visibility.kind === 'private' && e.visibility.playerId !== bobSession.playerId);
+    expect(bobSawAliceMoves).toBe(false);
+
+    alice.close();
+    bob.close();
+  });
+
+  it('shots are heard publicly but only the victim learns they were hit', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    const bobSession = await bob.next('session.created');
+    alice.send({ type: 'room.start' });
+    await alice.next('game.started');
+    await bob.next('game.started');
+
+    // Alice steps east; Bob shoots east from the entrance and hits her.
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    await alice.next('game.events');
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'shoot', direction: 'E' } });
+
+    const bobEvents = (await bob.next('game.events')).events.map((e) => e.payload.type);
+    expect(bobEvents).toEqual(expect.arrayContaining(['shotFired', 'screamHeard']));
+    expect(bobEvents).not.toContain('youWereShot');
+
+    const aliceEvents = (await alice.next('game.events')).events;
+    const aliceTypes = aliceEvents.map((e) => e.payload.type);
+    expect(aliceTypes).toContain('youWereShot');
+    expect(aliceTypes).toContain('treasureDropped');
+
+    // Alice is paralyzed: the server auto-skips her turns. Bob soon acts again.
+    const nextTurn = await bob.next('game.turn');
+    expect(nextTurn.activePlayerId).toBe(bobSession.playerId);
+
+    alice.close();
+    bob.close();
+  });
+
+  it('a disconnected player can resume by token and receives the missed event tail', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    const bobSession = await bob.next('session.created');
+    alice.send({ type: 'room.start' });
+    await alice.next('game.started');
+    await bob.next('game.started');
+    await alice.next('game.turn');
+
+    // Bob drops off the face of the earth.
+    bob.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Alice keeps playing: her move + a public shot Bob must catch up on.
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
+    await alice.next('game.events');
+
+    // Bob reconnects with his session token.
+    const bob2 = new TestClient(wsUrl);
+    await bob2.ready();
+    bob2.send({ type: 'session.resume', token: bobSession.sessionToken, lastAckedSeq: -1 });
+    const resumed = await bob2.next('session.created');
+    expect(resumed.playerId).toBe(bobSession.playerId);
+    await bob2.next('room.state');
+    await bob2.next('game.started');
+
+    // It's Bob's turn now (Alice already moved) — he can act immediately.
+    const turn = await bob2.next('game.turn');
+    expect(turn.activePlayerId).toBe(bobSession.playerId);
+    bob2.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
+    const events = await bob2.next('game.events');
+    expect(events.events.map((e) => e.payload.type)).toContain('moved');
+
+    alice.close();
+    bob2.close();
+  });
+
+  it('rejects out-of-turn actions with a protocol error', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    await bob.next('session.created');
+    alice.send({ type: 'room.start' });
+    await bob.next('game.started');
+
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'E' } }); // Alice's turn!
+    const err = await bob.next('error');
+    expect(err.code).toBe('NOT_YOUR_TURN');
+
+    alice.close();
+    bob.close();
+  });
+});
