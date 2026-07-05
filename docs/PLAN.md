@@ -212,11 +212,11 @@ React + Vite + zustand + **plain SVG** grids. Layout: **left** palette of dragga
 
 ## 9. Roadmap
 
-- **Phase 1 — `shared`**: geometry/grid/RNG, domain model, full `applyAction` (all rules incl. layers, mines, traps, monster AI tiers), generator + cross-layer validator, presets; unit + property tests green; deterministic replay proven.
-- **Phase 2 — `server`**: Fastify + ws, full protocol, room lifecycle, reconnect, SQLite persistence, map CRUD/validate/generate; integration tests green. **Phases 1+2 = the "backend built" milestone for this task.**
-- **Phase 3 — `cli`**: terminal client + `--bot random` for 2-bot smoke games; soak-tests the server.
-- **Phase 4 — `web`**: lobby, HUD, mapping UI (§7), map editor UI.
-- **Phase 5 — extras**: spectators, replay viewer (shared engine in browser), new elements via feature registry (pits, fake treasures, bear traps, keys/doors), heuristic bots, map-reveal animation.
+- **Phase 1 — `shared`** ✅: geometry/grid/RNG, domain model, full `applyAction` (all rules incl. layers, mines, traps, monster AI tiers), generator + cross-layer validator, presets; unit + property tests green; deterministic replay proven.
+- **Phase 2 — `server`** ✅: Fastify + ws, full protocol, room lifecycle, reconnect, SQLite persistence, map CRUD/validate/generate; integration tests green. **Phases 1+2 = the "backend built" milestone for this task.**
+- **Phase 3 — `cli`** ✅: terminal client + `--bot random` for 2-bot smoke games; soak-tests the server.
+- **Phase 4 — `web`** ✅: lobby, HUD, mapping UI (§7), map editor UI.
+- **Phase 5 — extras** ✅ (spectators, replay viewer, end-of-game map reveal, game history API). Still open for later: new elements via the feature registry (pits, fake treasures, bear traps, keys/doors), heuristic bots.
 
 ## Verification (for the backend build)
 

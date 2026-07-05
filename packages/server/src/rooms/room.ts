@@ -37,6 +37,8 @@ export class Room {
   state: GameState | null = null;
   actionLog: { playerId: string; action: PlayerAction }[] = [];
   eventLog: GameEvent[] = [];
+  /** Read-only observers: they receive broadcasts and PUBLIC events only. */
+  spectators = new Set<(msg: ServerMessage) => void>();
   private gameId = randomUUID();
 
   constructor(
@@ -65,6 +67,7 @@ export class Room {
 
   broadcast(msg: ServerMessage): void {
     for (const p of this.players) p.send?.(msg);
+    for (const send of this.spectators) send(msg);
   }
 
   roomStateMessage(): ServerMessage {
@@ -97,6 +100,8 @@ export class Room {
     for (const p of this.players) {
       p.send?.(this.gameStartedMessage(p.id));
     }
+    // Spectators get the same brief with no player identity.
+    for (const send of this.spectators) send(this.gameStartedMessage(''));
     this.announceTurn();
     this.pumpParalyzed();
   }
@@ -141,6 +146,10 @@ export class Room {
     for (const p of this.players) {
       const mine = result.events.filter((e) => visibleTo(e, p.id));
       if (mine.length > 0) p.send?.({ type: 'game.events', events: mine });
+    }
+    const publicEvents = result.events.filter((e) => e.visibility.kind === 'public');
+    if (publicEvents.length > 0) {
+      for (const send of this.spectators) send({ type: 'game.events', events: publicEvents });
     }
     if (this.state.phase === 'finished') {
       this.finish();

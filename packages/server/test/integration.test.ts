@@ -219,6 +219,70 @@ describe('full game over WebSockets', () => {
     bob2.close();
   });
 
+  it('spectators see public events only, and finished games are replayable via the API', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    const watcher = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+    await watcher.ready();
+
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    await bob.next('session.created');
+
+    watcher.send({ type: 'room.spectate', roomCode: aliceSession.roomCode });
+    await watcher.next('room.state');
+
+    alice.send({ type: 'room.start' });
+    await alice.next('game.started');
+    const watcherStart = await watcher.next('game.started');
+    expect(watcherStart.yourPlayerId).toBe(''); // spectators have no identity
+
+    // Alice: E (treasure), Bob shoots and misses nothing... just walk the win.
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    await alice.next('game.events');
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'shoot', direction: 'S' } });
+    await bob.next('game.events');
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    await alice.next('game.events');
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
+    await bob.next('game.events');
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+
+    const watcherFinish = await watcher.next('game.finished');
+    expect(watcherFinish.winnerName).toBe('Alice');
+
+    // Spectator only ever received public events.
+    const watcherEvents = watcher.all
+      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
+      .flatMap((m) => m.events);
+    expect(watcherEvents.length).toBeGreaterThan(0); // heard the shot at least
+    expect(watcherEvents.every((e) => e.visibility.kind === 'public')).toBe(true);
+
+    // The finished game is in the history API with its full action log.
+    const list = await app.inject({ method: 'GET', url: '/api/games' });
+    const games = (list.json() as { games: { id: string; winnerId: string }[] }).games;
+    expect(games.length).toBeGreaterThan(0);
+    const record = await app.inject({ method: 'GET', url: '/api/games/' + games[0]!.id });
+    const body = record.json() as { actions: unknown[]; map: { levels: unknown[] }; seed: string };
+    expect(body.actions.length).toBeGreaterThan(0);
+    expect(body.map.levels).toHaveLength(1);
+
+    alice.close();
+    bob.close();
+    watcher.close();
+  });
+
   it('rejects out-of-turn actions with a protocol error', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };

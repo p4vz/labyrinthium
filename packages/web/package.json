@@ -4,8 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo 'web: phase 4, nothing to build yet'",
-    "typecheck": "echo 'web: phase 4, nothing to typecheck yet'",
-    "test": "echo 'web: phase 4, no tests yet'"
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@labyrinthium/shared": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.8"
   }
 }

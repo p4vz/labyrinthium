@@ -12,10 +12,10 @@ Full game spec and roadmap: [`docs/PLAN.md`](docs/PLAN.md).
 
 | package | what |
 |---|---|
-| `@labyrinthium/shared` | Pure, deterministic game engine + map generator + protocol schemas (zod). No framework deps; runs on server, in tests, and later in the browser. |
-| `@labyrinthium/server` | Fastify + WebSocket game server: rooms, sessions/reconnect, SQLite persistence, map CRUD/generate/validate REST API. |
+| `@labyrinthium/shared` | Pure, deterministic game engine + map generator + protocol schemas (zod). No framework deps; runs on the server, in tests, and in the browser (replay viewer). |
+| `@labyrinthium/server` | Fastify + WebSocket game server: rooms, sessions/reconnect, spectators, SQLite persistence, map CRUD/generate/validate + game-history REST API, serves the built web app. |
+| `@labyrinthium/web` | The browser client: lobby, game HUD with the manual mapping UI (stamp palette, level tabs, auxiliary maps with copy/paste/merge and undo/redo), map editor, replay viewer. |
 | `@labyrinthium/cli` | Terminal client & random-bot harness for smoke-testing games. |
-| `@labyrinthium/web` | Phase-4 placeholder for the browser client (mapping UI). |
 
 ## Quick start
 
@@ -24,18 +24,40 @@ pnpm install
 pnpm -r build
 pnpm -r test
 
-# run the server
-pnpm dev            # listens on :8080 by default
+# run everything: the server also serves the built web app
+pnpm dev            # open http://localhost:8080
 
-# generate a map
+# frontend dev with hot reload (proxies /api and /ws to :8080)
+pnpm --filter @labyrinthium/web dev   # open http://localhost:5173
+
+# browser end-to-end tests (real chromium, two players to a win)
+pnpm --filter @labyrinthium/web test:e2e
+
+# generate a map from the shell
 curl -s -X POST localhost:8080/api/maps/generate \
   -H 'content-type: application/json' \
   -d '{"preset":"medium","complexity":"advanced","seed":"demo"}'
 
-# play from two terminals
+# play from two terminals instead of the browser
 pnpm --filter @labyrinthium/cli start -- --create --name alice
 pnpm --filter @labyrinthium/cli start -- --join <ROOMCODE> --name bob
 
 # or watch two bots stumble around
 pnpm --filter @labyrinthium/cli start -- --smoke
 ```
+
+## How a round works
+
+1. Someone creates a room (generated map — size × complexity × seed — or a
+   hand-built map id from the editor) and shares the 6-letter room code.
+2. Players join from their own devices. Nobody sees the map — each player
+   gets a blank grid (they know only the level dimensions and the entrance)
+   and draws their own beliefs: walls, rivers, teleports, notes.
+3. On your turn: walk, shoot, throw a grenade, or arm a mine. The game
+   master (the server) tells you privately what happened; everyone hears
+   public events ("a shot rang out…").
+4. Teleported or dropped through a trap door? Open an auxiliary map, chart
+   the unknown region, and merge it onto your main map once you recognize
+   where you are.
+5. First player to walk out of an exit carrying the treasure wins — then the
+   real map is revealed, and the whole game can be replayed move by move.

@@ -107,6 +107,79 @@ export class Db {
     tx();
   }
 
+  listGames(): {
+    id: string;
+    roomCode: string;
+    winnerId: string | null;
+    turnCount: number;
+    players: { id: string; name: string }[];
+    finishedAt: string | null;
+  }[] {
+    const rows = this.db
+      .prepare(
+        'SELECT id, room_code, winner_id, turn_count, players_json, finished_at FROM games ORDER BY finished_at DESC LIMIT 100',
+      )
+      .all() as {
+      id: string;
+      room_code: string;
+      winner_id: string | null;
+      turn_count: number;
+      players_json: string;
+      finished_at: string | null;
+    }[];
+    return rows.map((r) => ({
+      id: r.id,
+      roomCode: r.room_code,
+      winnerId: r.winner_id,
+      turnCount: r.turn_count,
+      players: JSON.parse(r.players_json) as { id: string; name: string }[],
+      finishedAt: r.finished_at,
+    }));
+  }
+
+  /** Full record for the replay viewer: everything needed to re-run the game. */
+  getGame(id: string): {
+    id: string;
+    roomCode: string;
+    map: MapDocument;
+    seed: string;
+    config: unknown;
+    players: { id: string; name: string }[];
+    winnerId: string | null;
+    actions: { playerId: string; action: PlayerAction }[];
+  } | null {
+    const row = this.db
+      .prepare('SELECT id, room_code, map_json, seed, config_json, players_json, winner_id FROM games WHERE id = ?')
+      .get(id) as
+      | {
+          id: string;
+          room_code: string;
+          map_json: string;
+          seed: string;
+          config_json: string;
+          players_json: string;
+          winner_id: string | null;
+        }
+      | undefined;
+    if (!row) return null;
+    const actionRows = this.db
+      .prepare('SELECT player_id, action_json FROM game_actions WHERE game_id = ? ORDER BY seq')
+      .all(id) as { player_id: string; action_json: string }[];
+    return {
+      id: row.id,
+      roomCode: row.room_code,
+      map: JSON.parse(row.map_json) as MapDocument,
+      seed: row.seed,
+      config: JSON.parse(row.config_json),
+      players: JSON.parse(row.players_json) as { id: string; name: string }[],
+      winnerId: row.winner_id,
+      actions: actionRows.map((a) => ({
+        playerId: a.player_id,
+        action: JSON.parse(a.action_json) as PlayerAction,
+      })),
+    };
+  }
+
   close(): void {
     this.db.close();
   }

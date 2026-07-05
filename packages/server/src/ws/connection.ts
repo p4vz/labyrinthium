@@ -10,10 +10,11 @@ import type { RoomManager } from '../rooms/roomManager.js';
 interface ConnectionState {
   room: Room | null;
   player: RoomPlayer | null;
+  spectating: Room | null;
 }
 
 export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
-  const conn: ConnectionState = { room: null, player: null };
+  const conn: ConnectionState = { room: null, player: null, spectating: null };
 
   const send = (msg: ServerMessage): void => {
     if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(msg));
@@ -51,6 +52,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
       conn.room?.broadcast({ type: 'room.playerLeft', playerId: conn.player.id });
       conn.room?.broadcast(conn.room.roomStateMessage());
     }
+    conn.spectating?.spectators.delete(send);
   });
 
   function dispatch(msg: ClientMessage): void {
@@ -117,6 +119,25 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
           }
         }
         found.room.broadcast({ type: 'room.playerReconnected', playerId: found.player.id });
+        return;
+      }
+
+      case 'room.spectate': {
+        const room = rooms.get(msg.roomCode);
+        if (!room) throw new RoomError('ROOM_NOT_FOUND', `no room ${msg.roomCode}`);
+        conn.spectating?.spectators.delete(send);
+        conn.spectating = room;
+        room.spectators.add(send);
+        send(room.roomStateMessage());
+        if (room.phase !== 'lobby') {
+          send(room.gameStartedMessage(''));
+          const publicTail = room.eventsSince('', -1); // '' matches public events only
+          if (publicTail.length > 0) send({ type: 'game.events', events: publicTail });
+          if (room.state && room.phase === 'inProgress') {
+            const active = room.state.players[room.state.turnIndex]!;
+            send({ type: 'game.turn', activePlayerId: active.id, turnNumber: room.state.turnNumber });
+          }
+        }
         return;
       }
 

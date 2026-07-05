@@ -25,6 +25,10 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     roomCode: z.string().min(4).max(8),
     name: z.string().min(1).max(40),
   }),
+  z.object({
+    type: z.literal('room.spectate'),
+    roomCode: z.string().min(4).max(8),
+  }),
   z.object({ type: z.literal('room.leave') }),
   z.object({ type: z.literal('room.start') }),
   z.object({ type: z.literal('game.action'), action: playerActionSchema }),
