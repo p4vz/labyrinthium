@@ -46,6 +46,23 @@ pnpm --filter @labyrinthium/cli start -- --join <ROOMCODE> --name bob
 pnpm --filter @labyrinthium/cli start -- --smoke
 ```
 
+## Deploying (Railway)
+
+The repo ships a `Dockerfile` and `railway.json`, so deployment is:
+
+1. Railway → **New Project → Deploy from GitHub repo** → pick this repo.
+   Railway detects the Dockerfile and builds the whole game (server + web
+   client) into one service.
+2. Networking → **Generate Domain**. That URL is the game: share
+   `https://<your-app>.up.railway.app` and play. WebSockets work out of the
+   box; the platform's `PORT` variable is respected and `/health` is the
+   healthcheck.
+3. Optional: add a **Volume** mounted at `/data` to keep finished-game
+   history (the replay archive) across deploys. Without it, replays reset on
+   each deploy — live games are unaffected either way.
+
+Any other Docker host (Fly.io, Render, a VPS) works the same way.
+
 ## How a round works
 
 1. Someone creates a room (generated map — size × complexity × seed — or a
