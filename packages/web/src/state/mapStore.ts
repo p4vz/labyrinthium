@@ -28,8 +28,21 @@ interface Snapshot {
   maps: PlayerMap[];
 }
 
+const PALETTE_PREF_KEY = 'labyrinthium:ui:paletteWide';
+
+function loadPalettePref(): boolean {
+  try {
+    return typeof localStorage === 'undefined' || localStorage.getItem(PALETTE_PREF_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 export interface MapStoreState {
   storageKey: string | null;
+  /** draw rail: true = icons + names, false = single-glyph wide */
+  paletteWide: boolean;
+  setPaletteWide(wide: boolean): void;
   maps: PlayerMap[];
   activeMapId: string;
   activeGrid: number; // level index within the active map
@@ -101,6 +114,17 @@ export const useMapStore = create<MapStoreState>((set, get) => {
 
   return {
     storageKey: null,
+    paletteWide: loadPalettePref(),
+    setPaletteWide(wide) {
+      set({ paletteWide: wide });
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(PALETTE_PREF_KEY, wide ? '1' : '0');
+        }
+      } catch {
+        /* preference just won't stick */
+      }
+    },
     maps: [],
     activeMapId: 'main',
     activeGrid: 0,

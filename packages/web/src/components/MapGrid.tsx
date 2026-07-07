@@ -29,11 +29,12 @@ export const STAMP_GLYPHS: Record<Stamp, string> = {
 const CS = 36; // cell size in px
 const PAD = 6;
 
+// Chalk lines on dark stone: what you KNOW glows, what you don't stays dim.
 const EDGE_STYLE: Record<string, { stroke: string; width: number; dash?: string }> = {
-  unknown: { stroke: '#d8d4c8', width: 1, dash: '2 4' },
-  open: { stroke: '#b5e0b5', width: 2 },
-  wall: { stroke: '#3a2f28', width: 5 },
-  grate: { stroke: '#4a90d9', width: 4, dash: '5 4' },
+  unknown: { stroke: '#3b3229', width: 1, dash: '2 4' },
+  open: { stroke: '#4a6b4a', width: 2 },
+  wall: { stroke: '#d9c9a3', width: 5 },
+  grate: { stroke: '#58a6d8', width: 4, dash: '5 4' },
 };
 
 export interface MapGridProps {
@@ -95,7 +96,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
             y={py(y) + 1}
             width={CS - 2}
             height={CS - 2}
-            fill={inDrag ? '#ffe9a8' : inSelection ? '#fff3c4' : '#fffdf6'}
+            fill={inDrag ? '#5a4318' : inSelection ? '#453413' : '#262019'}
             data-cell={`${x},${y}`}
             onClick={() => {
               if (!props.selectMode) props.onCellClick?.(x, y);
@@ -194,7 +195,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
         const anno = frag.cells[fy * frag.width + fx];
         parts.push(
           <g key={`g${fx},${fy}`}>
-            <rect x={px(tx) + 1} y={py(ty) + 1} width={CS - 2} height={CS - 2} fill="#a8d5ff" opacity={0.45} />
+            <rect x={px(tx) + 1} y={py(ty) + 1} width={CS - 2} height={CS - 2} fill="#2f4a63" opacity={0.6} />
             {anno && renderAnno(anno, px(tx), py(ty))}
           </g>,
         );
@@ -236,7 +237,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
         setHover(null);
       }}
     >
-      <rect x={0} y={0} width={w} height={h} fill="#faf7ef" rx={6} />
+      <rect x={0} y={0} width={w} height={h} fill="#1d1712" rx={6} />
       {cells}
       {edges}
       {ghost}
@@ -270,7 +271,7 @@ function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string },
           x={x + CS / 2}
           y={y + CS / 2}
           fontSize={16}
-          fill="#4a90d9"
+          fill="#58a6d8"
           textAnchor="middle"
           dominantBaseline="central"
           transform={`rotate(${riverRotation} ${x + CS / 2} ${y + CS / 2})`}
@@ -284,7 +285,7 @@ function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string },
           x={x + CS / 2 + (spots[i]?.[0] ?? 0)}
           y={y + CS / 2 + (spots[i]?.[1] ?? 0) + (hasRiver ? 6 : 0)}
           fontSize={s === 'empty' ? 20 : glyphs.length > 1 ? 11 : 16}
-          fill={s === 'empty' ? '#b0a48c' : undefined}
+          fill={s === 'empty' ? '#7a6c55' : '#e2d6bd'}
           textAnchor="middle"
           dominantBaseline="central"
         >

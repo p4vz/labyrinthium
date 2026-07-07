@@ -5,10 +5,10 @@ const PAD = 6;
 
 const TRUE_EDGE_STYLE: Record<string, { stroke: string; width: number; dash?: string } | null> = {
   open: null,
-  wall: { stroke: '#3a2f28', width: 4 },
-  reinforced: { stroke: '#8b1a1a', width: 6 },
-  grate: { stroke: '#4a90d9', width: 3, dash: '5 4' },
-  exit: { stroke: '#2e9e44', width: 6, dash: '2 6' },
+  wall: { stroke: '#d9c9a3', width: 4 },
+  reinforced: { stroke: '#e05b50', width: 6 },
+  grate: { stroke: '#58a6d8', width: 3, dash: '5 4' },
+  exit: { stroke: '#7dc981', width: 6, dash: '2 6' },
 };
 
 const FEATURE_GLYPHS: Record<string, string> = {
@@ -56,7 +56,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           y={py(y) + 1}
           width={CS - 2}
           height={CS - 2}
-          fill={hl ? '#ffd0d0' : '#fffdf6'}
+          fill={hl ? '#5c2622' : '#262019'}
           data-truecell={`${x},${y}`}
           onClick={() => props.onCellClick?.(x, y)}
           style={{ cursor: props.onCellClick ? 'pointer' : 'default' }}
@@ -72,7 +72,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
       .map((c, i) => `${i === 0 ? 'M' : 'L'} ${px(c.x) + CS / 2} ${py(c.y) + CS / 2}`)
       .join(' ');
     parts.push(
-      <path key={`river${d}`} d={d} stroke="#9cc8ee" strokeWidth={10} fill="none" strokeLinecap="round" opacity={0.8} pointerEvents="none" />,
+      <path key={`river${d}`} d={d} stroke="#2f4a63" strokeWidth={10} fill="none" strokeLinecap="round" opacity={0.9} pointerEvents="none" />,
     );
     const last = f.cells[f.cells.length - 1]!;
     const prev = f.cells[f.cells.length - 2]!;
@@ -83,7 +83,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
         x={px(last.x) + CS / 2}
         y={py(last.y) + CS / 2}
         fontSize={13}
-        fill="#4a90d9"
+        fill="#58a6d8"
         textAnchor="middle"
         dominantBaseline="central"
         transform={`rotate(${angle} ${px(last.x) + CS / 2} ${py(last.y) + CS / 2})`}
@@ -112,6 +112,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
         x={px(f.at.x) + CS / 2}
         y={py(f.at.y) + CS / 2}
         fontSize={15}
+        fill="#e2d6bd"
         textAnchor="middle"
         dominantBaseline="central"
         pointerEvents="none"
@@ -184,7 +185,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} data-testid={`truemap-l${props.level}`}>
-      <rect x={0} y={0} width={w} height={h} fill="#f3efe4" rx={6} />
+      <rect x={0} y={0} width={w} height={h} fill="#1d1712" rx={6} />
       {parts}
       {edges}
     </svg>

@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useGameStore } from '../state/gameStore.js';
 import { useMapStore } from '../state/mapStore.js';
 import { STAMP_GLYPHS } from './MapGrid.js';
@@ -18,30 +19,66 @@ const STAMPS: { stamp: Stamp; label: string }[] = [
   { stamp: 'flag', label: 'marker' },
 ];
 
-/** Left panel: drawing tools. Click a tool, then click the map. */
+const NARROW = 54;
+const WIDE = 205;
+const SNAP = 120; // release wider than this -> names shown
+
+/**
+ * Left rail of drawing tools. A single glyph wide by default on desktop —
+ * drag its right edge out to reveal the tool names, drag it back in to
+ * collapse to icons only (double-click the edge toggles too).
+ */
 export function Palette(): JSX.Element {
   const tool = useMapStore((s) => s.tool);
   const setTool = useMapStore((s) => s.setTool);
   const selection = useMapStore((s) => s.selection);
   const clipboard = useMapStore((s) => s.clipboard);
   const pending = useMapStore((s) => s.pending);
+  const wide = useMapStore((s) => s.paletteWide);
   const store = useMapStore;
+
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const dragFrom = useRef<{ x: number; width: number } | null>(null);
+
+  const width = dragWidth ?? (wide ? WIDE : NARROW);
+  const showLabels = width >= SNAP;
 
   const isStamp = (s: Stamp): boolean => tool.kind === 'stamp' && tool.stamp === s;
   const riverDir = tool.kind === 'stamp' && tool.stamp === 'river' ? tool.riverDir : undefined;
 
-  return (
-    <div className="palette">
-      <h3>Draw</h3>
-      <button className={tool.kind === 'wall' ? 'active' : ''} onClick={() => setTool({ kind: 'wall' })}>
-        ▦ walls <small>(click edges)</small>
-      </button>
+  function btn(
+    key: string,
+    active: boolean,
+    glyph: React.ReactNode,
+    label: React.ReactNode,
+    onClick: () => void,
+    title?: string,
+  ): JSX.Element {
+    return (
       <button
-        className={isStamp('river') ? 'active' : ''}
-        onClick={() => setTool({ kind: 'stamp', stamp: 'river', riverDir: riverDir ?? 'E' })}
+        key={key}
+        className={active ? 'active' : ''}
+        onClick={onClick}
+        title={title ?? (typeof label === 'string' ? label : undefined)}
       >
-        <span style={{ color: '#4a90d9' }}>➤</span> river
+        <span className="glyph">{glyph}</span>
+        {showLabels && <span className="label">{label}</span>}
       </button>
+    );
+  }
+
+  return (
+    <div className={`palette ${showLabels ? 'wide' : 'narrow'}`} style={{ width }}>
+      {showLabels && <h3>Draw</h3>}
+      {btn('wall', tool.kind === 'wall', '▦', <>walls <small>(click edges)</small></>, () => setTool({ kind: 'wall' }), 'walls — click edges')}
+      {btn(
+        'river',
+        isStamp('river'),
+        <span style={{ color: '#58a6d8' }}>➤</span>,
+        'river',
+        () => setTool({ kind: 'stamp', stamp: 'river', riverDir: riverDir ?? 'E' }),
+        'river',
+      )}
       {isStamp('river') && (
         <div className="river-dirs">
           {(['N', 'E', 'S', 'W'] as const).map((d) => (
@@ -55,55 +92,73 @@ export function Palette(): JSX.Element {
           ))}
         </div>
       )}
-      {STAMPS.map(({ stamp, label }) => (
-        <button
-          key={stamp}
-          className={isStamp(stamp) ? 'active' : ''}
-          onClick={() => setTool({ kind: 'stamp', stamp })}
-        >
-          {STAMP_GLYPHS[stamp]} {label}
-        </button>
-      ))}
-      <button className={tool.kind === 'note' ? 'active' : ''} onClick={() => setTool({ kind: 'note' })}>
-        ✍ note
-      </button>
-      <button className={tool.kind === 'erase' ? 'active' : ''} onClick={() => setTool({ kind: 'erase' })}>
-        ⌫ erase
-      </button>
+      {STAMPS.map(({ stamp, label }) =>
+        btn(stamp, isStamp(stamp), STAMP_GLYPHS[stamp], label, () => setTool({ kind: 'stamp', stamp })),
+      )}
+      {btn('note', tool.kind === 'note', '✍', 'note', () => setTool({ kind: 'note' }))}
+      {btn('erase', tool.kind === 'erase', '⌫', 'erase', () => setTool({ kind: 'erase' }))}
 
-      <PlayerPieces isStamp={isStamp} setStamp={(s) => setTool({ kind: 'stamp', stamp: s })} />
+      <PlayerPieces showLabels={showLabels} isStamp={isStamp} setStamp={(s) => setTool({ kind: 'stamp', stamp: s })} />
 
-      <h3>Edit</h3>
-      <button className={tool.kind === 'select' ? 'active' : ''} onClick={() => setTool({ kind: 'select' })}>
-        ▭ select <small>(drag)</small>
-      </button>
+      {showLabels && <h3>Edit</h3>}
+      {btn('select', tool.kind === 'select', '▭', <>select <small>(drag)</small></>, () => setTool({ kind: 'select' }), 'select — drag a rectangle')}
       <div className="button-row">
         <button disabled={!selection} onClick={() => store.getState().copySelection()} title="copy selection">
-          copy
+          ⧉{showLabels && ' copy'}
         </button>
         <button disabled={!selection} onClick={() => store.getState().cutSelection()} title="cut selection">
-          cut
+          ✂{showLabels && ' cut'}
         </button>
-        <button disabled={!clipboard} onClick={() => store.getState().startPaste()} title="paste (click a cell)">
-          paste
+        <button disabled={!clipboard} onClick={() => store.getState().startPaste()} title="paste — then click a cell">
+          ⎘{showLabels && ' paste'}
         </button>
       </div>
       <div className="button-row">
-        <button onClick={() => store.getState().undo()}>↶ undo</button>
-        <button onClick={() => store.getState().redo()}>↷ redo</button>
+        <button onClick={() => store.getState().undo()} title="undo">
+          ↶{showLabels && ' undo'}
+        </button>
+        <button onClick={() => store.getState().redo()} title="redo">
+          ↷{showLabels && ' redo'}
+        </button>
       </div>
-      {pending && (
+      {pending && showLabels && (
         <div className="hint">
           click a cell to stamp it there ·{' '}
           <button onClick={() => store.getState().cancelPending()}>cancel</button>
         </div>
       )}
+
+      <div
+        className="palette-handle"
+        title="drag to resize the toolbar"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          (e.target as HTMLElement).setPointerCapture(e.pointerId);
+          dragFrom.current = { x: e.clientX, width };
+        }}
+        onPointerMove={(e) => {
+          if (!dragFrom.current) return;
+          const next = Math.max(NARROW, Math.min(WIDE + 30, dragFrom.current.width + (e.clientX - dragFrom.current.x)));
+          setDragWidth(next);
+        }}
+        onPointerUp={() => {
+          if (!dragFrom.current) return;
+          const final = dragWidth ?? width;
+          dragFrom.current = null;
+          setDragWidth(null);
+          store.getState().setPaletteWide(final >= SNAP);
+        }}
+        onDoubleClick={() => store.getState().setPaletteWide(!wide)}
+      >
+        <span className="grip">⋮</span>
+      </div>
     </div>
   );
 }
 
 /** One tracking piece per player in the room, colored by turn order. */
 function PlayerPieces(props: {
+  showLabels: boolean;
   isStamp(s: Stamp): boolean;
   setStamp(s: Stamp): void;
 }): JSX.Element | null {
@@ -111,7 +166,7 @@ function PlayerPieces(props: {
   if (!started || started.turnOrder.length < 2) return null;
   return (
     <>
-      <h3>Track players</h3>
+      {props.showLabels && <h3>Track players</h3>}
       {started.turnOrder.slice(0, PIECE_STAMPS.length).map((p, i) => {
         const stamp = PIECE_STAMPS[i]!;
         return (
@@ -121,8 +176,13 @@ function PlayerPieces(props: {
             onClick={() => props.setStamp(stamp)}
             title={`move ${p.name}'s piece on your map`}
           >
-            {STAMP_GLYPHS[stamp]} {p.name}
-            {p.id === started.yourPlayerId ? ' (you)' : ''}
+            <span className="glyph">{STAMP_GLYPHS[stamp]}</span>
+            {props.showLabels && (
+              <span className="label">
+                {p.name}
+                {p.id === started.yourPlayerId ? ' (you)' : ''}
+              </span>
+            )}
           </button>
         );
       })}

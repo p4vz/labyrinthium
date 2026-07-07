@@ -15,6 +15,7 @@ export function Game(): JSX.Element {
   const spectating = useGameStore((s) => s.spectating);
   const reset = useGameStore((s) => s.reset);
   const feed = useGameStore((s) => s.feed);
+  const paletteWide = useMapStore((s) => s.paletteWide);
   /** which side panel is open on small screens */
   const [drawer, setDrawer] = useState<'draw' | 'maps' | null>(null);
 
@@ -82,7 +83,8 @@ export function Game(): JSX.Element {
         {drawer && <div className="drawer-backdrop mobile-only" onClick={() => setDrawer(null)} />}
         <aside className={`left-col ${drawer === 'draw' ? 'mobile-open' : ''}`}>
           {!spectating && <Palette />}
-          <EventFeed />
+          {/* With the rail collapsed, the feed yields to the ticker below. */}
+          {(spectating || paletteWide || drawer === 'draw') && <EventFeed />}
         </aside>
 
         <main className="map-col">
@@ -126,7 +128,13 @@ export function Game(): JSX.Element {
       </div>
 
       {feed.length > 0 && (
-        <button className="event-ticker mobile-only" onClick={() => setDrawer('draw')}>
+        <button
+          className={`event-ticker ${!paletteWide && !spectating ? 'always' : ''}`}
+          onClick={() => {
+            useMapStore.getState().setPaletteWide(true);
+            setDrawer('draw');
+          }}
+        >
           {(() => {
             const last = feed[feed.length - 1]!;
             return `${last.ownerName ? `${last.ownerName} ▸ ` : ''}${describeEvent(last.event)}`;
