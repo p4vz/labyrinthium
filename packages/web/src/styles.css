@@ -121,6 +121,43 @@ h3 {
   color: var(--accent);
   text-shadow: 0 0 24px rgba(224, 144, 46, 0.25);
 }
+
+/* ------- pixel-art title ------- */
+.pixel-logo {
+  max-width: 720px;
+  margin: 0 0 6px;
+}
+.pixel-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 14px rgba(224, 144, 46, 0.35));
+}
+/* torch flicker: two flame frames swapped with hard steps — no tweening,
+   like a real 8-bit sprite */
+.pixel-logo .flame-a {
+  animation: flicker-a 0.7s steps(1, end) infinite;
+}
+.pixel-logo .flame-b {
+  animation: flicker-b 0.7s steps(1, end) infinite;
+}
+@keyframes flicker-a {
+  0%, 45% {
+    opacity: 1;
+  }
+  46%, 100% {
+    opacity: 0;
+  }
+}
+@keyframes flicker-b {
+  0%, 45% {
+    opacity: 0;
+  }
+  46%, 100% {
+    opacity: 1;
+  }
+}
 .tagline {
   color: var(--muted);
   max-width: 640px;

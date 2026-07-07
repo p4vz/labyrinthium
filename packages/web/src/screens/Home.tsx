@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PixelLogo } from '../components/PixelLogo.js';
 import { send } from '../net/ws.js';
 import { useGameStore } from '../state/gameStore.js';
 
@@ -21,7 +22,7 @@ export function Home(): JSX.Element {
 
   return (
     <div className="home">
-      <h1>Labyrinthium</h1>
+      <PixelLogo />
       <p className="tagline">
         The computer draws a maze it will never show you. Move blind, listen to what it says, and
         draw your own map. First one out with the treasure wins.
