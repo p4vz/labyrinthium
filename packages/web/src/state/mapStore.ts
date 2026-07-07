@@ -32,10 +32,15 @@ const PALETTE_PREF_KEY = 'labyrinthium:ui:paletteWide';
 
 function loadPalettePref(): boolean {
   try {
-    return typeof localStorage === 'undefined' || localStorage.getItem(PALETTE_PREF_KEY) !== '0';
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(PALETTE_PREF_KEY);
+      if (stored !== null) return stored !== '0';
+    }
   } catch {
-    return true;
+    /* fall through to the size default */
   }
+  // First visit: names on desktop, icon rail on phones (screen is precious).
+  return typeof window === 'undefined' || window.innerWidth > 880;
 }
 
 export interface MapStoreState {

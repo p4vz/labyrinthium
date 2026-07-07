@@ -16,8 +16,10 @@ export function Game(): JSX.Element {
   const reset = useGameStore((s) => s.reset);
   const feed = useGameStore((s) => s.feed);
   const paletteWide = useMapStore((s) => s.paletteWide);
-  /** which side panel is open on small screens */
-  const [drawer, setDrawer] = useState<'draw' | 'maps' | null>(null);
+  /** aux-maps drawer on small screens; the tool rail stays inline */
+  const [mapsOpen, setMapsOpen] = useState(false);
+  /** full game-master log as a bottom sheet (opened from the ticker) */
+  const [logOpen, setLogOpen] = useState(false);
 
   const maps = useMapStore((s) => s.maps);
   const activeMapId = useMapStore((s) => s.activeMapId);
@@ -63,14 +65,8 @@ export function Game(): JSX.Element {
         <span data-testid="room-tag">room {room?.roomCode}</span>
         {spectating && <span className="spectator-tag">👁 spectating</span>}
         <button
-          className={`mobile-only drawer-btn ${drawer === 'draw' ? 'active' : ''}`}
-          onClick={() => setDrawer(drawer === 'draw' ? null : 'draw')}
-        >
-          ✏️
-        </button>
-        <button
-          className={`mobile-only drawer-btn ${drawer === 'maps' ? 'active' : ''}`}
-          onClick={() => setDrawer(drawer === 'maps' ? null : 'maps')}
+          className={`mobile-only drawer-btn ${mapsOpen ? 'active' : ''}`}
+          onClick={() => setMapsOpen(!mapsOpen)}
         >
           🗺️
         </button>
@@ -80,11 +76,11 @@ export function Game(): JSX.Element {
       </header>
 
       <div className="game-body">
-        {drawer && <div className="drawer-backdrop mobile-only" onClick={() => setDrawer(null)} />}
-        <aside className={`left-col ${drawer === 'draw' ? 'mobile-open' : ''}`}>
+        {mapsOpen && <div className="drawer-backdrop mobile-only" onClick={() => setMapsOpen(false)} />}
+        <aside className="left-col">
           {!spectating && <Palette />}
           {/* With the rail collapsed, the feed yields to the ticker below. */}
-          {(spectating || paletteWide || drawer === 'draw') && <EventFeed />}
+          {(spectating || paletteWide) && <EventFeed />}
         </aside>
 
         <main className="map-col">
@@ -122,7 +118,7 @@ export function Game(): JSX.Element {
           )}
         </main>
 
-        <div className={`aux-wrap ${drawer === 'maps' ? 'mobile-open' : ''}`}>
+        <div className={`aux-wrap ${mapsOpen ? 'mobile-open' : ''}`}>
           <AuxPanel />
         </div>
       </div>
@@ -130,16 +126,27 @@ export function Game(): JSX.Element {
       {feed.length > 0 && (
         <button
           className={`event-ticker ${!paletteWide && !spectating ? 'always' : ''}`}
-          onClick={() => {
-            useMapStore.getState().setPaletteWide(true);
-            setDrawer('draw');
-          }}
+          data-testid="event-ticker"
+          title="tap for the full log"
+          onClick={() => setLogOpen(true)}
         >
           {(() => {
             const last = feed[feed.length - 1]!;
             return `${last.ownerName ? `${last.ownerName} ▸ ` : ''}${describeEvent(last.event)}`;
           })()}
         </button>
+      )}
+
+      {logOpen && (
+        <>
+          <div className="log-backdrop" onClick={() => setLogOpen(false)} />
+          <div className="log-sheet" data-testid="log-sheet">
+            <button className="log-close" onClick={() => setLogOpen(false)}>
+              ▾ close log
+            </button>
+            <EventFeed />
+          </div>
+        </>
       )}
 
       <ActionBar />
