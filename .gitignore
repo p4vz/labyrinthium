@@ -6,3 +6,5 @@ dist/
 data/
 *.sqlite
 *.sqlite3
+test-results/
+playwright-report/
