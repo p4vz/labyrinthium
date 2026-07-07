@@ -179,6 +179,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       case 'game.events': {
         const me = get().started?.yourPlayerId;
         const names = new Map((get().started?.turnOrder ?? []).map((p) => [p.id, p.name]));
+        // The GM confirmed we physically moved (walk or river current):
+        // advance the "you" pawn on the player's maps automatically.
+        for (const e of msg.events) {
+          if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
+          if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
+            useMapStore.getState().moveYouPawn(e.payload.direction);
+          }
+        }
         const entries: FeedEntry[] = msg.events.map((e) => {
           const foreign =
             e.visibility.kind === 'private' && me !== undefined && e.visibility.playerId !== me

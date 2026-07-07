@@ -65,6 +65,8 @@ export interface MapStoreState {
     entrance?: { level: number; x: number; y: number },
     playerCount?: number,
   ): void;
+  /** slide every "you" pawn one tile when the GM confirms you moved */
+  moveYouPawn(direction: 'N' | 'E' | 'S' | 'W'): void;
   setActive(mapId: string, grid?: number): void;
   setTool(tool: Tool): void;
   clickEdge(x: number, y: number, side: 'N' | 'W'): void;
@@ -185,6 +187,35 @@ export const useMapStore = create<MapStoreState>((set, get) => {
 
     setActive(mapId, grid) {
       set({ activeMapId: mapId, activeGrid: grid ?? 0, selection: null, pending: null });
+    },
+
+    moveYouPawn(direction) {
+      // Automatic bookkeeping, not an edit: no undo snapshot, so Ctrl+Z
+      // stays reserved for the player's own drawing.
+      const delta = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } }[
+        direction
+      ];
+      const { maps, storageKey } = get();
+      const next = JSON.parse(JSON.stringify(maps)) as PlayerMap[];
+      let changed = false;
+      for (const map of next) {
+        for (let gi = 0; gi < map.grids.length; gi++) {
+          const grid = map.grids[gi]!;
+          const idx = grid.cells.findIndex((c) => c?.stamps.includes('you'));
+          if (idx < 0) continue;
+          const x = idx % grid.width;
+          const y = Math.floor(idx / grid.width);
+          const tx = x + delta.x;
+          const ty = y + delta.y;
+          if (tx < 0 || ty < 0 || tx >= grid.width || ty >= grid.height) continue;
+          map.grids[gi] = toggleStamp(grid, tx, ty, 'you');
+          changed = true;
+        }
+      }
+      if (changed) {
+        set({ maps: next });
+        persist({ storageKey, maps: next });
+      }
     },
 
     setTool(tool) {

@@ -137,6 +137,27 @@ describe('map store: undo/redo, aux maps, merge', () => {
     expect(aux.grids[0]!.cells[0]?.stamps).toContain('exit');
   });
 
+  it('moveYouPawn slides the pawn with confirmed moves, clamped to the grid', () => {
+    const store = fresh(); // entrance pawn at (0,0)
+    store.getState().moveYouPawn('E');
+    store.getState().moveYouPawn('S');
+    let grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.cells[1 * 5 + 1]?.stamps).toContain('you');
+    // walking off the edge does nothing
+    store.getState().moveYouPawn('W');
+    store.getState().moveYouPawn('W');
+    store.getState().moveYouPawn('W');
+    grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.cells[1 * 5 + 0]?.stamps).toContain('you');
+    // pawn moves on an aux map too, wherever it currently is
+    store.getState().addAuxMap();
+    store.getState().setTool({ kind: 'stamp', stamp: 'you' });
+    store.getState().clickCell(2, 2);
+    store.getState().moveYouPawn('N');
+    const aux = store.getState().maps.find((m) => m.id === store.getState().activeMapId)!;
+    expect(aux.grids[0]!.cells[1 * aux.grids[0]!.width + 2]?.stamps).toContain('you');
+  });
+
   it('cut clears the source region', () => {
     const store = fresh();
     store.getState().setTool({ kind: 'stamp', stamp: 'mine' });

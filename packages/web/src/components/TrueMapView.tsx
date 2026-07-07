@@ -1,4 +1,5 @@
 import type { MapDocument, Pos } from '@labyrinthium/shared';
+import { grateGlyph } from './MapGrid.js';
 
 const CS = 34;
 const PAD = 6;
@@ -159,6 +160,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           {s && (
             <line x1={px(x)} y1={py(row)} x2={px(x + 1)} y2={py(row)} stroke={s.stroke} strokeWidth={s.width} strokeDasharray={s.dash} strokeLinecap="round" pointerEvents="none" />
           )}
+          {state === 'grate' && grateGlyph(px(x) + CS / 2, py(row))}
           {props.onEdgeClick && (
             <line x1={px(x) + 4} y1={py(row)} x2={px(x + 1) - 4} y2={py(row)} stroke="transparent" strokeWidth={9} data-trueedge={`h:${x},${row}`} onClick={() => props.onEdgeClick?.(x, row, 'N')} style={{ cursor: 'crosshair' }} />
           )}
@@ -175,6 +177,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           {s && (
             <line x1={px(col)} y1={py(y)} x2={px(col)} y2={py(y + 1)} stroke={s.stroke} strokeWidth={s.width} strokeDasharray={s.dash} strokeLinecap="round" pointerEvents="none" />
           )}
+          {state === 'grate' && grateGlyph(px(col), py(y) + CS / 2)}
           {props.onEdgeClick && (
             <line x1={px(col)} y1={py(y) + 4} x2={px(col)} y2={py(y + 1) - 4} stroke="transparent" strokeWidth={9} data-trueedge={`v:${col},${y}`} onClick={() => props.onEdgeClick?.(col, y, 'W')} style={{ cursor: 'crosshair' }} />
           )}

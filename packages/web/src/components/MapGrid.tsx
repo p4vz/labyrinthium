@@ -129,6 +129,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
               strokeDasharray={s.dash}
               strokeLinecap="round"
             />
+            {mark === 'grate' && grateGlyph(px(x) + CS / 2, py(row))}
             {props.onEdgeClick && (
               <line
                 x1={px(x) + 4}
@@ -163,6 +164,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
               strokeDasharray={s.dash}
               strokeLinecap="round"
             />
+            {mark === 'grate' && grateGlyph(px(col), py(y) + CS / 2)}
             {props.onEdgeClick && (
               <line
                 x1={px(col)}
@@ -242,6 +244,26 @@ export function MapGrid(props: MapGridProps): JSX.Element {
       {edges}
       {ghost}
     </svg>
+  );
+}
+
+/** Portcullis badge on a grate edge — a dark disc with iron bars. */
+export function grateGlyph(cx: number, cy: number): JSX.Element {
+  return (
+    <g pointerEvents="none">
+      <circle cx={cx} cy={cy} r={7} fill="#10202e" stroke="#58a6d8" strokeWidth={1.2} />
+      {/* vertical bars */}
+      {[-3, 0, 3].map((dx) => (
+        <line key={dx} x1={cx + dx} y1={cy - 4} x2={cx + dx} y2={cy + 4} stroke="#8cc4e8" strokeWidth={1.1} />
+      ))}
+      {/* cross brace */}
+      <line x1={cx - 4.5} y1={cy - 1} x2={cx + 4.5} y2={cy - 1} stroke="#8cc4e8" strokeWidth={1.1} />
+      <line x1={cx - 4.5} y1={cy + 2.5} x2={cx + 4.5} y2={cy + 2.5} stroke="#8cc4e8" strokeWidth={1.1} />
+      {/* spikes at the bottom, like a raised portcullis */}
+      {[-3, 0, 3].map((dx) => (
+        <line key={`s${dx}`} x1={cx + dx} y1={cy + 4} x2={cx + dx} y2={cy + 5.2} stroke="#58a6d8" strokeWidth={0.8} />
+      ))}
+    </g>
   );
 }
 
