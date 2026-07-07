@@ -63,6 +63,10 @@ The repo ships a `Dockerfile` and `railway.json`, so deployment is:
 
 Any other Docker host (Fly.io, Render, a VPS) works the same way.
 
+Using Claude Code? Open this repo and run **`/deploy-railway`** — it walks
+the whole Railway CLI setup (login, project, deploy, domain, volume) for you
+(see `.claude/commands/deploy-railway.md`).
+
 ## How a round works
 
 1. Someone creates a room (generated map — size × complexity × seed — or a
