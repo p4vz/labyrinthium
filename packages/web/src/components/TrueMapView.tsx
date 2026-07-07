@@ -1,5 +1,5 @@
 import type { MapDocument, Pos } from '@labyrinthium/shared';
-import { grateGlyph } from './MapGrid.js';
+import { doorGlyph, grateGlyph } from './MapGrid.js';
 
 const CS = 34;
 const PAD = 6;
@@ -126,7 +126,15 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
 
   // Entrance / spawns on this level.
   if (props.map.entrance.level === props.level) {
-    parts.push(cellGlyph('entrance', px(props.map.entrance.x), py(props.map.entrance.y), '🏁'));
+    const e = props.map.entrance;
+    parts.push(cellGlyph('entrance', px(e.x), py(e.y), '🏁'));
+    // the way in: amber gate arches on the entrance cell's border sides
+    if (e.y === 0) parts.push(<g key="gN">{doorGlyph(px(e.x) + CS / 2, py(0), 'gate')}</g>);
+    if (e.x === 0) parts.push(<g key="gW">{doorGlyph(px(0), py(e.y) + CS / 2, 'gate')}</g>);
+    if (e.y === grid.height - 1)
+      parts.push(<g key="gS">{doorGlyph(px(e.x) + CS / 2, py(grid.height), 'gate')}</g>);
+    if (e.x === grid.width - 1)
+      parts.push(<g key="gE">{doorGlyph(px(grid.width), py(e.y) + CS / 2, 'gate')}</g>);
   }
   const treasure = props.overlay?.treasure ?? props.map.spawns.treasure;
   if (treasure && treasure.level === props.level) {
@@ -161,6 +169,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
             <line x1={px(x)} y1={py(row)} x2={px(x + 1)} y2={py(row)} stroke={s.stroke} strokeWidth={s.width} strokeDasharray={s.dash} strokeLinecap="round" pointerEvents="none" />
           )}
           {state === 'grate' && grateGlyph(px(x) + CS / 2, py(row))}
+          {state === 'exit' && doorGlyph(px(x) + CS / 2, py(row), 'exit')}
           {props.onEdgeClick && (
             <line x1={px(x) + 4} y1={py(row)} x2={px(x + 1) - 4} y2={py(row)} stroke="transparent" strokeWidth={9} data-trueedge={`h:${x},${row}`} onClick={() => props.onEdgeClick?.(x, row, 'N')} style={{ cursor: 'crosshair' }} />
           )}
@@ -178,6 +187,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
             <line x1={px(col)} y1={py(y)} x2={px(col)} y2={py(y + 1)} stroke={s.stroke} strokeWidth={s.width} strokeDasharray={s.dash} strokeLinecap="round" pointerEvents="none" />
           )}
           {state === 'grate' && grateGlyph(px(col), py(y) + CS / 2)}
+          {state === 'exit' && doorGlyph(px(col), py(y) + CS / 2, 'exit')}
           {props.onEdgeClick && (
             <line x1={px(col)} y1={py(y) + 4} x2={px(col)} y2={py(y + 1) - 4} stroke="transparent" strokeWidth={9} data-trueedge={`v:${col},${y}`} onClick={() => props.onEdgeClick?.(col, y, 'W')} style={{ cursor: 'crosshair' }} />
           )}

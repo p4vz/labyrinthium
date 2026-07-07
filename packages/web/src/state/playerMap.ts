@@ -5,7 +5,7 @@
  * (the computer) told them, exactly like pencil on graph paper.
  */
 
-export type EdgeMark = 'unknown' | 'open' | 'wall' | 'grate';
+export type EdgeMark = 'unknown' | 'open' | 'wall' | 'grate' | 'exit' | 'gate';
 
 export type Stamp =
   | 'you'
@@ -104,16 +104,47 @@ export function cellIndex(g: { width: number }, x: number, y: number): number {
   return y * g.width + x;
 }
 
-const EDGE_CYCLE: EdgeMark[] = ['unknown', 'wall', 'open', 'grate'];
+// 'gate' (the entrance arch) is auto-drawn only — not part of the hand cycle.
+const EDGE_CYCLE: EdgeMark[] = ['unknown', 'wall', 'open', 'grate', 'exit'];
 
 export function cycleEdge(g: PlayerGrid, x: number, y: number, side: 'N' | 'W'): PlayerGrid {
   const next = cloneGrid(g);
+  const advance = (cur: EdgeMark): EdgeMark => {
+    const i = EDGE_CYCLE.indexOf(cur);
+    return EDGE_CYCLE[(i < 0 ? 0 : i + 1) % EDGE_CYCLE.length]!;
+  };
   if (side === 'N') {
     const i = y * g.width + x;
-    next.h[i] = EDGE_CYCLE[(EDGE_CYCLE.indexOf(next.h[i]!) + 1) % EDGE_CYCLE.length]!;
+    next.h[i] = advance(next.h[i]!);
   } else {
     const i = y * (g.width + 1) + x;
-    next.v[i] = EDGE_CYCLE[(EDGE_CYCLE.indexOf(next.v[i]!) + 1) % EDGE_CYCLE.length]!;
+    next.v[i] = advance(next.v[i]!);
+  }
+  return next;
+}
+
+/** Set one edge explicitly (used by the automatic exit/entrance marking). */
+export function setEdgeMark(
+  g: PlayerGrid,
+  x: number,
+  y: number,
+  dir: 'N' | 'E' | 'S' | 'W',
+  mark: EdgeMark,
+): PlayerGrid {
+  const next = cloneGrid(g);
+  switch (dir) {
+    case 'N':
+      next.h[y * g.width + x] = mark;
+      break;
+    case 'S':
+      next.h[(y + 1) * g.width + x] = mark;
+      break;
+    case 'W':
+      next.v[y * (g.width + 1) + x] = mark;
+      break;
+    case 'E':
+      next.v[y * (g.width + 1) + x + 1] = mark;
+      break;
   }
   return next;
 }

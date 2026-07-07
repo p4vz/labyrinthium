@@ -35,6 +35,8 @@ const EDGE_STYLE: Record<string, { stroke: string; width: number; dash?: string 
   open: { stroke: '#4a6b4a', width: 2 },
   wall: { stroke: '#d9c9a3', width: 5 },
   grate: { stroke: '#58a6d8', width: 4, dash: '5 4' },
+  exit: { stroke: '#7dc981', width: 5, dash: '3 5' },
+  gate: { stroke: '#e0902e', width: 5, dash: '3 5' },
 };
 
 export interface MapGridProps {
@@ -130,6 +132,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
               strokeLinecap="round"
             />
             {mark === 'grate' && grateGlyph(px(x) + CS / 2, py(row))}
+            {(mark === 'exit' || mark === 'gate') && doorGlyph(px(x) + CS / 2, py(row), mark)}
             {props.onEdgeClick && (
               <line
                 x1={px(x) + 4}
@@ -165,6 +168,7 @@ export function MapGrid(props: MapGridProps): JSX.Element {
               strokeLinecap="round"
             />
             {mark === 'grate' && grateGlyph(px(col), py(y) + CS / 2)}
+            {(mark === 'exit' || mark === 'gate') && doorGlyph(px(col), py(y) + CS / 2, mark)}
             {props.onEdgeClick && (
               <line
                 x1={px(col)}
@@ -244,6 +248,28 @@ export function MapGrid(props: MapGridProps): JSX.Element {
       {edges}
       {ghost}
     </svg>
+  );
+}
+
+/**
+ * Gate badge on an edge: an archway. Amber = the entrance you came in
+ * through; green = an EXIT the game master confirmed.
+ */
+export function doorGlyph(cx: number, cy: number, kind: 'gate' | 'exit'): JSX.Element {
+  const color = kind === 'gate' ? '#e0902e' : '#7dc981';
+  return (
+    <g pointerEvents="none">
+      <circle cx={cx} cy={cy} r={7.5} fill="#1a130c" stroke={color} strokeWidth={1.3} />
+      {/* archway: two posts + a rounded top */}
+      <path
+        d={`M ${cx - 3.4} ${cy + 4} L ${cx - 3.4} ${cy - 0.5} A 3.4 3.4 0 0 1 ${cx + 3.4} ${cy - 0.5} L ${cx + 3.4} ${cy + 4}`}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.4}
+      />
+      {/* threshold */}
+      <line x1={cx - 4.6} y1={cy + 4.2} x2={cx + 4.6} y2={cy + 4.2} stroke={color} strokeWidth={1.2} />
+    </g>
   );
 }
 

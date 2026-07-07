@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   PIECE_STAMPS,
+  setEdgeMark,
   createGrid,
   extract,
   clearRect,
@@ -67,6 +68,8 @@ export interface MapStoreState {
   ): void;
   /** slide every "you" pawn one tile when the GM confirms you moved */
   moveYouPawn(direction: 'N' | 'E' | 'S' | 'W'): void;
+  /** the GM revealed an exit next to you: draw the green gate at the pawn */
+  markExitEdge(direction: 'N' | 'E' | 'S' | 'W'): void;
   setActive(mapId: string, grid?: number): void;
   setTool(tool: Tool): void;
   clickEdge(x: number, y: number, side: 'N' | 'W'): void;
@@ -171,6 +174,27 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           maps[0]!.grids[entrance.level] = grid;
         }
       }
+      // The entrance is a GATE in the outer wall — draw the arch on every
+      // border side of the entrance cell (also patches maps saved before
+      // this existed, hence outside the fresh-map branch).
+      if (entrance) {
+        const main = maps.find((m) => m.id === 'main');
+        let grid = main?.grids[entrance.level];
+        if (main && grid) {
+          const sides: ('N' | 'E' | 'S' | 'W')[] = [];
+          if (entrance.y === 0) sides.push('N');
+          if (entrance.x === 0) sides.push('W');
+          if (entrance.y === grid.height - 1) sides.push('S');
+          if (entrance.x === grid.width - 1) sides.push('E');
+          for (const side of sides) {
+            grid = setEdgeMark(grid, entrance.x, entrance.y, side, 'gate');
+          }
+          if (!grid.cells.some((c) => c?.stamps.includes('entrance'))) {
+            grid = toggleStamp(grid, entrance.x, entrance.y, 'entrance');
+          }
+          main.grids[entrance.level] = grid;
+        }
+      }
       auxCounter = maps.length - 1;
       set({
         storageKey,
@@ -209,6 +233,27 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           const ty = y + delta.y;
           if (tx < 0 || ty < 0 || tx >= grid.width || ty >= grid.height) continue;
           map.grids[gi] = toggleStamp(grid, tx, ty, 'you');
+          changed = true;
+        }
+      }
+      if (changed) {
+        set({ maps: next });
+        persist({ storageKey, maps: next });
+      }
+    },
+
+    markExitEdge(direction) {
+      const { maps, storageKey } = get();
+      const next = JSON.parse(JSON.stringify(maps)) as PlayerMap[];
+      let changed = false;
+      for (const map of next) {
+        for (let gi = 0; gi < map.grids.length; gi++) {
+          const grid = map.grids[gi]!;
+          const idx = grid.cells.findIndex((c) => c?.stamps.includes('you'));
+          if (idx < 0) continue;
+          const x = idx % grid.width;
+          const y = Math.floor(idx / grid.width);
+          map.grids[gi] = setEdgeMark(grid, x, y, direction, 'exit');
           changed = true;
         }
       }

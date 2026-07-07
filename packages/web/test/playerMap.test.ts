@@ -11,7 +11,7 @@ import {
 import { useMapStore } from '../src/state/mapStore.js';
 
 describe('player map primitives', () => {
-  it('cycles edge marks unknown -> wall -> open -> grate -> unknown', () => {
+  it('cycles edge marks unknown -> wall -> open -> grate -> exit -> unknown', () => {
     let g = createGrid(3, 3);
     expect(g.h[0]).toBe('unknown');
     g = cycleEdge(g, 0, 0, 'N');
@@ -20,6 +20,8 @@ describe('player map primitives', () => {
     expect(g.h[0]).toBe('open');
     g = cycleEdge(g, 0, 0, 'N');
     expect(g.h[0]).toBe('grate');
+    g = cycleEdge(g, 0, 0, 'N');
+    expect(g.h[0]).toBe('exit');
     g = cycleEdge(g, 0, 0, 'N');
     expect(g.h[0]).toBe('unknown');
   });
@@ -156,6 +158,19 @@ describe('map store: undo/redo, aux maps, merge', () => {
     store.getState().moveYouPawn('N');
     const aux = store.getState().maps.find((m) => m.id === store.getState().activeMapId)!;
     expect(aux.grids[0]!.cells[1 * aux.grids[0]!.width + 2]?.stamps).toContain('you');
+  });
+
+  it('entrance gate is auto-drawn on the border and foundExit charts a green gate at the pawn', () => {
+    const store = fresh(); // entrance (0,0): border sides N and W get gates
+    const grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.h[0]).toBe('gate'); // (0,0).N
+    expect(grid.v[0]).toBe('gate'); // (0,0).W
+    // pawn walks east twice, then the GM reveals an exit to the north
+    store.getState().moveYouPawn('E');
+    store.getState().moveYouPawn('E');
+    store.getState().markExitEdge('N');
+    const after = store.getState().maps[0]!.grids[0]!;
+    expect(after.h[2]).toBe('exit'); // (2,0).N
   });
 
   it('cut clears the source region', () => {

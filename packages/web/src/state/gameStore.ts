@@ -185,6 +185,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
             useMapStore.getState().moveYouPawn(e.payload.direction);
+          } else if (e.payload.type === 'foundExit') {
+            // The GM confirmed an exit right next to you — chart the gate.
+            useMapStore.getState().markExitEdge(e.payload.direction);
           }
         }
         const entries: FeedEntry[] = msg.events.map((e) => {

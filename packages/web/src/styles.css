@@ -231,6 +231,9 @@ h3 {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* dvh tracks the REAL visible viewport on phones (browser banner
+     included), so the action bar never sinks below the fold */
+  height: 100dvh;
 }
 .game-header {
   display: flex;
@@ -550,6 +553,7 @@ h3 {
 .editor,
 .replay {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -777,10 +781,12 @@ h3 {
   .map-col {
     padding: 6px;
   }
-  /* Scale the belief map to the space next to the tool rail. */
+  /* Scale the belief map to the space next to the tool rail, and cap its
+     height so the action bar always stays on screen. */
   .player-map-svg {
     width: min(96vw - 62px, 520px);
     height: auto;
+    max-height: 56dvh;
   }
 
   .event-ticker {
@@ -800,38 +806,43 @@ h3 {
 
   .action-bar {
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 8px;
+    gap: 4px 8px;
+    padding: 5px 8px;
     justify-content: space-between;
   }
+  /* one compact row: turn info + inventory share the top line */
   .turn-indicator {
     min-width: 0;
-    font-size: 13.5px;
-    width: 100%;
-    text-align: center;
-  }
-  .modes {
-    flex-wrap: wrap;
-  }
-  .modes button {
-    padding: 10px 12px;
-  }
-  .dpad {
-    grid-template-columns: 46px 46px 46px 50px;
-    grid-template-rows: 38px 38px 38px;
-    gap: 4px;
-  }
-  .dpad button {
-    font-size: 16px;
+    font-size: 12.5px;
+    width: auto;
+    flex: 1;
+    text-align: left;
   }
   .inventory {
     margin-left: 0;
-    font-size: 12.5px;
-    width: 100%;
-    text-align: center;
+    font-size: 12px;
+    width: auto;
+    text-align: right;
   }
   .inventory small {
     display: none;
+  }
+  .modes {
+    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .modes button {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+  .dpad {
+    grid-template-columns: 44px 44px 44px 48px;
+    grid-template-rows: 34px 34px 34px;
+    gap: 4px;
+  }
+  .dpad button {
+    font-size: 15px;
   }
 
   .home {
@@ -874,6 +885,7 @@ h3 {
     grid-template-columns: minmax(0, 1fr) 200px;
     grid-template-rows: auto minmax(0, 1fr);
     height: 100vh;
+    height: 100dvh;
   }
   .game-header {
     grid-column: 1 / -1;
@@ -901,7 +913,7 @@ h3 {
   }
   .player-map-svg {
     width: auto;
-    max-height: calc(100vh - 60px);
+    max-height: calc(100dvh - 60px);
   }
   .turn-indicator {
     width: auto;
