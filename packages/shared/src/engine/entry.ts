@@ -98,6 +98,17 @@ export function runEntryPipeline(
       ctx.emit(priv, { type: 'trapSprung', paralysis: trap.paralysis });
     }
 
+    // Dropped gear on the floor: an able-bodied visitor scoops it all up.
+    const floorIdx = state.floorItems.findIndex((f) => posEq(f.pos, player.pos));
+    if (floorIdx >= 0 && player.paralysis === 0) {
+      const found = state.floorItems[floorIdx]!.items;
+      player.inventory.grenades += found.grenades;
+      player.inventory.bullets += found.bullets;
+      player.inventory.mines += found.mines;
+      state.floorItems.splice(floorIdx, 1);
+      ctx.emit(priv, { type: 'itemsFound', ...found });
+    }
+
     const stairs = feats.filter((f): f is Extract<MapFeature, { type: 'stairs' }> => f.type === 'stairs');
     if (stairs.length > 0) {
       const directions = stairs.map((s) => (s.to.level > player.pos.level ? 'D' as const : 'U' as const));

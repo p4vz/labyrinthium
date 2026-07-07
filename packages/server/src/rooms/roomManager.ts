@@ -1,4 +1,13 @@
-import { generateMap, validateMap, type Complexity, type MapDocument, type SizePreset } from '@labyrinthium/shared';
+import {
+  generateMap,
+  validateMap,
+  DEFAULT_CONFIG,
+  type Complexity,
+  type GameConfig,
+  type GameRules,
+  type MapDocument,
+  type SizePreset,
+} from '@labyrinthium/shared';
 import { randomInt } from 'node:crypto';
 import type { Db } from '../persistence/db.js';
 import { Room, RoomError, type RoomPlayer } from './room.js';
@@ -11,6 +20,26 @@ export interface CreateRoomOptions {
   complexity?: Complexity;
   seed?: string;
   mapId?: string;
+  rules?: GameRules;
+}
+
+/** Fold the create-screen checkboxes into a full engine config. */
+export function configFromRules(rules: GameRules | undefined): GameConfig {
+  const base: GameConfig = { ...DEFAULT_CONFIG, startingInventory: { ...DEFAULT_CONFIG.startingInventory } };
+  if (!rules) return base;
+  if (rules.openInformation !== undefined) base.openInformation = rules.openInformation;
+  if (rules.turnTimerSeconds !== undefined) base.turnTimerSeconds = rules.turnTimerSeconds;
+  if (rules.dropAllOnShot !== undefined) base.dropAllOnShot = rules.dropAllOnShot;
+  if (rules.allowBorderGrenade !== undefined) base.allowBorderGrenade = rules.allowBorderGrenade;
+  if (rules.treasureDrifts !== undefined) base.treasureDrifts = rules.treasureDrifts;
+  if (rules.doubleAmmo) {
+    base.startingInventory = {
+      grenades: base.startingInventory.grenades * 2,
+      bullets: base.startingInventory.bullets * 2,
+      mines: base.startingInventory.mines * 2,
+    };
+  }
+  return base;
 }
 
 export class RoomManager {
@@ -38,7 +67,7 @@ export class RoomManager {
       });
     }
     const code = this.uniqueCode();
-    const room = new Room(code, map, seed, this.db);
+    const room = new Room(code, map, seed, configFromRules(opts.rules), this.db);
     this.rooms.set(code, room);
     return room;
   }

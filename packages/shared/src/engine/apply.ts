@@ -39,13 +39,38 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
   };
   const player = activePlayer(state);
   const priv: Visibility = { kind: 'private', playerId: player.id };
+  // At the table, actions are spoken aloud. Under open-information rules
+  // everyone hears the declaration; otherwise only the actor's log gets it.
+  const announceVis: Visibility = state.config.openInformation ? { kind: 'public' } : priv;
 
   if (player.paralysis > 0) {
     player.paralysis--;
+    ctx.emit(announceVis, {
+      type: 'actionAnnounced',
+      playerId: player.id,
+      playerName: player.name,
+      action: 'skip',
+    });
     ctx.emit(priv, { type: 'turnSkippedParalyzed', remaining: player.paralysis });
     advanceTurn(state);
     return { state, events };
   }
+
+  if (action.type === 'skip') {
+    // Only reachable under a turn timer (validate() rejects it otherwise):
+    // the clock ran out and the server skips the turn for the player.
+    ctx.emit({ kind: 'public' }, { type: 'turnTimedOut', playerName: player.name });
+    advanceTurn(state);
+    return { state, events };
+  }
+
+  ctx.emit(announceVis, {
+    type: 'actionAnnounced',
+    playerId: player.id,
+    playerName: player.name,
+    action: action.type,
+    ...('direction' in action ? { direction: action.direction } : {}),
+  });
 
   // The current sweeps anyone starting their turn in a river, before they act.
   driftAtTurnStart(ctx, player);
@@ -66,8 +91,6 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
         state.placedMines.push({ ...player.pos });
         ctx.emit(priv, { type: 'minePlaced' });
         break;
-      case 'skip':
-        break; // unreachable: validate() rejects skip for able players
     }
   }
 
@@ -94,7 +117,10 @@ function validate(state: GameState, action: PlayerAction): void {
 
   switch (action.type) {
     case 'skip':
-      throw new InvalidActionError('NOT_PARALYZED', 'you can only skip while paralyzed');
+      if (state.config.turnTimerSeconds <= 0) {
+        throw new InvalidActionError('NOT_PARALYZED', 'you can only skip while paralyzed');
+      }
+      break;
     case 'shoot':
       if (player.inventory.bullets <= 0) throw new InvalidActionError('NO_AMMO', 'no bullets left');
       break;
@@ -212,6 +238,20 @@ function resolveShoot(ctx: EngineCtx, player: PlayerState, direction: PlanarDire
       for (const victim of victims) {
         victim.paralysis = state.config.paralysisTurns;
         dropTreasure(ctx, victim);
+        if (state.config.dropAllOnShot) {
+          const inv = victim.inventory;
+          if (inv.grenades + inv.bullets + inv.mines > 0) {
+            const existing = state.floorItems.find((f) => posEq(f.pos, victim.pos));
+            if (existing) {
+              existing.items.grenades += inv.grenades;
+              existing.items.bullets += inv.bullets;
+              existing.items.mines += inv.mines;
+            } else {
+              state.floorItems.push({ pos: { ...victim.pos }, items: { ...inv } });
+            }
+            victim.inventory = { grenades: 0, bullets: 0, mines: 0 };
+          }
+        }
         ctx.emit(
           { kind: 'private', playerId: victim.id },
           { type: 'youWereShot', paralysis: state.config.paralysisTurns },

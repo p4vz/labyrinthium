@@ -12,6 +12,15 @@ export interface RoomPlayerInfo {
   id: string;
   name: string;
   connected: boolean;
+  isBot?: boolean;
+}
+
+export interface ActiveRules {
+  openInformation: boolean;
+  turnTimerSeconds: number;
+  dropAllOnShot: boolean;
+  allowBorderGrenade: boolean;
+  treasureDrifts: boolean;
 }
 
 export type ServerMessage =
@@ -34,6 +43,7 @@ export type ServerMessage =
       entrance: Pos;
       turnOrder: { id: string; name: string }[];
       inventory: Inventory;
+      rules: ActiveRules;
     }
   | { type: 'game.turn'; activePlayerId: string; turnNumber: number }
   | { type: 'game.events'; events: GameEvent[] }

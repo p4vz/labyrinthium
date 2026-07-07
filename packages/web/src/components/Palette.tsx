@@ -1,9 +1,12 @@
+import { useGameStore } from '../state/gameStore.js';
 import { useMapStore } from '../state/mapStore.js';
 import { STAMP_GLYPHS } from './MapGrid.js';
-import type { Stamp } from '../state/playerMap.js';
+import { PIECE_STAMPS, type Stamp } from '../state/playerMap.js';
 
 const STAMPS: { stamp: Stamp; label: string }[] = [
   { stamp: 'you', label: 'you are here' },
+  { stamp: 'empty', label: 'nothing here' },
+  { stamp: 'entrance', label: 'entrance' },
   { stamp: 'teleport', label: 'teleport' },
   { stamp: 'stairs', label: 'stairs' },
   { stamp: 'trapdoor', label: 'trap door' },
@@ -68,6 +71,8 @@ export function Palette(): JSX.Element {
         ⌫ erase
       </button>
 
+      <PlayerPieces isStamp={isStamp} setStamp={(s) => setTool({ kind: 'stamp', stamp: s })} />
+
       <h3>Edit</h3>
       <button className={tool.kind === 'select' ? 'active' : ''} onClick={() => setTool({ kind: 'select' })}>
         ▭ select <small>(drag)</small>
@@ -94,5 +99,33 @@ export function Palette(): JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+/** One tracking piece per player in the room, colored by turn order. */
+function PlayerPieces(props: {
+  isStamp(s: Stamp): boolean;
+  setStamp(s: Stamp): void;
+}): JSX.Element | null {
+  const started = useGameStore((s) => s.started);
+  if (!started || started.turnOrder.length < 2) return null;
+  return (
+    <>
+      <h3>Track players</h3>
+      {started.turnOrder.slice(0, PIECE_STAMPS.length).map((p, i) => {
+        const stamp = PIECE_STAMPS[i]!;
+        return (
+          <button
+            key={p.id}
+            className={props.isStamp(stamp) ? 'active' : ''}
+            onClick={() => props.setStamp(stamp)}
+            title={`move ${p.name}'s piece on your map`}
+          >
+            {STAMP_GLYPHS[stamp]} {p.name}
+            {p.id === started.yourPlayerId ? ' (you)' : ''}
+          </button>
+        );
+      })}
+    </>
   );
 }

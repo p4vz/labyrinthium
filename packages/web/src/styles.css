@@ -482,3 +482,280 @@ h3 {
   width: 280px;
   font-size: 13px;
 }
+
+/* ------- house rules / lobby extras ------- */
+.rules-toggle {
+  text-align: left;
+}
+.rules-box {
+  border: 1px solid #d8ccb2;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 6px;
+}
+.rules-box .check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+}
+.rules-box .check input {
+  width: auto;
+  margin-top: 2px;
+}
+.bot-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.turn-clock {
+  margin-left: 8px;
+  color: #9c6b1e;
+}
+.turn-clock.urgent {
+  color: #c62828;
+  font-weight: bold;
+}
+.feed-owner {
+  color: #7a5fd0;
+  font-weight: bold;
+}
+.feed-foreign {
+  color: #5a5245;
+}
+.event-ticker {
+  display: none;
+}
+.mobile-only {
+  display: none;
+}
+
+/* =========================================================
+   MOBILE — portrait phones & small screens
+   Side panels become slide-in drawers; the map owns the screen.
+   ========================================================= */
+@media (max-width: 880px) {
+  .mobile-only {
+    display: inline-block;
+  }
+  .drawer-btn {
+    font-size: 17px;
+    padding: 4px 10px;
+  }
+  .game-header {
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .game-body {
+    position: relative;
+  }
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 24, 18, 0.35);
+    z-index: 18;
+    display: block;
+  }
+  .left-col {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    width: min(78vw, 300px);
+    transform: translateX(-105%);
+    transition: transform 0.18s ease-out;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.25);
+  }
+  .left-col.mobile-open {
+    transform: translateX(0);
+  }
+  .aux-wrap {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 20;
+    transform: translateX(105%);
+    transition: transform 0.18s ease-out;
+    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.25);
+  }
+  .aux-wrap.mobile-open {
+    transform: translateX(0);
+  }
+  .aux-wrap .aux-panel {
+    height: 100%;
+  }
+  .aux-panel.open {
+    width: min(78vw, 300px);
+    min-width: 0;
+  }
+
+  .map-col {
+    padding: 6px;
+  }
+  /* Scale the belief map up to the viewport for fat-finger-friendly taps. */
+  .player-map-svg {
+    width: min(96vw, 520px);
+    height: auto;
+  }
+
+  .event-ticker {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    font-size: 12.5px;
+    padding: 6px 12px;
+    background: #f4eede;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .action-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    justify-content: space-between;
+  }
+  .turn-indicator {
+    min-width: 0;
+    font-size: 13.5px;
+    width: 100%;
+    text-align: center;
+  }
+  .modes {
+    flex-wrap: wrap;
+  }
+  .modes button {
+    padding: 10px 12px;
+  }
+  .dpad {
+    grid-template-columns: 46px 46px 46px 50px;
+    grid-template-rows: 38px 38px 38px;
+    gap: 4px;
+  }
+  .dpad button {
+    font-size: 16px;
+  }
+  .inventory {
+    margin-left: 0;
+    font-size: 12.5px;
+    width: 100%;
+    text-align: center;
+  }
+  .inventory small {
+    display: none;
+  }
+
+  .home {
+    padding: 20px 14px;
+  }
+  .home h1 {
+    font-size: 32px;
+  }
+  .home-cards .card {
+    width: 100%;
+  }
+  .room-code {
+    font-size: 32px;
+  }
+  .reveal-maps {
+    flex-direction: column;
+  }
+  .editor-body {
+    flex-direction: column;
+  }
+  .editor-tools,
+  .editor-actions {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    border-bottom: 1px solid #d8ccb2;
+  }
+  .replay-main {
+    flex-direction: column;
+  }
+}
+
+/* =========================================================
+   MOBILE — landscape phones (short viewport): the action bar
+   becomes a right-hand rail so the map keeps its height.
+   ========================================================= */
+@media (max-width: 1000px) and (max-height: 520px) and (orientation: landscape) {
+  .game-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 200px;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100vh;
+  }
+  .game-header {
+    grid-column: 1 / -1;
+  }
+  .game-body {
+    grid-row: 2;
+    grid-column: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .event-ticker {
+    display: none;
+  }
+  .action-bar {
+    grid-row: 2;
+    grid-column: 2;
+    flex-direction: column;
+    align-items: stretch;
+    border-top: 0;
+    border-left: 2px solid #3a2f28;
+    overflow-y: auto;
+    justify-content: flex-start;
+    padding: 8px 6px;
+    gap: 6px;
+  }
+  .player-map-svg {
+    width: auto;
+    max-height: calc(100vh - 60px);
+  }
+  .turn-indicator {
+    width: auto;
+    text-align: left;
+    font-size: 12.5px;
+  }
+  .modes {
+    flex-direction: column;
+    width: 100%;
+  }
+  .modes button {
+    padding: 6px 8px;
+  }
+  .dpad {
+    grid-template-columns: 40px 40px 40px 44px;
+    grid-template-rows: 32px 32px 32px;
+    justify-content: center;
+  }
+  .inventory {
+    width: auto;
+    text-align: left;
+  }
+}
+
+/* Coarse pointers: larger buttons across the app. */
+@media (pointer: coarse) {
+  button {
+    padding: 9px 12px;
+  }
+  .aux-actions button,
+  .dpad button {
+    padding: 6px;
+  }
+}

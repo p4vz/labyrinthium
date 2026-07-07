@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { send } from '../net/ws.js';
 import { actionFor, useGameStore } from '../state/gameStore.js';
 
@@ -6,10 +7,19 @@ export function ActionBar(): JSX.Element {
   const started = useGameStore((s) => s.started);
   const activePlayerId = useGameStore((s) => s.activePlayerId);
   const turnNumber = useGameStore((s) => s.turnNumber);
+  const turnDeadline = useGameStore((s) => s.turnDeadline);
   const finished = useGameStore((s) => s.finished);
   const spectating = useGameStore((s) => s.spectating);
   const mode = useGameStore((s) => s.actionMode);
   const setMode = useGameStore((s) => s.setActionMode);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!turnDeadline) return;
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [turnDeadline]);
+  const secondsLeft = turnDeadline ? Math.max(0, Math.ceil((turnDeadline - now) / 1000)) : null;
 
   const myTurn = !spectating && !finished && started !== null && activePlayerId === started.yourPlayerId;
   const activeName =
@@ -30,6 +40,9 @@ export function ActionBar(): JSX.Element {
             : myTurn
               ? `YOUR TURN (t${turnNumber})`
               : `${activeName}'s turn (t${turnNumber})`}
+        {secondsLeft !== null && !finished && (
+          <span className={`turn-clock ${secondsLeft <= 5 ? 'urgent' : ''}`}> ⏱ {secondsLeft}s</span>
+        )}
       </div>
 
       <div className="modes">

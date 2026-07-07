@@ -1,4 +1,4 @@
-import type { PlanarDirection } from '../geometry.js';
+import type { Direction, PlanarDirection } from '../geometry.js';
 
 /**
  * Everything a player (or everyone) learns comes through events. Events
@@ -7,6 +7,15 @@ import type { PlanarDirection } from '../geometry.js';
  * one level": cross-referencing your own maps is the game.
  */
 export type EventPayload =
+  // The player's declared action, as spoken at the table ("Bob goes north").
+  // Public under open-information rules, private to the actor otherwise.
+  | {
+      type: 'actionAnnounced';
+      playerId: string;
+      playerName: string;
+      action: 'move' | 'shoot' | 'grenade' | 'placeMine' | 'skip';
+      direction?: Direction;
+    }
   | { type: 'moved'; direction: PlanarDirection }
   | { type: 'bumpedWall'; direction: PlanarDirection }
   | { type: 'bumpedGrate'; direction: PlanarDirection }
@@ -30,7 +39,9 @@ export type EventPayload =
   | { type: 'shotFired' } // public: a shot was heard somewhere
   | { type: 'screamHeard' } // public: the shot hit someone
   | { type: 'explosionHeard' } // public: grenade or mine
+  | { type: 'itemsFound'; grenades: number; bullets: number; mines: number }
   | { type: 'turnSkippedParalyzed'; remaining: number }
+  | { type: 'turnTimedOut'; playerName: string } // public: the clock ran out
   | { type: 'exitedLabyrinth' }
   | { type: 'gameWon'; playerId: string; playerName: string };
 

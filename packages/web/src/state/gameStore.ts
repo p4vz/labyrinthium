@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  ActiveRules,
   ClientMessage,
   GameEvent,
   Inventory,
@@ -16,6 +17,8 @@ export interface FeedEntry {
   seq: number;
   turn: number;
   isPublic: boolean;
+  /** set when this line belongs to ANOTHER player (open-information rules) */
+  ownerName?: string;
   event: GameEvent;
 }
 
@@ -34,7 +37,7 @@ export interface GameStoreState {
     roomCode: string;
     hostId: string;
     phase: 'lobby' | 'inProgress' | 'finished';
-    players: { id: string; name: string; connected: boolean }[];
+    players: { id: string; name: string; connected: boolean; isBot?: boolean }[];
     mapMeta: { name?: string; difficulty?: number; levelCount: number };
   } | null;
   started: {
@@ -43,9 +46,12 @@ export interface GameStoreState {
     entrance: Pos;
     turnOrder: { id: string; name: string }[];
     inventory: Inventory;
+    rules: ActiveRules;
   } | null;
   activePlayerId: string | null;
   turnNumber: number;
+  /** epoch ms when the current turn times out; null = untimed */
+  turnDeadline: number | null;
   feed: FeedEntry[];
   lastAckedSeq: number;
   finished: { winnerId: string; winnerName: string; turnNumber: number; mapReveal: MapDocument } | null;
@@ -90,6 +96,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   started: null,
   activePlayerId: null,
   turnNumber: 0,
+  turnDeadline: null,
   feed: [],
   lastAckedSeq: -1,
   finished: null,
@@ -122,6 +129,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       started: null,
       activePlayerId: null,
       turnNumber: 0,
+      turnDeadline: null,
       feed: [],
       lastAckedSeq: -1,
       finished: null,
@@ -151,22 +159,39 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           screen: 'game',
           spectating: msg.yourPlayerId === '',
         });
-        // A fresh main map starts with "you are here" on the entrance.
+        // A fresh main map starts with the entrance marked and one tracking
+        // piece per player (everyone begins there) plus your own pawn.
         const key = get().session?.roomCode ?? get().room?.roomCode ?? 'solo';
-        useMapStore.getState().initForGame(key, msg.levelSizes, msg.entrance);
+        useMapStore
+          .getState()
+          .initForGame(key, msg.levelSizes, msg.entrance, msg.turnOrder.length);
         break;
       }
       case 'game.turn': {
-        set({ activePlayerId: msg.activePlayerId, turnNumber: msg.turnNumber });
+        const timer = get().started?.rules.turnTimerSeconds ?? 0;
+        set({
+          activePlayerId: msg.activePlayerId,
+          turnNumber: msg.turnNumber,
+          turnDeadline: timer > 0 ? Date.now() + timer * 1000 : null,
+        });
         break;
       }
       case 'game.events': {
-        const entries: FeedEntry[] = msg.events.map((e) => ({
-          seq: e.seq,
-          turn: e.turn,
-          isPublic: e.visibility.kind === 'public',
-          event: e,
-        }));
+        const me = get().started?.yourPlayerId;
+        const names = new Map((get().started?.turnOrder ?? []).map((p) => [p.id, p.name]));
+        const entries: FeedEntry[] = msg.events.map((e) => {
+          const foreign =
+            e.visibility.kind === 'private' && me !== undefined && e.visibility.playerId !== me
+              ? names.get(e.visibility.playerId)
+              : undefined;
+          return {
+            seq: e.seq,
+            turn: e.turn,
+            isPublic: e.visibility.kind === 'public',
+            ...(foreign ? { ownerName: foreign } : {}),
+            event: e,
+          };
+        });
         const maxSeq = Math.max(get().lastAckedSeq, ...msg.events.map((e) => e.seq));
         set({ feed: [...get().feed, ...entries].slice(-500), lastAckedSeq: maxSeq });
         break;

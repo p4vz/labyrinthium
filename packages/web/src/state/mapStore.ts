@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  PIECE_STAMPS,
   createGrid,
   extract,
   clearRect,
@@ -44,6 +45,7 @@ export interface MapStoreState {
     key: string,
     levelSizes: { width: number; height: number }[],
     entrance?: { level: number; x: number; y: number },
+    playerCount?: number,
   ): void;
   setActive(mapId: string, grid?: number): void;
   setTool(tool: Tool): void;
@@ -109,7 +111,7 @@ export const useMapStore = create<MapStoreState>((set, get) => {
     undoStack: [],
     redoStack: [],
 
-    initForGame(key, levelSizes, entrance) {
+    initForGame(key, levelSizes, entrance, playerCount) {
       const storageKey = `labyrinthium:maps:${key}`;
       let maps: PlayerMap[] | null = null;
       try {
@@ -127,12 +129,15 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           },
         ];
         if (entrance && maps[0]!.grids[entrance.level]) {
-          maps[0]!.grids[entrance.level] = toggleStamp(
-            maps[0]!.grids[entrance.level]!,
-            entrance.x,
-            entrance.y,
-            'you',
-          );
+          // Everyone starts at the entrance: mark it and set out one piece
+          // per player (plus your own pawn) so opponents can be tracked.
+          let grid = maps[0]!.grids[entrance.level]!;
+          grid = toggleStamp(grid, entrance.x, entrance.y, 'entrance');
+          grid = toggleStamp(grid, entrance.x, entrance.y, 'you');
+          for (let i = 0; i < Math.min(playerCount ?? 0, PIECE_STAMPS.length); i++) {
+            grid = toggleStamp(grid, entrance.x, entrance.y, PIECE_STAMPS[i]!);
+          }
+          maps[0]!.grids[entrance.level] = grid;
         }
       }
       auxCounter = maps.length - 1;

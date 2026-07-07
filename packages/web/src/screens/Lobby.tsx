@@ -22,6 +22,7 @@ export function Lobby(): JSX.Element {
         <ul data-testid="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
+              {p.isBot ? '🤖 ' : ''}
               {p.name}
               {p.id === room.hostId ? ' 👑' : ''}
               {p.connected ? '' : ' (away)'}
@@ -29,6 +30,14 @@ export function Lobby(): JSX.Element {
           ))}
         </ul>
       </div>
+      {isHost && (
+        <div className="bot-row" data-testid="bot-row">
+          add an AI player:
+          <button onClick={() => send({ type: 'room.addBot', difficulty: 'easy' })}>🤖 easy</button>
+          <button onClick={() => send({ type: 'room.addBot', difficulty: 'medium' })}>🤖 medium</button>
+          <button onClick={() => send({ type: 'room.addBot', difficulty: 'hard' })}>🤖 hard</button>
+        </div>
+      )}
       {isHost ? (
         <button data-testid="start-btn" className="primary" onClick={() => send({ type: 'room.start' })}>
           Start the descent

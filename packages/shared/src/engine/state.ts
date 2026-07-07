@@ -41,6 +41,16 @@ export interface GameConfig {
   allowBorderGrenade: boolean;
   /** dropped treasure drifts on rivers (hard-mode toggle) */
   treasureDrifts: boolean;
+  /**
+   * Classic table rules: every player's action and the game master's
+   * answers are spoken aloud — everyone hears everything and can track
+   * the others on their own map. Off = "secret GM" whisper variant.
+   */
+  openInformation: boolean;
+  /** seconds per turn; 0 = untimed. Timed-out turns are skipped. */
+  turnTimerSeconds: number;
+  /** a shot player drops grenades/bullets/mines on their tile, not just treasure */
+  dropAllOnShot: boolean;
   startingInventory: Inventory;
 }
 
@@ -50,6 +60,9 @@ export const DEFAULT_CONFIG: GameConfig = {
   monsterParalysis: 1,
   allowBorderGrenade: false,
   treasureDrifts: false,
+  openInformation: true,
+  turnTimerSeconds: 0,
+  dropAllOnShot: false,
   startingInventory: { grenades: 2, bullets: 2, mines: 1 },
 };
 
@@ -69,6 +82,8 @@ export interface GameState {
   placedMines: Pos[];
   /** positions of consumed baked mines / sprung single-use traps */
   sprungTraps: Pos[];
+  /** gear dropped on the floor (dropAllOnShot rule); picked up by walking on it */
+  floorItems: { pos: Pos; items: Inventory }[];
   players: PlayerState[];
   turnIndex: number;
   turnNumber: number;
@@ -93,6 +108,7 @@ export function createGame(
     edges: map.levels.map((l) => cloneEdgeGrid(l.edges)),
     placedMines: [],
     sprungTraps: [],
+    floorItems: [],
     players: players.map((p) => ({
       id: p.id,
       name: p.name,

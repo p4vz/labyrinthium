@@ -63,7 +63,8 @@ describe('REST map API', () => {
 
 describe('full game over WebSockets', () => {
   it('two players race for the treasure; private and public events differ; the winner is announced', async () => {
-    // Store a hand-built map so the run is fully scripted.
+    // Store a hand-built map so the run is fully scripted. Secret-GM rules:
+    // this test asserts the whisper variant's privacy guarantees.
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };
 
@@ -72,7 +73,7 @@ describe('full game over WebSockets', () => {
     await alice.ready();
     await bob.ready();
 
-    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    alice.send({ type: 'room.create', name: 'Alice', mapId, rules: { openInformation: false } });
     const aliceSession = await alice.next('session.created');
     bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
     const bobSession = await bob.next('session.created');
@@ -132,7 +133,7 @@ describe('full game over WebSockets', () => {
     bob.close();
   });
 
-  it('shots are heard publicly but only the victim learns they were hit', async () => {
+  it('shots are heard publicly but only the victim learns they were hit (secret rules)', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };
 
@@ -141,7 +142,7 @@ describe('full game over WebSockets', () => {
     await alice.ready();
     await bob.ready();
 
-    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    alice.send({ type: 'room.create', name: 'Alice', mapId, rules: { openInformation: false } });
     const aliceSession = await alice.next('session.created');
     bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
     const bobSession = await bob.next('session.created');
@@ -230,7 +231,7 @@ describe('full game over WebSockets', () => {
     await bob.ready();
     await watcher.ready();
 
-    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    alice.send({ type: 'room.create', name: 'Alice', mapId, rules: { openInformation: false } });
     const aliceSession = await alice.next('session.created');
     bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
     await bob.next('session.created');
@@ -282,6 +283,114 @@ describe('full game over WebSockets', () => {
     bob.close();
     watcher.close();
   });
+
+  it('open information (default): everyone hears every move and every GM reply', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    await bob.next('session.created');
+    alice.send({ type: 'room.start' });
+    const started = await bob.next('game.started');
+    expect(started.rules.openInformation).toBe(true);
+
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+
+    // Bob hears the declaration AND the GM's reply to Alice.
+    const bobEvents = (await bob.next('game.events')).events;
+    const types = bobEvents.map((e) => e.payload.type);
+    expect(types).toContain('actionAnnounced');
+    expect(types).toContain('moved'); // Alice's private observation, delivered to Bob
+    expect(types).toContain('treasurePickedUp');
+    const announce = bobEvents.find((e) => e.payload.type === 'actionAnnounced');
+    expect(announce?.payload).toMatchObject({ playerName: 'Alice', action: 'move', direction: 'E' });
+
+    alice.close();
+    bob.close();
+  });
+
+  it('AI bots join, play legally, and a medium bot wins while the host idles', async () => {
+    process.env.BOT_DELAY_MS = '1';
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const host = new TestClient(wsUrl);
+    await host.ready();
+    host.send({ type: 'room.create', name: 'Idle Ida', mapId });
+    const session = await host.next('session.created');
+    host.send({ type: 'room.addBot', difficulty: 'medium' });
+    await host.next('room.playerJoined');
+    // room.state is broadcast on create AND on addBot — wait for the roster with the bot.
+    let roomState = await host.next('room.state');
+    while (roomState.players.length < 2) roomState = await host.next('room.state');
+    expect(roomState.players.some((p) => p.isBot)).toBe(true);
+
+    host.send({ type: 'room.start' });
+    await host.next('game.started');
+
+    // The host only ever bumps the western border; the bot must win.
+    const finished = new Promise<{ winnerName: string }>((resolve) => {
+      const poll = async (): Promise<void> => {
+        for (;;) {
+          const msg = await host.next('game.finished', 30000);
+          resolve(msg);
+          return;
+        }
+      };
+      void poll();
+    });
+    const idle = async (): Promise<void> => {
+      for (let i = 0; i < 500; i++) {
+        const turn = await host.next('game.turn', 30000).catch(() => null);
+        if (!turn) return;
+        if (turn.activePlayerId === session.playerId) {
+          host.send({ type: 'game.action', action: { type: 'move', direction: 'W' } });
+        }
+      }
+    };
+    void idle();
+
+    const result = await finished;
+    expect(result.winnerName).toContain('medium');
+
+    host.close();
+    delete process.env.BOT_DELAY_MS;
+  }, 40000);
+
+  it('the turn timer skips players who stall', async () => {
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+    alice.send({ type: 'room.create', name: 'Alice', mapId, rules: { turnTimerSeconds: 1 } });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    const bobSession = await bob.next('session.created');
+    alice.send({ type: 'room.start' });
+    await bob.next('game.started');
+
+    // Alice stalls; the clock fires; the turn passes to Bob.
+    const events = await bob.next('game.events', 5000);
+    expect(events.events.some((e) => e.payload.type === 'turnTimedOut')).toBe(true);
+    let turn = await bob.next('game.turn', 5000);
+    while (turn.activePlayerId !== bobSession.playerId) {
+      turn = await bob.next('game.turn', 5000);
+    }
+    expect(turn.activePlayerId).toBe(bobSession.playerId);
+
+    alice.close();
+    bob.close();
+  }, 15000);
 
   it('rejects out-of-turn actions with a protocol error', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });

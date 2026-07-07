@@ -16,8 +16,13 @@ export function EventFeed(): JSX.Element {
       <h3>Game master says</h3>
       <div className="feed-scroll">
         {feed.map((entry) => (
-          <div key={entry.seq} className={entry.isPublic ? 'feed-public' : 'feed-private'}>
-            <span className="feed-turn">t{entry.turn}</span> {describeEvent(entry.event)}
+          <div
+            key={entry.seq}
+            className={entry.isPublic ? 'feed-public' : entry.ownerName ? 'feed-foreign' : 'feed-private'}
+          >
+            <span className="feed-turn">t{entry.turn}</span>{' '}
+            {entry.ownerName && <span className="feed-owner">{entry.ownerName} ▸</span>}{' '}
+            {describeEvent(entry.event)}
           </div>
         ))}
         <div ref={bottom} />

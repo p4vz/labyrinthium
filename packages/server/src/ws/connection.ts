@@ -67,6 +67,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
           ...(msg.complexity !== undefined ? { complexity: msg.complexity } : {}),
           ...(msg.seed !== undefined ? { seed: msg.seed } : {}),
           ...(msg.mapId !== undefined ? { mapId: msg.mapId } : {}),
+          ...(msg.rules !== undefined ? { rules: msg.rules } : {}),
         });
         const { player } = rooms.join(room.code, msg.name);
         bind(room, player);
@@ -149,6 +150,17 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
         }
         conn.room = null;
         conn.player = null;
+        return;
+      }
+
+      case 'room.addBot': {
+        requireRoom();
+        if (conn.player!.id !== conn.room!.hostId) {
+          throw new RoomError('NOT_HOST', 'only the host can add AI players');
+        }
+        const bot = conn.room!.addBot(msg.difficulty);
+        conn.room!.broadcast({ type: 'room.playerJoined', playerId: bot.id, name: bot.name });
+        conn.room!.broadcast(conn.room!.roomStateMessage());
         return;
       }
 

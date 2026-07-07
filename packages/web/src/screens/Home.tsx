@@ -11,6 +11,13 @@ export function Home(): JSX.Element {
   const [complexity, setComplexity] = useState<'classic' | 'advanced' | 'full'>('classic');
   const [seed, setSeed] = useState('');
   const [mapId, setMapId] = useState('');
+  const [showRules, setShowRules] = useState(false);
+  const [openInfo, setOpenInfo] = useState(true);
+  const [timer, setTimer] = useState(0);
+  const [dropAll, setDropAll] = useState(false);
+  const [borderGrenade, setBorderGrenade] = useState(false);
+  const [drift, setDrift] = useState(false);
+  const [doubleAmmo, setDoubleAmmo] = useState(false);
 
   return (
     <div className="home">
@@ -53,6 +60,43 @@ export function Home(): JSX.Element {
             Map id <small>(optional — play a saved editor map)</small>
             <input data-testid="mapid-input" value={mapId} onChange={(e) => setMapId(e.target.value)} placeholder="from the editor" />
           </label>
+          <button className="rules-toggle" onClick={() => setShowRules(!showRules)}>
+            {showRules ? '▾' : '▸'} house rules & extras
+          </button>
+          {showRules && (
+            <div className="rules-box" data-testid="rules-box">
+              <label className="check">
+                <input type="checkbox" checked={openInfo} onChange={(e) => setOpenInfo(e.target.checked)} />
+                open table — everyone hears all moves & GM replies (track your enemies!)
+              </label>
+              <label className="check">
+                <input type="checkbox" checked={dropAll} onChange={(e) => setDropAll(e.target.checked)} />
+                shot players drop ALL gear, not just the treasure
+              </label>
+              <label className="check">
+                <input type="checkbox" checked={borderGrenade} onChange={(e) => setBorderGrenade(e.target.checked)} />
+                grenades can breach the outer wall
+              </label>
+              <label className="check">
+                <input type="checkbox" checked={drift} onChange={(e) => setDrift(e.target.checked)} />
+                dropped treasure drifts down rivers
+              </label>
+              <label className="check">
+                <input type="checkbox" checked={doubleAmmo} onChange={(e) => setDoubleAmmo(e.target.checked)} />
+                double ammo (grenades / bullets / mines)
+              </label>
+              <label>
+                turn timer
+                <select value={timer} onChange={(e) => setTimer(Number(e.target.value))}>
+                  <option value={0}>off — take your time</option>
+                  <option value={15}>15 seconds</option>
+                  <option value={30}>30 seconds</option>
+                  <option value={60}>60 seconds</option>
+                  <option value={120}>2 minutes</option>
+                </select>
+              </label>
+            </div>
+          )}
           <button
             data-testid="create-btn"
             disabled={!connected || !name}
@@ -64,6 +108,14 @@ export function Home(): JSX.Element {
                 complexity,
                 ...(seed ? { seed } : {}),
                 ...(mapId ? { mapId } : {}),
+                rules: {
+                  openInformation: openInfo,
+                  turnTimerSeconds: timer,
+                  dropAllOnShot: dropAll,
+                  allowBorderGrenade: borderGrenade,
+                  treasureDrifts: drift,
+                  doubleAmmo,
+                },
               })
             }
           >

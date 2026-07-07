@@ -2,6 +2,29 @@ import { z } from 'zod';
 import { playerActionSchema } from '../engine/actions.js';
 import { complexitySchema, sizePresetSchema } from '../map/presets.js';
 
+/** House rules chosen at room creation (checkboxes on the create screen). */
+export const gameRulesSchema = z
+  .object({
+    /** everyone hears everyone's moves and the GM's replies (classic table rules) */
+    openInformation: z.boolean(),
+    /** seconds per turn, 0 = untimed */
+    turnTimerSeconds: z.number().int().min(0).max(600),
+    /** a shot player drops ALL gear, not just the treasure */
+    dropAllOnShot: z.boolean(),
+    /** grenades may breach the outer wall */
+    allowBorderGrenade: z.boolean(),
+    /** dropped treasure drifts on rivers */
+    treasureDrifts: z.boolean(),
+    /** twice the starting grenades/bullets/mines */
+    doubleAmmo: z.boolean(),
+  })
+  .partial();
+
+export type GameRules = z.infer<typeof gameRulesSchema>;
+
+export const botDifficultySchema = z.enum(['easy', 'medium', 'hard']);
+export type BotDifficulty = z.infer<typeof botDifficultySchema>;
+
 /**
  * Client -> server messages. The server validates every inbound frame
  * against this schema; anything else is answered with an error message.
@@ -19,6 +42,11 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     complexity: complexitySchema.optional(),
     seed: z.string().max(120).optional(),
     mapId: z.string().optional(),
+    rules: gameRulesSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('room.addBot'),
+    difficulty: botDifficultySchema,
   }),
   z.object({
     type: z.literal('room.join'),

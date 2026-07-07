@@ -4,6 +4,8 @@ import { normalizeRect } from '../state/playerMap.js';
 
 export const STAMP_GLYPHS: Record<Stamp, string> = {
   you: '🧍',
+  entrance: '🏁',
+  empty: '·',
   river: '➤',
   teleport: '◎',
   stairs: '↕',
@@ -14,6 +16,14 @@ export const STAMP_GLYPHS: Record<Stamp, string> = {
   treasure: '💰',
   exit: '🚪',
   flag: '⚑',
+  piece1: '🔴',
+  piece2: '🔵',
+  piece3: '🟢',
+  piece4: '🟣',
+  piece5: '🟠',
+  piece6: '🟤',
+  piece7: '⚫',
+  piece8: '⚪',
 };
 
 const CS = 36; // cell size in px
@@ -37,7 +47,13 @@ export interface MapGridProps {
   onDragSelect?(rect: Rect): void;
 }
 
-/** The player's hand-drawn map as an interactive SVG grid. */
+/**
+ * The player's hand-drawn map as an interactive SVG grid. All interactions
+ * are pointer-based so they work identically with mouse and touch:
+ * taps hit cells/edges, and in select mode a drag sweeps out a rectangle
+ * (computed from pointer coordinates, not per-element hover, so it works
+ * on touchscreens too).
+ */
 export function MapGrid(props: MapGridProps): JSX.Element {
   const { grid } = props;
   const [drag, setDrag] = useState<Rect | null>(null);
@@ -47,6 +63,16 @@ export function MapGrid(props: MapGridProps): JSX.Element {
   const h = grid.height * CS + PAD * 2;
   const px = (x: number): number => PAD + x * CS;
   const py = (y: number): number => PAD + y * CS;
+
+  /** Which cell a pointer event lands on, from raw coordinates. */
+  function cellAt(e: React.PointerEvent<SVGSVGElement>): { x: number; y: number } | null {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scale = rect.width / w; // SVG may be CSS-scaled on small screens
+    const cx = Math.floor(((e.clientX - rect.left) / scale - PAD) / CS);
+    const cy = Math.floor(((e.clientY - rect.top) / scale - PAD) / CS);
+    if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) return null;
+    return { x: cx, y: cy };
+  }
 
   const cells = [];
   for (let y = 0; y < grid.height; y++) {
@@ -71,22 +97,9 @@ export function MapGrid(props: MapGridProps): JSX.Element {
             height={CS - 2}
             fill={inDrag ? '#ffe9a8' : inSelection ? '#fff3c4' : '#fffdf6'}
             data-cell={`${x},${y}`}
-            onClick={() => props.onCellClick?.(x, y)}
-            onMouseDown={(e) => {
-              if (props.selectMode && e.button === 0) {
-                e.preventDefault();
-                setDrag({ x0: x, y0: y, x1: x, y1: y });
-              }
-            }}
-            onMouseEnter={() => {
-              setHover({ x, y });
-              if (drag) setDrag({ ...drag, x1: x, y1: y });
-            }}
-            onMouseUp={() => {
-              if (drag) {
-                props.onDragSelect?.(normalizeRect(drag));
-                setDrag(null);
-              }
+            onClick={() => {
+              if (!props.selectMode) props.onCellClick?.(x, y);
+              else if (props.pending) props.onCellClick?.(x, y);
             }}
             style={{ cursor: props.interactive ? 'pointer' : 'default' }}
           />
@@ -195,9 +208,32 @@ export function MapGrid(props: MapGridProps): JSX.Element {
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
-      onMouseLeave={() => {
+      className="player-map-svg"
+      // Block scroll gestures only while a drag-select or paste is active,
+      // so normal panning of a big map still works on touchscreens.
+      style={{ touchAction: props.selectMode || props.pending ? 'none' : 'manipulation' }}
+      onPointerDown={(e) => {
+        if (props.selectMode && !props.pending) {
+          const c = cellAt(e);
+          if (c) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDrag({ x0: c.x, y0: c.y, x1: c.x, y1: c.y });
+          }
+        }
+      }}
+      onPointerMove={(e) => {
+        const c = cellAt(e);
+        if (c) setHover(c);
+        if (drag && c) setDrag({ ...drag, x1: c.x, y1: c.y });
+      }}
+      onPointerUp={() => {
+        if (drag) {
+          props.onDragSelect?.(normalizeRect(drag));
+          setDrag(null);
+        }
+      }}
+      onPointerLeave={() => {
         setHover(null);
-        setDrag(null);
       }}
     >
       <rect x={0} y={0} width={w} height={h} fill="#faf7ef" rx={6} />
@@ -212,6 +248,21 @@ function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string },
   const glyphs = anno.stamps.filter((s) => s !== 'river');
   const hasRiver = anno.stamps.includes('river');
   const riverRotation = { N: 270, E: 0, S: 90, W: 180 }[anno.riverDir ?? 'E'] ?? 0;
+  // Up to 4 glyphs in a 2×2 mini-grid so a crowded entrance stays readable.
+  const spots =
+    glyphs.length <= 1
+      ? [[0, 0]]
+      : glyphs.length === 2
+        ? [
+            [-7, 0],
+            [7, 0],
+          ]
+        : [
+            [-7, -7],
+            [7, -7],
+            [-7, 7],
+            [7, 7],
+          ];
   return (
     <g pointerEvents="none">
       {hasRiver && (
@@ -227,18 +278,24 @@ function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string },
           ➤
         </text>
       )}
-      {glyphs.slice(0, 2).map((s, i) => (
+      {glyphs.slice(0, 4).map((s, i) => (
         <text
           key={s}
-          x={x + CS / 2 + (glyphs.length > 1 ? (i === 0 ? -7 : 7) : 0)}
-          y={y + CS / 2 + (hasRiver ? 8 : 0)}
-          fontSize={glyphs.length > 1 ? 12 : 16}
+          x={x + CS / 2 + (spots[i]?.[0] ?? 0)}
+          y={y + CS / 2 + (spots[i]?.[1] ?? 0) + (hasRiver ? 6 : 0)}
+          fontSize={s === 'empty' ? 20 : glyphs.length > 1 ? 11 : 16}
+          fill={s === 'empty' ? '#b0a48c' : undefined}
           textAnchor="middle"
           dominantBaseline="central"
         >
           {STAMP_GLYPHS[s]}
         </text>
       ))}
+      {glyphs.length > 4 && (
+        <text x={x + CS - 5} y={y + CS - 4} fontSize={8} textAnchor="middle">
+          +{glyphs.length - 4}
+        </text>
+      )}
       {anno.note && (
         <text x={x + CS - 6} y={y + 10} fontSize={9} textAnchor="middle">
           ✍<title>{anno.note}</title>

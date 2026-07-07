@@ -4,6 +4,22 @@ import type { GameEvent } from './engine/events.js';
 export function describeEvent(e: GameEvent): string {
   const p = e.payload;
   switch (p.type) {
+    case 'actionAnnounced': {
+      const d = p.direction ? ` ${dir(p.direction)}` : '';
+      switch (p.action) {
+        case 'move':
+          return `${p.playerName} moves${d}`;
+        case 'shoot':
+          return `${p.playerName} shoots${d}`;
+        case 'grenade':
+          return `${p.playerName} throws a grenade${d}`;
+        case 'placeMine':
+          return `${p.playerName} fumbles with something on the floor…`;
+        case 'skip':
+          return `${p.playerName} stays put`;
+      }
+      return `${p.playerName} acts`;
+    }
     case 'moved':
       return `you step ${dir(p.direction)}`;
     case 'bumpedWall':
@@ -52,8 +68,18 @@ export function describeEvent(e: GameEvent): string {
       return '… a scream echoes through the corridors';
     case 'explosionHeard':
       return '… a muffled explosion shakes the walls';
+    case 'itemsFound':
+      return `you find gear on the floor: ${[
+        p.grenades ? `${p.grenades} grenade(s)` : '',
+        p.bullets ? `${p.bullets} bullet(s)` : '',
+        p.mines ? `${p.mines} mine(s)` : '',
+      ]
+        .filter(Boolean)
+        .join(', ')}`;
     case 'turnSkippedParalyzed':
       return `you are paralyzed — turn skipped (${p.remaining} more)`;
+    case 'turnTimedOut':
+      return `${p.playerName} ran out of time — turn skipped`;
     case 'exitedLabyrinth':
       return 'daylight! you are OUT with the treasure!';
     case 'gameWon':
@@ -62,5 +88,7 @@ export function describeEvent(e: GameEvent): string {
 }
 
 function dir(d: string): string {
-  return { N: 'north', E: 'east', S: 'south', W: 'west' }[d] ?? d;
+  return (
+    { N: 'north', E: 'east', S: 'south', W: 'west', U: 'up the stairs', D: 'down the stairs' }[d] ?? d
+  );
 }

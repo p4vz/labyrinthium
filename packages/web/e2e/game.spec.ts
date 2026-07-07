@@ -58,10 +58,12 @@ test('two players race through the labyrinth in real browsers', async ({ browser
   await expect(alice.getByTestId('turn-indicator')).toContainText('YOUR TURN');
   await expect(bob.getByTestId('turn-indicator')).toContainText("Alice's turn");
 
-  // Alice walks east onto the treasure; only SHE learns about it.
+  // Alice walks east onto the treasure. Default table rules are OPEN
+  // information: Bob hears her move announced and the GM's reply too.
   await alice.getByTestId('go-E').click();
   await expect(alice.getByTestId('event-feed')).toContainText('TREASURE');
-  await expect(bob.getByTestId('event-feed')).not.toContainText('TREASURE');
+  await expect(bob.getByTestId('event-feed')).toContainText('Alice moves east');
+  await expect(bob.getByTestId('event-feed')).toContainText('Alice ▸');
 
   // Bob idles south; Alice keeps going east; Bob returns; Alice exits.
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');

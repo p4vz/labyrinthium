@@ -9,6 +9,8 @@ export type EdgeMark = 'unknown' | 'open' | 'wall' | 'grate';
 
 export type Stamp =
   | 'you'
+  | 'entrance'
+  | 'empty' // "checked — nothing here"
   | 'river'
   | 'teleport'
   | 'stairs'
@@ -18,7 +20,32 @@ export type Stamp =
   | 'monster'
   | 'treasure'
   | 'exit'
-  | 'flag';
+  | 'flag'
+  // one tracking piece per player, colored by turn order
+  | 'piece1'
+  | 'piece2'
+  | 'piece3'
+  | 'piece4'
+  | 'piece5'
+  | 'piece6'
+  | 'piece7'
+  | 'piece8';
+
+export const PIECE_STAMPS = [
+  'piece1',
+  'piece2',
+  'piece3',
+  'piece4',
+  'piece5',
+  'piece6',
+  'piece7',
+  'piece8',
+] as const;
+
+/** Piece stamps are unique per grid, like 'you' — placing one moves it. */
+export function isUniqueStamp(s: Stamp): boolean {
+  return s === 'you' || s.startsWith('piece');
+}
 
 export interface CellAnno {
   stamps: Stamp[];
@@ -91,12 +118,12 @@ export function cycleEdge(g: PlayerGrid, x: number, y: number, side: 'N' | 'W'):
   return next;
 }
 
-/** Toggle a stamp on a cell; 'you' is unique per grid (it moves). */
+/** Toggle a stamp on a cell; 'you' and pieces are unique per grid (they move). */
 export function toggleStamp(g: PlayerGrid, x: number, y: number, stamp: Stamp, riverDir?: 'N' | 'E' | 'S' | 'W'): PlayerGrid {
   const next = cloneGrid(g);
-  if (stamp === 'you') {
+  if (isUniqueStamp(stamp)) {
     for (const c of next.cells) {
-      if (c) c.stamps = c.stamps.filter((s) => s !== 'you');
+      if (c) c.stamps = c.stamps.filter((s) => s !== stamp);
     }
   }
   const i = cellIndex(g, x, y);

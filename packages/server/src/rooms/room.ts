@@ -3,14 +3,17 @@ import {
   applyAction,
   createGame,
   visibleTo,
-  DEFAULT_CONFIG,
   InvalidActionError,
+  type ActiveRules,
+  type BotDifficulty,
+  type GameConfig,
   type GameEvent,
   type GameState,
   type MapDocument,
   type PlayerAction,
   type ServerMessage,
 } from '@labyrinthium/shared';
+import { BotController, BOT_NAMES } from '../bots/bot.js';
 import type { Db } from '../persistence/db.js';
 
 export interface RoomPlayer {
@@ -18,14 +21,20 @@ export interface RoomPlayer {
   name: string;
   sessionToken: string;
   send: ((msg: ServerMessage) => void) | null; // null while disconnected
+  isBot: boolean;
 }
 
 export type RoomPhase = 'lobby' | 'inProgress' | 'finished';
 
 /**
  * One game room. All mutations funnel through a single path:
- * validate -> applyAction -> log -> fan out visibility-filtered events.
+ * validate -> applyAction -> log -> fan out events.
  * The server is the only holder of the map; clients only ever see events.
+ *
+ * Under openInformation (the classic table rules, default on), EVERY event
+ * is delivered to EVERY player — like a game master speaking aloud — and
+ * clients attribute other players' lines by the event's owner. With it off,
+ * players receive only their own private events plus public noises.
  */
 export class Room {
   readonly code: string;
@@ -34,22 +43,27 @@ export class Room {
   players: RoomPlayer[] = [];
   map: MapDocument;
   seed: string;
+  config: GameConfig;
   state: GameState | null = null;
   actionLog: { playerId: string; action: PlayerAction }[] = [];
   eventLog: GameEvent[] = [];
-  /** Read-only observers: they receive broadcasts and PUBLIC events only. */
+  /** Read-only observers. */
   spectators = new Set<(msg: ServerMessage) => void>();
+  private bots = new Map<string, BotController>();
+  private turnTimer: NodeJS.Timeout | null = null;
   private gameId = randomUUID();
 
   constructor(
     code: string,
     map: MapDocument,
     seed: string,
+    config: GameConfig,
     private db: Db | null,
   ) {
     this.code = code;
     this.map = map;
     this.seed = seed;
+    this.config = config;
     this.hostId = '';
   }
 
@@ -59,15 +73,69 @@ export class Room {
       name,
       sessionToken: randomUUID(),
       send: null,
+      isBot: false,
     };
     this.players.push(player);
     if (!this.hostId) this.hostId = player.id;
     return player;
   }
 
+  addBot(difficulty: BotDifficulty): RoomPlayer {
+    if (this.phase !== 'lobby') throw new RoomError('ALREADY_STARTED', 'game already started');
+    if (this.players.length >= 8) throw new RoomError('ROOM_FULL', 'room is full');
+    const taken = new Set(this.players.map((p) => p.name));
+    const name =
+      BOT_NAMES[difficulty].find((n) => !taken.has(n)) ?? `Bot ${this.players.length + 1}`;
+    const player: RoomPlayer = {
+      id: randomUUID(),
+      name: `${name} (${difficulty})`,
+      sessionToken: randomUUID(),
+      send: null,
+      isBot: true,
+    };
+    const bot = new BotController(player.id, difficulty, (action) => {
+      try {
+        this.handleAction(player.id, action);
+      } catch {
+        // e.g. NO_AMMO race: one legal retry, then let the turn timer cope.
+        try {
+          this.handleAction(player.id, {
+            type: 'move',
+            direction: (['N', 'E', 'S', 'W'] as const)[Math.floor(Math.random() * 4)]!,
+          });
+        } catch {
+          /* stay quiet; a re-announce or timeout will recover */
+        }
+      }
+    });
+    player.send = (msg) => bot.handle(msg);
+    this.players.push(player);
+    this.bots.set(player.id, bot);
+    return player;
+  }
+
+  removeBot(playerId: string): void {
+    if (this.phase !== 'lobby') throw new RoomError('ALREADY_STARTED', 'game already started');
+    const bot = this.bots.get(playerId);
+    if (!bot) throw new RoomError('NOT_A_BOT', 'no such bot');
+    bot.stop();
+    this.bots.delete(playerId);
+    this.players = this.players.filter((p) => p.id !== playerId);
+  }
+
   broadcast(msg: ServerMessage): void {
     for (const p of this.players) p.send?.(msg);
     for (const send of this.spectators) send(msg);
+  }
+
+  activeRules(): ActiveRules {
+    return {
+      openInformation: this.config.openInformation,
+      turnTimerSeconds: this.config.turnTimerSeconds,
+      dropAllOnShot: this.config.dropAllOnShot,
+      allowBorderGrenade: this.config.allowBorderGrenade,
+      treasureDrifts: this.config.treasureDrifts,
+    };
   }
 
   roomStateMessage(): ServerMessage {
@@ -76,7 +144,12 @@ export class Room {
       roomCode: this.code,
       hostId: this.hostId,
       phase: this.phase,
-      players: this.players.map((p) => ({ id: p.id, name: p.name, connected: p.send !== null })),
+      players: this.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        connected: p.isBot || p.send !== null,
+        isBot: p.isBot,
+      })),
       mapMeta: {
         ...(this.map.metadata.name !== undefined ? { name: this.map.metadata.name } : {}),
         ...(this.map.metadata.difficulty !== undefined
@@ -93,7 +166,7 @@ export class Room {
     this.state = createGame(
       this.map,
       this.players.map((p) => ({ id: p.id, name: p.name })),
-      DEFAULT_CONFIG,
+      this.config,
       this.seed,
     );
     this.phase = 'inProgress';
@@ -113,7 +186,8 @@ export class Room {
       levelSizes: this.map.levels.map((l) => ({ width: l.width, height: l.height })),
       entrance: this.map.entrance,
       turnOrder: this.players.map((p) => ({ id: p.id, name: p.name })),
-      inventory: { ...DEFAULT_CONFIG.startingInventory },
+      inventory: { ...this.config.startingInventory },
+      rules: this.activeRules(),
     };
   }
 
@@ -144,12 +218,16 @@ export class Room {
     this.actionLog.push({ playerId, action });
     this.eventLog.push(...result.events);
     for (const p of this.players) {
-      const mine = result.events.filter((e) => visibleTo(e, p.id));
+      const mine = this.config.openInformation
+        ? result.events
+        : result.events.filter((e) => visibleTo(e, p.id));
       if (mine.length > 0) p.send?.({ type: 'game.events', events: mine });
     }
-    const publicEvents = result.events.filter((e) => e.visibility.kind === 'public');
-    if (publicEvents.length > 0) {
-      for (const send of this.spectators) send({ type: 'game.events', events: publicEvents });
+    const forSpectators = this.config.openInformation
+      ? result.events
+      : result.events.filter((e) => e.visibility.kind === 'public');
+    if (forSpectators.length > 0) {
+      for (const send of this.spectators) send({ type: 'game.events', events: forSpectators });
     }
     if (this.state.phase === 'finished') {
       this.finish();
@@ -175,11 +253,35 @@ export class Room {
       activePlayerId: active.id,
       turnNumber: this.state.turnNumber,
     });
+    this.armTurnTimer();
+  }
+
+  /** Optional per-turn clock: when it runs out, the turn is skipped. */
+  private armTurnTimer(): void {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
+    if (this.config.turnTimerSeconds <= 0 || this.phase !== 'inProgress' || !this.state) return;
+    const turnAtArm = this.state.turnNumber;
+    this.turnTimer = setTimeout(() => {
+      if (this.phase !== 'inProgress' || !this.state) return;
+      if (this.state.turnNumber !== turnAtArm) return; // someone acted in time
+      const active = this.state.players[this.state.turnIndex]!;
+      try {
+        this.step(active.id, { type: 'skip' });
+        this.pumpParalyzed();
+      } catch (err) {
+        console.error('turn timer skip failed', err);
+      }
+    }, this.config.turnTimerSeconds * 1000);
   }
 
   private finish(): void {
     if (!this.state) return;
     this.phase = 'finished';
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    for (const bot of this.bots.values()) bot.stop();
     const winner = this.players.find((p) => p.id === this.state!.winnerId);
     this.broadcast({
       type: 'game.finished',
@@ -205,7 +307,9 @@ export class Room {
 
   /** Visible-event tail for a reconnecting player. */
   eventsSince(playerId: string, lastAckedSeq: number): GameEvent[] {
-    return this.eventLog.filter((e) => e.seq > lastAckedSeq && visibleTo(e, playerId));
+    return this.eventLog.filter(
+      (e) => e.seq > lastAckedSeq && (this.config.openInformation || visibleTo(e, playerId)),
+    );
   }
 }
 

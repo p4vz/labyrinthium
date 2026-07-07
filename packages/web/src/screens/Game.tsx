@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { describeEvent } from '@labyrinthium/shared';
 import { ActionBar } from '../components/ActionBar.js';
 import { AuxPanel } from '../components/AuxPanel.js';
 import { EventFeed } from '../components/EventFeed.js';
@@ -13,6 +14,9 @@ export function Game(): JSX.Element {
   const finished = useGameStore((s) => s.finished);
   const spectating = useGameStore((s) => s.spectating);
   const reset = useGameStore((s) => s.reset);
+  const feed = useGameStore((s) => s.feed);
+  /** which side panel is open on small screens */
+  const [drawer, setDrawer] = useState<'draw' | 'maps' | null>(null);
 
   const maps = useMapStore((s) => s.maps);
   const activeMapId = useMapStore((s) => s.activeMapId);
@@ -57,13 +61,26 @@ export function Game(): JSX.Element {
         <span className="logo">Labyrinthium</span>
         <span data-testid="room-tag">room {room?.roomCode}</span>
         {spectating && <span className="spectator-tag">👁 spectating</span>}
+        <button
+          className={`mobile-only drawer-btn ${drawer === 'draw' ? 'active' : ''}`}
+          onClick={() => setDrawer(drawer === 'draw' ? null : 'draw')}
+        >
+          ✏️
+        </button>
+        <button
+          className={`mobile-only drawer-btn ${drawer === 'maps' ? 'active' : ''}`}
+          onClick={() => setDrawer(drawer === 'maps' ? null : 'maps')}
+        >
+          🗺️
+        </button>
         <button className="leave" onClick={reset}>
           leave
         </button>
       </header>
 
       <div className="game-body">
-        <aside className="left-col">
+        {drawer && <div className="drawer-backdrop mobile-only" onClick={() => setDrawer(null)} />}
+        <aside className={`left-col ${drawer === 'draw' ? 'mobile-open' : ''}`}>
           {!spectating && <Palette />}
           <EventFeed />
         </aside>
@@ -103,8 +120,19 @@ export function Game(): JSX.Element {
           )}
         </main>
 
-        <AuxPanel />
+        <div className={`aux-wrap ${drawer === 'maps' ? 'mobile-open' : ''}`}>
+          <AuxPanel />
+        </div>
       </div>
+
+      {feed.length > 0 && (
+        <button className="event-ticker mobile-only" onClick={() => setDrawer('draw')}>
+          {(() => {
+            const last = feed[feed.length - 1]!;
+            return `${last.ownerName ? `${last.ownerName} ▸ ` : ''}${describeEvent(last.event)}`;
+          })()}
+        </button>
+      )}
 
       <ActionBar />
       <Errors />
