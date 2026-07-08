@@ -13,4 +13,5 @@ export type { EngineCtx } from './engine/entry.js';
 export * from './generator/index.js';
 export * from './protocol/client.js';
 export * from './protocol/server.js';
+export * from './protocol/profileApi.js';
 export * from './describe.js';

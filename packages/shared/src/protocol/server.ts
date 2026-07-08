@@ -1,4 +1,5 @@
 import type { Pos } from '../geometry.js';
+import type { AvatarConfig, CosmeticItem } from '../cosmetics/items.js';
 import type { GameEvent } from '../engine/events.js';
 import type { Inventory } from '../engine/state.js';
 import type { MapDocument } from '../map/document.js';
@@ -13,6 +14,8 @@ export interface RoomPlayerInfo {
   name: string;
   connected: boolean;
   isBot?: boolean;
+  /** the persistent pixel avatar; absent for bots and anonymous players */
+  avatar?: AvatarConfig;
 }
 
 export interface ActiveRules {
@@ -21,6 +24,19 @@ export interface ActiveRules {
   dropAllOnShot: boolean;
   allowBorderGrenade: boolean;
   treasureDrifts: boolean;
+  allowLeave: boolean;
+}
+
+/** Per-player end-of-game haul, shown on the finish screen. */
+export interface PlayerLootSummary {
+  playerId: string;
+  name: string;
+  bankedItems: CosmeticItem[];
+  coins: number;
+  /** rares still carried inside when the game ended — lost in the dark */
+  lostRares: number;
+  /** walked out without the treasure (forfeited the race) */
+  left: boolean;
 }
 
 export type ServerMessage =
@@ -41,7 +57,7 @@ export type ServerMessage =
       yourPlayerId: string;
       levelSizes: { width: number; height: number }[];
       entrance: Pos;
-      turnOrder: { id: string; name: string }[];
+      turnOrder: { id: string; name: string; avatar?: AvatarConfig }[];
       inventory: Inventory;
       rules: ActiveRules;
     }
@@ -63,6 +79,8 @@ export type ServerMessage =
         paralysis: number;
         hasTreasure: boolean;
         exited: boolean;
+        /** how many at-risk rares they carry (details stay private) */
+        carriedRareCount: number;
       }[];
       monsters: Pos[];
       treasure: { pos: Pos; carriedBy: string | null };
@@ -71,10 +89,12 @@ export type ServerMessage =
   | { type: 'game.events'; events: GameEvent[] }
   | {
       type: 'game.finished';
+      /** '' = nobody won (everyone walked out) */
       winnerId: string;
       winnerName: string;
       turnNumber: number;
       mapReveal: MapDocument;
+      lootSummary: PlayerLootSummary[];
     }
   | { type: 'error'; code: string; message: string }
   | { type: 'pong' };
