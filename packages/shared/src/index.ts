@@ -1,5 +1,6 @@
 export * from './geometry.js';
 export * from './rng.js';
+export * from './cosmetics/index.js';
 export * from './map/grid.js';
 export * from './map/document.js';
 export * from './map/presets.js';
