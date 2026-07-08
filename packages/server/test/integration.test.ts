@@ -441,6 +441,58 @@ describe('full game over WebSockets', () => {
     delete process.env.BOT_DELAY_MS;
   }, 40000);
 
+  it('observers can pause and resume; the gate side is common knowledge at start', async () => {
+    // Move the exit onto the entrance cell: the way in IS the way out.
+    const doc = simpleTestMap();
+    doc.levels[0]!.edges.v[3] = 'wall'; // remove the old (2,0) E exit
+    doc.levels[0]!.edges.v[0] = 'exit'; // gate on the entrance cell's W side
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: doc });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const alice = new TestClient(wsUrl);
+    const bob = new TestClient(wsUrl);
+    const watcher = new TestClient(wsUrl);
+    await alice.ready();
+    await bob.ready();
+    await watcher.ready();
+    alice.send({ type: 'room.create', name: 'Alice', mapId });
+    const aliceSession = await alice.next('session.created');
+    bob.send({ type: 'room.join', roomCode: aliceSession.roomCode, name: 'Bob' });
+    await bob.next('session.created');
+    watcher.send({ type: 'room.spectate', roomCode: aliceSession.roomCode });
+    await watcher.next('room.state');
+    alice.send({ type: 'room.start' });
+
+    // Everyone is told which border side of the entrance is the gate.
+    const started = await alice.next('game.started');
+    expect(started.exitSides).toEqual(['W']);
+    await watcher.next('game.started');
+
+    // A random player may NOT pause…
+    bob.send({ type: 'room.pause', paused: true });
+    expect((await bob.next('error')).code).toBe('NOT_ALLOWED');
+
+    // …but the observer may, and it freezes the whole table.
+    watcher.send({ type: 'room.pause', paused: true });
+    const pausedMsg = await alice.next('game.paused');
+    expect(pausedMsg.paused).toBe(true);
+    await alice.next('game.turn'); // her opening turn announcement
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    expect((await alice.next('error')).code).toBe('GAME_PAUSED');
+
+    // Resume: play continues where it stopped.
+    watcher.send({ type: 'room.pause', paused: false });
+    const resumedMsg = await alice.next('game.paused');
+    expect(resumedMsg.paused).toBe(false);
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    const events = (await alice.next('game.events')).events;
+    expect(events.some((e) => e.payload.type === 'moved')).toBe(true);
+
+    alice.close();
+    bob.close();
+    watcher.close();
+  });
+
   it('rejects out-of-turn actions with a protocol error', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };

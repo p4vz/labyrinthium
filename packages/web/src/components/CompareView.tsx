@@ -3,7 +3,7 @@ import { getEdge } from '@labyrinthium/shared';
 import type { PlayerGrid, Stamp } from '../state/playerMap.js';
 import { STAMP_GLYPHS } from './MapGrid.js';
 
-const CS = 34;
+const CS = 36; // matches MapGrid/TrueMapView so all views share one scale
 const PAD = 6;
 
 const GOOD = '#7dc981';

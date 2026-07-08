@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   applyAction,
   createGame,
+  getEdge,
   visibleTo,
   InvalidActionError,
   type ActiveRules,
@@ -54,6 +55,7 @@ export class Room {
   private bots = new Map<string, BotController>();
   private turnTimer: NodeJS.Timeout | null = null;
   private timerArmedForTurn = -1;
+  paused = false;
   private gameId = randomUUID();
 
   constructor(
@@ -187,15 +189,38 @@ export class Room {
   }
 
   gameStartedMessage(playerId: string): ServerMessage {
+    // The entrance gate doubles as the exit and is common knowledge.
+    const level0 = this.map.levels[0]!;
+    const e = this.map.entrance;
+    const exitSides = (['N', 'E', 'S', 'W'] as const).filter(
+      (d) => getEdge(level0.edges, e, d) === 'exit',
+    );
     return {
       type: 'game.started',
       yourPlayerId: playerId,
       levelSizes: this.map.levels.map((l) => ({ width: l.width, height: l.height })),
       entrance: this.map.entrance,
+      exitSides,
       turnOrder: this.players.map((p) => ({ id: p.id, name: p.name })),
       inventory: { ...this.config.startingInventory },
       rules: this.activeRules(),
     };
+  }
+
+  /** Observers (and the host) can freeze the whole table. */
+  setPaused(paused: boolean): void {
+    if (this.paused === paused || this.phase !== 'inProgress') return;
+    this.paused = paused;
+    this.broadcast({ type: 'game.paused', paused });
+    if (paused) {
+      if (this.turnTimer) {
+        clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+      }
+      this.timerArmedForTurn = -1;
+    } else {
+      this.announceTurn(); // re-kick bots and re-arm the clock
+    }
   }
 
   /** The active player submitted an action. Throws RoomError to the caller only. */
@@ -203,6 +228,7 @@ export class Room {
     if (this.phase !== 'inProgress' || !this.state) {
       throw new RoomError('NOT_IN_GAME', 'no game in progress');
     }
+    if (this.paused) throw new RoomError('GAME_PAUSED', 'the game is paused');
     const active = this.state.players[this.state.turnIndex]!;
     if (active.id !== playerId) throw new RoomError('NOT_YOUR_TURN', 'not your turn');
     this.step(playerId, action);

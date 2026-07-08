@@ -41,10 +41,14 @@ export type ServerMessage =
       yourPlayerId: string;
       levelSizes: { width: number; height: number }[];
       entrance: Pos;
+      /** which border side(s) of the entrance cell are the way in AND out —
+       * common knowledge, marked on everyone's map automatically */
+      exitSides: ('N' | 'E' | 'S' | 'W')[];
       turnOrder: { id: string; name: string }[];
       inventory: Inventory;
       rules: ActiveRules;
     }
+  | { type: 'game.paused'; paused: boolean }
   | {
       type: 'game.turn';
       activePlayerId: string;

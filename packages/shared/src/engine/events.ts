@@ -22,7 +22,8 @@ export type EventPayload =
   | { type: 'foundExit'; direction: PlanarDirection }
   | { type: 'riverHere' }
   | { type: 'riverDrift'; direction: PlanarDirection }
-  | { type: 'teleported' }
+  // The pad's visible rune (pair label) — but never the destination.
+  | { type: 'teleported'; label?: number }
   | { type: 'fellThroughTrapdoor' }
   | { type: 'stairsFound'; directions: ('U' | 'D')[] }
   | { type: 'tookStairs'; direction: 'U' | 'D' }
@@ -42,6 +43,7 @@ export type EventPayload =
   | { type: 'itemsFound'; grenades: number; bullets: number; mines: number }
   | { type: 'turnSkippedParalyzed'; remaining: number }
   | { type: 'turnTimedOut'; playerName: string } // public: the clock ran out
+  | { type: 'monstersStir' } // public: the treasure was lifted — the guardians wake
   | { type: 'exitedLabyrinth' }
   | { type: 'gameWon'; playerId: string; playerName: string };
 

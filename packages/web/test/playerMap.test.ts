@@ -173,6 +173,32 @@ describe('map store: undo/redo, aux maps, merge', () => {
     expect(after.h[2]).toBe('exit'); // (2,0).N
   });
 
+  it('announced exit sides are charted as the EXIT; other border sides as wall', () => {
+    useMapStore.getState().initForGame(
+      `test-${Math.random()}`,
+      [{ width: 5, height: 5 }],
+      { level: 0, x: 0, y: 0 },
+      2,
+      ['W'], // the gate (= the exit) is on the west side
+    );
+    const grid = useMapStore.getState().maps[0]!.grids[0]!;
+    expect(grid.v[0]).toBe('exit'); // (0,0).W — the way in is the way out
+    expect(grid.h[0]).toBe('wall'); // (0,0).N — plain outer wall
+  });
+
+  it('stampTeleportPad charts a numbered pad under the pawn', () => {
+    const store = fresh();
+    store.getState().moveYouPawn('E'); // pawn to (1,0)
+    store.getState().stampTeleportPad(4);
+    const grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.cells[1]?.stamps).toContain('teleport');
+    expect(grid.cells[1]?.tpLabel).toBe(4);
+    // idempotent: stepping on the same pad again doesn't duplicate the stamp
+    store.getState().stampTeleportPad(4);
+    const again = store.getState().maps[0]!.grids[0]!;
+    expect(again.cells[1]?.stamps.filter((s) => s === 'teleport')).toHaveLength(1);
+  });
+
   it('paintWalls lays a run of walls as one undoable step', () => {
     const store = fresh();
     store.getState().paintWalls([

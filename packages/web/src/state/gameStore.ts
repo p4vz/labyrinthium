@@ -44,6 +44,7 @@ export interface GameStoreState {
     yourPlayerId: string;
     levelSizes: { width: number; height: number }[];
     entrance: Pos;
+    exitSides: ('N' | 'E' | 'S' | 'W')[];
     turnOrder: { id: string; name: string }[];
     inventory: Inventory;
     rules: ActiveRules;
@@ -56,6 +57,8 @@ export interface GameStoreState {
   treasureUnderfoot: boolean;
   /** epoch ms when the current turn times out; null = untimed */
   turnDeadline: number | null;
+  /** an observer (or the host) has frozen the game */
+  paused: boolean;
   /** observer mode: the unlocked truth + everyone's live state + their maps */
   spectate: {
     trueMap: MapDocument | null;
@@ -116,6 +119,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   canAct: true,
   treasureUnderfoot: false,
   turnDeadline: null,
+  paused: false,
   spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
   setSpectateView(view: string) {
     set({ spectate: { ...get().spectate, view } });
@@ -155,6 +159,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       canAct: true,
       treasureUnderfoot: false,
       turnDeadline: null,
+      paused: false,
       spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
       feed: [],
       lastAckedSeq: -1,
@@ -182,15 +187,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           started: msg,
           feed: [],
           finished: null,
+          paused: false,
           screen: 'game',
           spectating: msg.yourPlayerId === '',
         });
-        // A fresh main map starts with the entrance marked and one tracking
-        // piece per player (everyone begins there) plus your own pawn.
+        // A fresh main map starts with the entrance marked (its gate side is
+        // also the EXIT — common knowledge) and one tracking piece per player
+        // (everyone begins there) plus your own pawn.
         const key = get().session?.roomCode ?? get().room?.roomCode ?? 'solo';
         useMapStore
           .getState()
-          .initForGame(key, msg.levelSizes, msg.entrance, msg.turnOrder.length);
+          .initForGame(key, msg.levelSizes, msg.entrance, msg.turnOrder.length, msg.exitSides);
         break;
       }
       case 'game.turn': {
@@ -207,6 +214,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               ? Date.now() + timer * 1000
               : null,
         });
+        break;
+      }
+      case 'game.paused': {
+        set({ paused: msg.paused });
         break;
       }
       case 'spectate.reveal': {
@@ -251,6 +262,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             set({ treasureUnderfoot: true });
           } else if (e.payload.type === 'treasurePickedUp') {
             set({ treasureUnderfoot: false });
+          } else if (e.payload.type === 'teleported') {
+            // The GM announced the pad (and its number): chart it where the
+            // pawn stood — the pawn itself is now somewhere unknown.
+            useMapStore.getState().stampTeleportPad(e.payload.label);
           }
         }
         const entries: FeedEntry[] = msg.events.map((e) => {

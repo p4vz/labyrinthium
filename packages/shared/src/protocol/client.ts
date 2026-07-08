@@ -67,6 +67,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('room.spectate'),
     roomCode: z.string().min(4).max(8),
   }),
+  // Observers (and the host) can freeze the action.
+  z.object({ type: z.literal('room.pause'), paused: z.boolean() }),
   z.object({ type: z.literal('room.leave') }),
   z.object({ type: z.literal('room.start') }),
   z.object({ type: z.literal('game.action'), action: playerActionSchema }),

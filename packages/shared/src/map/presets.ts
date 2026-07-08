@@ -31,7 +31,6 @@ export interface GeneratorParams {
   mineCount: [number, number];
   trapCount: [number, number];
   trapdoorCount: [number, number];
-  exitCount: number;
   /** starting inventory per player */
   inventory: { grenades: number; bullets: number; mines: number };
 }
@@ -46,7 +45,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     grateChance: 0,
     oneWayTeleports: [0, 1],
     monsterCount: [0, 0],
-    exitCount: 1,
     inventory: { grenades: 1, bullets: 1, mines: 0 },
   },
   medium: {
@@ -58,7 +56,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     grateChance: 0.3,
     oneWayTeleports: [1, 1],
     monsterCount: [1, 1],
-    exitCount: 1,
     inventory: { grenades: 2, bullets: 2, mines: 1 },
   },
   large: {
@@ -70,7 +67,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     grateChance: 0.4,
     oneWayTeleports: [1, 2],
     monsterCount: [1, 2],
-    exitCount: 2,
     inventory: { grenades: 3, bullets: 3, mines: 2 },
   },
 };

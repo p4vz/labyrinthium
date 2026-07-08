@@ -93,6 +93,8 @@ export interface GameState {
   turnStartResolved: boolean;
   treasure: { carriedBy: string | null; pos: Pos };
   monsters: MonsterState[];
+  /** guardians sleep until the treasure is first lifted */
+  monstersAwake: boolean;
   rngState: number;
   nextEventSeq: number;
   config: GameConfig;
@@ -135,6 +137,7 @@ export function createGame(
       ...(m.route ? { route: m.route.map((c) => ({ ...c })), routeIdx: 0 } : {}),
       ...(m.scentRadius !== undefined ? { scentRadius: m.scentRadius } : {}),
     })),
+    monstersAwake: false,
     rngState: hashSeed(seed),
     nextEventSeq: 0,
     config,

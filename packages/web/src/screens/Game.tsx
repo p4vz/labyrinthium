@@ -278,17 +278,29 @@ function CompareSection(props: {
 }
 
 /** Observer mode: the unlocked truth with live pieces, and each player's
- * own hand-drawn map one click away. */
+ * own hand-drawn maps — main AND auxiliary — one click away. */
 function ObserverPanel(): JSX.Element {
   const spectate = useGameStore((s) => s.spectate);
   const setView = useGameStore((s) => s.setSpectateView);
+  const paused = useGameStore((s) => s.paused);
+  const finished = useGameStore((s) => s.finished);
   const [level, setLevel] = useState(0);
+  /** which of the viewed player's maps (main / aux) is open */
+  const [mapSel, setMapSel] = useState('main');
+
+  // Switching players resets to their main map.
+  useEffect(() => {
+    setMapSel('main');
+  }, [spectate.view]);
 
   if (!spectate.trueMap) return <p className="hint">waiting for the game to start…</p>;
   const players = spectate.live?.players ?? [];
   const viewing = spectate.view !== 'true' ? spectate.beliefMaps[spectate.view] : undefined;
   const beliefMaps = viewing ? (viewing.maps as PlayerMap[]) : null;
-  const mainBelief = beliefMaps?.find?.((m) => m.id === 'main') ?? beliefMaps?.[0];
+  const beliefMap =
+    beliefMaps?.find?.((m) => m.id === mapSel) ??
+    beliefMaps?.find?.((m) => m.id === 'main') ??
+    beliefMaps?.[0];
 
   return (
     <div className="observer" data-testid="observer">
@@ -306,10 +318,38 @@ function ObserverPanel(): JSX.Element {
             🗒 {p.name}
           </button>
         ))}
+        {!finished && (
+          <button
+            className={`pause-btn ${paused ? 'active' : ''}`}
+            data-testid="pause-btn"
+            onClick={() => send({ type: 'room.pause', paused: !paused })}
+            title={paused ? 'let the game continue' : 'freeze the game to study the maps'}
+          >
+            {paused ? '▶ resume' : '⏸ pause'}
+          </button>
+        )}
       </div>
-      {spectate.trueMap.levels.length > 1 && (
+      {paused && (
+        <div className="aux-banner" data-testid="paused-banner">
+          ⏸ game paused — nobody can move until you resume
+        </div>
+      )}
+      {beliefMaps && beliefMaps.length > 1 && (
+        <div className="level-tabs" data-testid="observer-map-tabs">
+          {beliefMaps.map((m) => (
+            <button
+              key={m.id}
+              className={m.id === (beliefMap?.id ?? 'main') ? 'active' : ''}
+              onClick={() => setMapSel(m.id)}
+            >
+              {m.id === 'main' ? '🗺 main' : `📄 ${m.name}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {(spectate.view === 'true' ? spectate.trueMap.levels.length > 1 : (beliefMap?.grids.length ?? 0) > 1) && (
         <div className="level-tabs">
-          {spectate.trueMap.levels.map((_, i) => (
+          {(spectate.view === 'true' ? spectate.trueMap.levels : beliefMap!.grids).map((_, i) => (
             <button key={i} className={i === level ? 'active' : ''} onClick={() => setLevel(i)}>
               {i === 0 ? 'ground' : `-${i}`}
             </button>
@@ -320,7 +360,7 @@ function ObserverPanel(): JSX.Element {
         <div className="map-scroll">
           <TrueMapView
             map={spectate.trueMap}
-            level={level}
+            level={Math.min(level, spectate.trueMap.levels.length - 1)}
             overlay={
               spectate.live
                 ? {
@@ -334,9 +374,9 @@ function ObserverPanel(): JSX.Element {
             }
           />
         </div>
-      ) : mainBelief?.grids ? (
+      ) : beliefMap?.grids ? (
         <div className="map-scroll">
-          <MapGrid grid={mainBelief.grids[Math.min(level, mainBelief.grids.length - 1)]!} />
+          <MapGrid grid={beliefMap.grids[Math.min(level, beliefMap.grids.length - 1)]!} />
           <p className="hint">
             {viewing?.playerName}'s beliefs, live — walls they've charted, marks they've guessed.
           </p>

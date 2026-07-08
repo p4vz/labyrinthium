@@ -106,6 +106,11 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
         player.hasTreasure = true;
         ctx.emit(priv, { type: 'treasurePickedUp' });
         state.actedThisTurn = true;
+        // Lifting the treasure wakes its guardians, once and for all.
+        if (!state.monstersAwake && state.monsters.some((m) => m.alive)) {
+          state.monstersAwake = true;
+          ctx.emit({ kind: 'public' }, { type: 'monstersStir' });
+        }
         break;
       case 'endTurn':
         turnEnds = true;

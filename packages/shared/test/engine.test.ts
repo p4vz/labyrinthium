@@ -373,24 +373,64 @@ describe('monsters', () => {
   });
 
   it('a patroller walks its loop', () => {
+    // The patroller lives on level 1 while the treasure sits on level 0, so
+    // guard duty never overrides its route; woken manually for the test.
     const map = testMap({
-      levels: [openLevel(4, 3)],
+      levels: [openLevel(4, 3), openLevel(4, 3)],
       treasure: { level: 0, x: 3, y: 2 },
       monsters: [
         {
-          at: { level: 0, x: 2, y: 2 },
+          at: { level: 1, x: 2, y: 2 },
           ai: 'patroller',
           route: [{ x: 2, y: 2 }, { x: 3, y: 2 }],
         },
       ],
     });
-    let state = startGame(map);
+    let state = { ...startGame(map), monstersAwake: true };
     const before = state.monsters[0]!.pos;
     state = turn(state, { type: 'move', direction: 'E' }).state;
     const after = state.monsters[0]!.pos;
     expect(after).not.toMatchObject(before);
     state = turn(state, { type: 'move', direction: 'W' }).state;
     expect(state.monsters[0]!.pos).toMatchObject(before); // returned
+  });
+
+  it('monsters sleep until the treasure is first lifted, then stir and hunt the carrier', () => {
+    const map = testMap({
+      levels: [openLevel(4, 3)],
+      treasure: { level: 0, x: 1, y: 0 },
+      monsters: [{ at: { level: 0, x: 3, y: 2 }, ai: 'hunter', scentRadius: 10 }],
+    });
+    let state = startGame(map);
+    // full turns pass — the sleeping guardian never moves
+    state = turn(state, { type: 'move', direction: 'S' }).state;
+    state = turn(state, { type: 'move', direction: 'N' }).state;
+    expect(state.monsters[0]!.pos).toMatchObject({ x: 3, y: 2 });
+    expect(state.monstersAwake).toBe(false);
+    // lifting the treasure wakes the guardians, audibly
+    state = turn(state, { type: 'move', direction: 'E' }).state; // onto the treasure
+    const lift = turn(state, { type: 'pickup' });
+    expect(payloadTypes(lift.events)).toContain('monstersStir');
+    expect(lift.state.monstersAwake).toBe(true);
+    // from the next completed turn on, the guardian closes in on the carrier
+    const after = turn(lift.state, { type: 'move', direction: 'W' }); // carrier at (0,0)
+    const m = after.state.monsters[0]!.pos;
+    expect(m.x + m.y).toBeLessThan(5); // manhattan distance shrank from 5
+  });
+
+  it('an awake guardian camps on the unclaimed treasure', () => {
+    const map = testMap({
+      levels: [openLevel(4, 3)],
+      treasure: { level: 0, x: 3, y: 0 },
+      monsters: [{ at: { level: 0, x: 3, y: 1 }, ai: 'wanderer' }],
+    });
+    let state = { ...startGame(map), monstersAwake: true };
+    // world phase: the guardian steps onto the treasure tile...
+    state = turn(state, { type: 'move', direction: 'S' }).state;
+    expect(state.monsters[0]!.pos).toMatchObject({ x: 3, y: 0 });
+    // ...and then stands its ground, guarding
+    state = turn(state, { type: 'move', direction: 'N' }).state;
+    expect(state.monsters[0]!.pos).toMatchObject({ x: 3, y: 0 });
   });
 
   it('bullets kill monsters silently', () => {

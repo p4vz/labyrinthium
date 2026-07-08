@@ -691,6 +691,15 @@ button.glow {
   flex-wrap: wrap;
   justify-content: center;
 }
+.pause-btn {
+  border-color: var(--accent-dark);
+  font-weight: 600;
+}
+.pause-btn.active {
+  background: #4a2318;
+  border-color: #e05b50;
+  color: #f0b0a8;
+}
 
 .event-ticker {
   display: none;

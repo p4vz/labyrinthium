@@ -181,6 +181,14 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
         return;
       }
 
+      case 'room.pause': {
+        // Observers of a room and its host may freeze/unfreeze the game.
+        const room = conn.spectating ?? (conn.player?.id === conn.room?.hostId ? conn.room : null);
+        if (!room) throw new RoomError('NOT_ALLOWED', 'only observers or the host can pause');
+        room.setPaused(msg.paused);
+        return;
+      }
+
       case 'room.leave': {
         if (conn.player) {
           conn.player.send = null;

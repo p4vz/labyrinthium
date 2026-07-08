@@ -4,6 +4,7 @@ import {
   setEdgeMark,
   setEdgeRaw,
   stampRiver,
+  stampTeleport,
   createGrid,
   extract,
   clearRect,
@@ -67,11 +68,14 @@ export interface MapStoreState {
     levelSizes: { width: number; height: number }[],
     entrance?: { level: number; x: number; y: number },
     playerCount?: number,
+    exitSides?: ('N' | 'E' | 'S' | 'W')[],
   ): void;
   /** slide every "you" pawn one tile when the GM confirms you moved */
   moveYouPawn(direction: 'N' | 'E' | 'S' | 'W'): void;
   /** the GM revealed an exit next to you: draw the green gate at the pawn */
   markExitEdge(direction: 'N' | 'E' | 'S' | 'W'): void;
+  /** the GM announced you stepped on a (numbered) teleport pad: chart it at the pawn */
+  stampTeleportPad(label?: number): void;
   /** one swipe of the wall tool: a run of edges becomes walls (one undo step) */
   paintWalls(edges: { kind: 'h' | 'v'; x: number; y: number }[]): void;
   /** one swipe of the river tool: a chain of cells with flow directions (one undo step) */
@@ -151,7 +155,7 @@ export const useMapStore = create<MapStoreState>((set, get) => {
     undoStack: [],
     redoStack: [],
 
-    initForGame(key, levelSizes, entrance, playerCount) {
+    initForGame(key, levelSizes, entrance, playerCount, exitSides) {
       const storageKey = `labyrinthium:maps:${key}`;
       let maps: PlayerMap[] | null = null;
       try {
@@ -180,9 +184,11 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           maps[0]!.grids[entrance.level] = grid;
         }
       }
-      // The entrance is a GATE in the outer wall — draw the arch on every
-      // border side of the entrance cell (also patches maps saved before
-      // this existed, hence outside the fresh-map branch).
+      // The entrance is a GATE in the outer wall — and the way in IS the way
+      // out, so the announced gate side(s) are charted as the exit for
+      // everyone; other border sides of the entrance cell are plain outer
+      // wall. (Also patches maps saved before this existed, hence outside
+      // the fresh-map branch.)
       if (entrance) {
         const main = maps.find((m) => m.id === 'main');
         let grid = main?.grids[entrance.level];
@@ -193,7 +199,8 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           if (entrance.y === grid.height - 1) sides.push('S');
           if (entrance.x === grid.width - 1) sides.push('E');
           for (const side of sides) {
-            grid = setEdgeMark(grid, entrance.x, entrance.y, side, 'gate');
+            const mark = exitSides ? (exitSides.includes(side) ? 'exit' : 'wall') : 'gate';
+            grid = setEdgeMark(grid, entrance.x, entrance.y, side, mark);
           }
           if (!grid.cells.some((c) => c?.stamps.includes('entrance'))) {
             grid = toggleStamp(grid, entrance.x, entrance.y, 'entrance');
@@ -260,6 +267,29 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           const x = idx % grid.width;
           const y = Math.floor(idx / grid.width);
           map.grids[gi] = setEdgeMark(grid, x, y, direction, 'exit');
+          changed = true;
+        }
+      }
+      if (changed) {
+        set({ maps: next });
+        persist({ storageKey, maps: next });
+      }
+    },
+
+    stampTeleportPad(label) {
+      // Automatic bookkeeping like moveYouPawn: the GM said "you stepped on
+      // teleport pad №N" — chart the pad under the pawn before the jump.
+      const { maps, storageKey } = get();
+      const next = JSON.parse(JSON.stringify(maps)) as PlayerMap[];
+      let changed = false;
+      for (const map of next) {
+        for (let gi = 0; gi < map.grids.length; gi++) {
+          const grid = map.grids[gi]!;
+          const idx = grid.cells.findIndex((c) => c?.stamps.includes('you'));
+          if (idx < 0) continue;
+          const x = idx % grid.width;
+          const y = Math.floor(idx / grid.width);
+          map.grids[gi] = stampTeleport(grid, x, y, label);
           changed = true;
         }
       }

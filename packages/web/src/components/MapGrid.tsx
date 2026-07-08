@@ -383,7 +383,11 @@ export function grateGlyph(cx: number, cy: number): JSX.Element {
   );
 }
 
-function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string }, x: number, y: number): JSX.Element {
+function renderAnno(
+  anno: { stamps: Stamp[]; riverDir?: string; note?: string; tpLabel?: number },
+  x: number,
+  y: number,
+): JSX.Element {
   const glyphs = anno.stamps.filter((s) => s !== 'river');
   const hasRiver = anno.stamps.includes('river');
   const riverRotation = { N: 270, E: 0, S: 90, W: 180 }[anno.riverDir ?? 'E'] ?? 0;
@@ -433,6 +437,11 @@ function renderAnno(anno: { stamps: Stamp[]; riverDir?: string; note?: string },
       {glyphs.length > 4 && (
         <text x={x + CS - 5} y={y + CS - 4} fontSize={8} textAnchor="middle">
           +{glyphs.length - 4}
+        </text>
+      )}
+      {anno.tpLabel !== undefined && anno.stamps.includes('teleport') && (
+        <text x={x + 7} y={y + CS - 5} fontSize={9} fontWeight="bold" fill="#c9a3e8" textAnchor="middle">
+          {anno.tpLabel}
         </text>
       )}
       {anno.note && (

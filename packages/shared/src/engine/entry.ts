@@ -49,7 +49,11 @@ export function runEntryPipeline(
       visited.add(here);
       visited.add(posKey(teleport.target)); // landing pad never re-fires
       player.pos = { ...teleport.target };
-      ctx.emit(priv, { type: 'teleported' });
+      // The rune on the pad is plainly visible — the destination is not.
+      ctx.emit(priv, {
+        type: 'teleported',
+        ...(teleport.label !== undefined ? { label: teleport.label } : {}),
+      });
       continue;
     }
 

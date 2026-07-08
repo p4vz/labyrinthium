@@ -66,6 +66,8 @@ export class BotController {
 
   private levelSizes: { width: number; height: number }[] = [];
   private entrance: { level: number; x: number; y: number } | null = null;
+  /** labeled teleport pads seen while still oriented (frame-0 coords) */
+  private knownTeleports: { x: number; y: number; label: number }[] = [];
 
   handle(msg: ServerMessage): void {
     if (this.stopped) return;
@@ -75,6 +77,10 @@ export class BotController {
         this.inventory = { ...msg.inventory };
         this.levelSizes = msg.levelSizes;
         this.entrance = msg.entrance;
+        // The entrance gate IS the exit and everyone knows it from turn one.
+        for (const side of msg.exitSides) {
+          this.knownExits.push({ pos: { frame: 0, x: 0, y: 0 }, direction: side });
+        }
         this.markVisit(this.pos);
         break;
       case 'game.events':
@@ -164,6 +170,16 @@ export class BotController {
         }
         break;
       case 'teleported':
+        // Remember the labeled pad we stepped on (while we still knew where
+        // we were), THEN lose our bearings.
+        if (this.pos && this.pos.frame === 0 && p.label !== undefined) {
+          this.knownTeleports.push({ x: this.pos.x, y: this.pos.y, label: p.label });
+        }
+        this.frame += 1;
+        this.pos = { frame: this.frame, x: 0, y: 0 };
+        this.knownExits = this.knownExits.filter((e) => e.pos.frame === this.frame);
+        this.markVisit(this.pos);
+        break;
       case 'fellThroughTrapdoor':
       case 'tookStairs':
         // Disoriented: new reference frame, old coordinates are meaningless.
@@ -286,8 +302,8 @@ export class BotController {
    * Render this bot's beliefs in the same shape the web client draws, so
    * observers can watch the bot's map grow. Frame 0 is anchored at the
    * entrance (known to everyone), so its relative coordinates translate to
-   * absolute ones; post-teleport frames are as unplottable for us as for a
-   * disoriented human, so they're omitted.
+   * absolute ones; each post-teleport/post-fall frame is exported as an
+   * auxiliary map — exactly what a disoriented human would chart.
    */
   exportBeliefMaps(): unknown {
     if (!this.entrance || this.levelSizes.length === 0) return [];
@@ -326,6 +342,13 @@ export class BotController {
         else if (exit.direction === 'W') grid.v[ay * (size.width + 1) + ax] = 'exit';
         else grid.v[ay * (size.width + 1) + ax + 1] = 'exit';
       }
+      // labeled teleport pads the bot has used
+      for (const pad of this.knownTeleports) {
+        const ax = e.x + pad.x;
+        const ay = e.y + pad.y;
+        if (ax < 0 || ay < 0 || ax >= size.width || ay >= size.height) continue;
+        grid.cells[ay * size.width + ax] = { stamps: ['teleport'], tpLabel: pad.label } as never;
+      }
       // the bot's pawn (only while it still knows where it is)
       if (this.pos && this.pos.frame === 0) {
         const ax = e.x + this.pos.x;
@@ -339,7 +362,86 @@ export class BotController {
       }
       return grid;
     });
-    return [{ id: 'main', name: 'Main map', grids }];
+    const maps: unknown[] = [{ id: 'main', name: 'Main map', grids }];
+    for (let f = 1; f <= this.frame; f++) {
+      const aux = this.exportFrameGrid(f);
+      if (aux) maps.push({ id: `aux-${f}`, name: `Aux ${f}`, grids: [aux] });
+    }
+    return maps;
+  }
+
+  /** One non-zero frame's knowledge as a standalone aux-map grid, offset so
+   * the region fits the page — like a human charting an unknown region from
+   * the middle of a fresh sheet. */
+  private exportFrameGrid(f: number): unknown | null {
+    const edgeRe = new RegExp(`^${f}:(h|v):(-?\\d+),(-?\\d+)$`);
+    const visitRe = new RegExp(`^${f}:(-?\\d+),(-?\\d+)$`);
+    let minX = 0;
+    let minY = 0;
+    let maxX = 0;
+    let maxY = 0;
+    let any = false;
+    const consider = (x: number, y: number): void => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      any = true;
+    };
+    for (const key of this.edges.keys()) {
+      const m = edgeRe.exec(key);
+      if (m) consider(Number(m[2]), Number(m[3]));
+    }
+    for (const key of this.visits.keys()) {
+      const m = visitRe.exec(key);
+      if (m) consider(Number(m[1]), Number(m[2]));
+    }
+    if (!any) return null;
+    const margin = 1;
+    const ox = margin - minX;
+    const oy = margin - minY;
+    const width = Math.min(maxX - minX + 1 + margin * 2, 15);
+    const height = Math.min(maxY - minY + 1 + margin * 2, 15);
+    const grid = {
+      width,
+      height,
+      h: new Array<string>((height + 1) * width).fill('unknown'),
+      v: new Array<string>(height * (width + 1)).fill('unknown'),
+      cells: new Array<{ stamps: string[] } | null>(width * height).fill(null),
+    };
+    for (const [key, state] of this.edges) {
+      const m = edgeRe.exec(key);
+      if (!m) continue;
+      const kind = m[1] as 'h' | 'v';
+      const ax = Number(m[2]) + ox;
+      const ay = Number(m[3]) + oy;
+      const mark = state === 'open' ? 'open' : 'wall';
+      if (kind === 'h' && ax >= 0 && ax < width && ay >= 0 && ay <= height) {
+        grid.h[ay * width + ax] = mark;
+      } else if (kind === 'v' && ax >= 0 && ax <= width && ay >= 0 && ay < height) {
+        grid.v[ay * (width + 1) + ax] = mark;
+      }
+    }
+    for (const exit of this.knownExits) {
+      if (exit.pos.frame !== f) continue;
+      const ax = exit.pos.x + ox;
+      const ay = exit.pos.y + oy;
+      if (ax < 0 || ay < 0 || ax >= width || ay >= height) continue;
+      if (exit.direction === 'N') grid.h[ay * width + ax] = 'exit';
+      else if (exit.direction === 'S') grid.h[(ay + 1) * width + ax] = 'exit';
+      else if (exit.direction === 'W') grid.v[ay * (width + 1) + ax] = 'exit';
+      else grid.v[ay * (width + 1) + ax + 1] = 'exit';
+    }
+    if (this.pos && this.pos.frame === f) {
+      const ax = this.pos.x + ox;
+      const ay = this.pos.y + oy;
+      if (ax >= 0 && ay >= 0 && ax < width && ay < height) {
+        const stamps = ['you'];
+        if (this.treasureUnderfoot && !this.hasTreasure) stamps.push('treasure');
+        grid.cells[ay * width + ax] = { stamps };
+      }
+    }
+    return grid;
   }
 
   private setEdge(p: RelPos, d: Dir, state: 'open' | 'blocked' | 'reinforced'): void {
