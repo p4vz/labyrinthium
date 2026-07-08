@@ -85,6 +85,7 @@ async function runBot(
   await client.ready();
   let myId = '';
   let host = false;
+  let treasureHere = false;
 
   client.onMessage = (msg: ServerMessage) => {
     switch (msg.type) {
@@ -97,11 +98,25 @@ async function runBot(
         host = msg.hostId === myId;
         break;
       case 'game.events':
-        for (const e of msg.events) console.log(`[${name}] ${describeEvent(e)}`);
+        for (const e of msg.events) {
+          console.log(`[${name}] ${describeEvent(e)}`);
+          if (e.payload.type === 'treasureHere') treasureHere = true;
+          if (e.payload.type === 'moved' || e.payload.type === 'treasurePickedUp') treasureHere = false;
+        }
         break;
       case 'game.turn':
         if (msg.activePlayerId === myId) {
-          setTimeout(() => client.send({ type: 'game.action', action: randomAction() }), 10);
+          setTimeout(() => {
+            // Turn = optional action + a move. Grab loot when it's underfoot,
+            // and once the action is spent, only moves remain.
+            const action =
+              treasureHere && msg.canAct
+                ? ({ type: 'pickup' } as const)
+                : msg.canAct
+                  ? randomAction()
+                  : ({ type: 'move', direction: (['N', 'E', 'S', 'W'] as const)[Math.floor(Math.random() * 4)]! } as const)
+            client.send({ type: 'game.action', action });
+          }, 10);
         }
         break;
       case 'game.finished':
@@ -245,7 +260,14 @@ async function runInteractive(args: Args): Promise<void> {
     else if (cmd === 'grenade' && arg && arg in dirMap)
       client.send({ type: 'game.action', action: { type: 'grenade', direction: dirMap[arg]! } });
     else if (cmd === 'mine') client.send({ type: 'game.action', action: { type: 'placeMine' } });
-    else console.log('commands: n e s w u d | shoot <dir> | grenade <dir> | mine | start | quit');
+    else if (cmd === 'pickup' || cmd === 'take')
+      client.send({ type: 'game.action', action: { type: 'pickup' } });
+    else if (cmd === 'end' || cmd === 'pass')
+      client.send({ type: 'game.action', action: { type: 'endTurn' } });
+    else
+      console.log(
+        'commands: n e s w u d (move, ends turn) | shoot/grenade <dir> | mine | pickup | end | start | quit',
+      );
   });
 }
 

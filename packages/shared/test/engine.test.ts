@@ -10,13 +10,18 @@ describe('movement & walls', () => {
     expect(payloadTypes(events)).toContain('moved');
   });
 
-  it('bumping a wall wastes the turn and does not move the player', () => {
+  it('bumping a wall is a free note — the turn stays open', () => {
     const map = testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E' }] });
-    const state = startGame(map);
+    const state = startGame(map, 2);
     const { state: next, events } = turn(state, { type: 'move', direction: 'E' });
     expect(next.players[0]!.pos).toMatchObject({ x: 0, y: 0 });
     expect(payloadTypes(events)).toContain('bumpedWall');
-    expect(next.turnNumber).toBe(state.turnNumber + 1);
+    // no turn consumed: same turn number, same active player
+    expect(next.turnNumber).toBe(state.turnNumber);
+    expect(next.turnIndex).toBe(state.turnIndex);
+    // ...and a successful move afterwards ends the turn normally
+    const after = turn(next, { type: 'move', direction: 'S' });
+    expect(after.state.turnNumber).toBe(state.turnNumber + 1);
   });
 
   it('reinforced walls bump exactly like plain walls (indistinguishable)', () => {
@@ -47,7 +52,8 @@ describe('exits & winning', () => {
       exits: [{ at: { x: 0, y: 0 }, dir: 'N' }],
     });
     const { state, events } = playScript(startGame(map), [
-      { type: 'move', direction: 'E' }, // pick up treasure
+      { type: 'move', direction: 'E' }, // step onto the treasure tile
+      { type: 'pickup' }, // lifting it costs the action
       { type: 'move', direction: 'W' },
       { type: 'move', direction: 'N' }, // out through the exit
     ]);
@@ -105,19 +111,19 @@ describe('shooting', () => {
   it('paralyzes the victim, drops only the treasure, and screams publicly', () => {
     const map = testMap({ treasure: { level: 0, x: 1, y: 0 } });
     let state = startGame(map, 2);
-    // p1 moves east onto the treasure, p2 waits, p1 moves east again, then p2 shoots east from the entrance.
-    state = turn(state, { type: 'move', direction: 'E' }).state; // p1 grabs treasure at (1,0)
+    state = turn(state, { type: 'move', direction: 'E' }).state; // p1 onto the treasure tile
     state = turn(state, { type: 'move', direction: 'S' }).state; // p2 sidesteps to (0,1)
-    state = turn(state, { type: 'move', direction: 'E' }).state; // p1 to (2,0)
+    state = turn(state, { type: 'pickup' }).state; // p1 lifts the treasure (action)...
+    state = turn(state, { type: 'move', direction: 'E' }).state; // ...and moves to (2,0)
     state = turn(state, { type: 'move', direction: 'N' }).state; // p2 back to (0,0)
-    const shot = turn(state, { type: 'move', direction: 'S' }); // p1 to (2,1)
-    state = shot.state;
-    const result = turn(state, { type: 'shoot', direction: 'E' }); // p2 shoots along row 0 — misses (p1 left)
+    state = turn(state, { type: 'move', direction: 'S' }).state; // p1 to (2,1)
+    const result = turn(state, { type: 'shoot', direction: 'E' }); // p2 shoots row 0 — misses
     state = result.state;
     expect(payloadTypes(result.events)).toContain('shotFired');
     expect(payloadTypes(result.events)).not.toContain('screamHeard');
+    state = turn(state, { type: 'endTurn' }).state; // shooting kept p2's turn open
 
-    // p1 skips back up to row 0 at x=2; p2 shoots east again and hits.
+    // p1 steps back up to row 0 at x=2; p2 shoots east again and hits.
     state = turn(state, { type: 'move', direction: 'N' }).state; // p1 to (2,0), carrying treasure
     const hit = turn(state, { type: 'shoot', direction: 'E' });
     state = hit.state;
@@ -143,14 +149,15 @@ describe('shooting', () => {
     const map = testMap();
     let state = startGame(map, 2);
     state = turn(state, { type: 'move', direction: 'E' }).state; // p1 to (1,0)
-    const hit = turn(state, { type: 'shoot', direction: 'E' }); // p2 shoots from (0,0)
-    state = hit.state;
+    let result = turn(state, { type: 'shoot', direction: 'E' }); // p2 shoots from (0,0)
+    state = result.state;
     expect(state.players[0]!.paralysis).toBe(3);
+    state = turn(state, { type: 'endTurn' }).state; // the shot kept p2's turn open
     for (let i = 3; i > 0; i--) {
       const skip = turn(state, { type: 'skip' });
       state = skip.state;
       expect(payloadTypes(skip.events)).toContain('turnSkippedParalyzed');
-      state = turn(state, { type: 'move', direction: 'S' }).state; // p2 does something
+      state = turn(state, { type: 'move', direction: i % 2 ? 'S' : 'N' }).state; // p2 paces
     }
     expect(state.players[0]!.paralysis).toBe(0);
     const free = turn(state, { type: 'move', direction: 'E' });
@@ -167,7 +174,8 @@ describe('mines & traps', () => {
     const map = testMap();
     let state = startGame(map, 2);
     state = turn(state, { type: 'move', direction: 'E' }).state; // p1 to (1,0)
-    state = turn(state, { type: 'placeMine' }).state; // p2 mines the entrance (0,0)
+    state = turn(state, { type: 'placeMine' }).state; // p2 mines the entrance (action)
+    state = turn(state, { type: 'endTurn' }).state; // and passes
     state = turn(state, { type: 'move', direction: 'W' }).state; // p1 back onto the mine
     const p1 = state.players[0]!;
     expect(p1.paralysis).toBe(3);
@@ -353,7 +361,8 @@ describe('monsters', () => {
       ],
     });
     let state = startGame(map);
-    state = turn(state, { type: 'move', direction: 'S' }).state; // grab treasure at (0,1)
+    state = turn(state, { type: 'move', direction: 'S' }).state; // onto the treasure tile
+    state = turn(state, { type: 'pickup' }).state; // lift it (action)
     expect(state.players[0]!.hasTreasure).toBe(true);
     state = turn(state, { type: 'move', direction: 'N' }).state; // back to (0,0)
     const clash = turn(state, { type: 'move', direction: 'E' }); // teleport pad -> monster box

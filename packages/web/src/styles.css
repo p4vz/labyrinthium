@@ -661,6 +661,37 @@ h3 {
   margin: 10px 0;
   flex-wrap: wrap;
 }
+/* the pickup button glows when the GM says the loot is underfoot */
+button.glow {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(224, 144, 46, 0.55);
+  color: var(--accent);
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.compare-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.compare-score {
+  font-size: 17px;
+  color: var(--accent);
+  margin: 4px 0 10px;
+}
+.observer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.observer-tabs {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .event-ticker {
   display: none;
   width: 100%;

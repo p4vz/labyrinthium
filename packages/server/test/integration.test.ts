@@ -90,18 +90,21 @@ describe('full game over WebSockets', () => {
     const turn1 = await alice.next('game.turn');
     expect(turn1.activePlayerId).toBe(aliceSession.playerId);
 
-    // Alice: E (grab treasure), Bob: S; Alice: E; Bob: N; Alice: E -> exits with loot.
+    // Alice: E (finds treasure), Bob: S; Alice: pickup + E; Bob: N; Alice: E -> exits.
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
     const aliceMoved = await alice.next('game.events');
     const types = aliceMoved.events.map((e) => e.payload.type);
-    expect(types).toEqual(expect.arrayContaining(['moved', 'treasurePickedUp']));
+    expect(types).toEqual(expect.arrayContaining(['moved', 'treasureHere']));
 
     await bob.next('game.turn');
     bob.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
     await bob.next('game.events');
 
     await alice.next('game.turn');
-    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
+    alice.send({ type: 'game.action', action: { type: 'pickup' } }); // the action...
+    const picked = await alice.next('game.events');
+    expect(picked.events.map((e) => e.payload.type)).toContain('treasurePickedUp');
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } }); // ...then the move
     await alice.next('game.events');
 
     await bob.next('game.turn');
@@ -150,10 +153,18 @@ describe('full game over WebSockets', () => {
     await alice.next('game.started');
     await bob.next('game.started');
 
-    // Alice steps east; Bob shoots east from the entrance and hits her.
+    // Alice steps east onto the treasure and lifts it; Bob shoots her.
     await alice.next('game.turn');
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
     await alice.next('game.events');
+    await bob.next('game.turn');
+    bob.send({ type: 'game.action', action: { type: 'endTurn' } }); // Bob bides his time
+    await bob.next('game.events'); // ...and hears himself announced
+    await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'pickup' } });
+    await alice.next('game.events');
+    alice.send({ type: 'game.action', action: { type: 'endTurn' } });
+    await alice.next('game.events'); // her own end-turn announcement
     await bob.next('game.turn');
     bob.send({ type: 'game.action', action: { type: 'shoot', direction: 'E' } });
 
@@ -166,9 +177,14 @@ describe('full game over WebSockets', () => {
     expect(aliceTypes).toContain('youWereShot');
     expect(aliceTypes).toContain('treasureDropped');
 
-    // Alice is paralyzed: the server auto-skips her turns. Bob soon acts again.
-    const nextTurn = await bob.next('game.turn');
-    expect(nextTurn.activePlayerId).toBe(bobSession.playerId);
+    // Alice is paralyzed: once Bob ends his turn, hers is auto-skipped and
+    // control comes straight back to him.
+    bob.drain('game.turn'); // clear stale turn announcements
+    bob.send({ type: 'game.action', action: { type: 'endTurn' } });
+    const t1 = await bob.next('game.turn');
+    expect(t1.activePlayerId).toBe(aliceSession.playerId); // her turn opens...
+    const t2 = await bob.next('game.turn');
+    expect(t2.activePlayerId).toBe(bobSession.playerId); // ...and is skipped at once
 
     alice.close();
     bob.close();
@@ -244,18 +260,22 @@ describe('full game over WebSockets', () => {
     const watcherStart = await watcher.next('game.started');
     expect(watcherStart.yourPlayerId).toBe(''); // spectators have no identity
 
-    // Alice: E (treasure), Bob shoots and misses nothing... just walk the win.
+    // Alice: E (treasure) -> pickup+E; Bob makes noise; Alice walks out.
     await alice.next('game.turn');
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
     await alice.next('game.events');
     await bob.next('game.turn');
     bob.send({ type: 'game.action', action: { type: 'shoot', direction: 'S' } });
     await bob.next('game.events');
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'S' } }); // the shot kept his turn open
+    await bob.next('game.events');
     await alice.next('game.turn');
+    alice.send({ type: 'game.action', action: { type: 'pickup' } });
+    await alice.next('game.events');
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
     await alice.next('game.events');
     await bob.next('game.turn');
-    bob.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
+    bob.send({ type: 'game.action', action: { type: 'move', direction: 'N' } });
     await bob.next('game.events');
     await alice.next('game.turn');
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
@@ -308,7 +328,7 @@ describe('full game over WebSockets', () => {
     const types = bobEvents.map((e) => e.payload.type);
     expect(types).toContain('actionAnnounced');
     expect(types).toContain('moved'); // Alice's private observation, delivered to Bob
-    expect(types).toContain('treasurePickedUp');
+    expect(types).toContain('treasureHere'); // even the loot call-out is table-public
     const announce = bobEvents.find((e) => e.payload.type === 'actionAnnounced');
     expect(announce?.payload).toMatchObject({ playerName: 'Alice', action: 'move', direction: 'E' });
 
@@ -351,7 +371,8 @@ describe('full game over WebSockets', () => {
         const turn = await host.next('game.turn', 30000).catch(() => null);
         if (!turn) return;
         if (turn.activePlayerId === session.playerId) {
-          host.send({ type: 'game.action', action: { type: 'move', direction: 'W' } });
+          // Bumping the border no longer ends a turn — pass explicitly.
+          host.send({ type: 'game.action', action: { type: 'endTurn' } });
         }
       }
     };

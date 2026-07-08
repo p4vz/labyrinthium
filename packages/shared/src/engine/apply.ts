@@ -72,38 +72,60 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
     ...('direction' in action ? { direction: action.direction } : {}),
   });
 
-  // The current sweeps anyone starting their turn in a river, before they act.
-  driftAtTurnStart(ctx, player);
+  // The current sweeps anyone starting their turn in a river — once per
+  // turn, before the first thing they do.
+  if (!state.turnStartResolved) {
+    state.turnStartResolved = true;
+    driftAtTurnStart(ctx, player);
+  }
 
+  // A turn is [at most one action] + [a move, which ends it]. Blocked moves
+  // are free information; actions keep the turn open until the move.
+  let turnEnds = false;
   if (!player.exited) {
     switch (action.type) {
       case 'move':
-        resolveMove(ctx, player, action.direction);
+        turnEnds = resolveMove(ctx, player, action.direction);
         break;
       case 'shoot':
         resolveShoot(ctx, player, action.direction as PlanarDirection);
+        state.actedThisTurn = true;
         break;
       case 'grenade':
         resolveGrenade(ctx, player, action.direction as PlanarDirection);
+        state.actedThisTurn = true;
         break;
       case 'placeMine':
         player.inventory.mines--;
         state.placedMines.push({ ...player.pos });
         ctx.emit(priv, { type: 'minePlaced' });
+        state.actedThisTurn = true;
+        break;
+      case 'pickup':
+        state.treasure.carriedBy = player.id;
+        player.hasTreasure = true;
+        ctx.emit(priv, { type: 'treasurePickedUp' });
+        state.actedThisTurn = true;
+        break;
+      case 'endTurn':
+        turnEnds = true;
         break;
     }
+  } else {
+    turnEnds = true;
   }
 
-  moveMonsters(ctx);
-  driftTreasure(state);
-
-  if (player.exited && player.hasTreasure && state.phase === 'inProgress') {
-    state.phase = 'finished';
-    state.winnerId = player.id;
-    ctx.emit({ kind: 'public' }, { type: 'gameWon', playerId: player.id, playerName: player.name });
+  if (turnEnds) {
+    // The world only stirs when a turn truly ends.
+    moveMonsters(ctx);
+    driftTreasure(state);
+    if (player.exited && player.hasTreasure && state.phase === 'inProgress') {
+      state.phase = 'finished';
+      state.winnerId = player.id;
+      ctx.emit({ kind: 'public' }, { type: 'gameWon', playerId: player.id, playerName: player.name });
+    }
+    if (state.phase === 'inProgress') advanceTurn(state);
   }
-
-  if (state.phase === 'inProgress') advanceTurn(state);
   return { state, events };
 }
 
@@ -115,16 +137,26 @@ function validate(state: GameState, action: PlayerAction): void {
   if (player.exited) throw new InvalidActionError('ALREADY_EXITED', 'you already left the labyrinth');
   if (player.paralysis > 0) return; // any action is accepted and becomes the skip
 
+  const requireAction = (): void => {
+    if (state.actedThisTurn) {
+      throw new InvalidActionError('ALREADY_ACTED', 'one action per turn — now move or end the turn');
+    }
+  };
+
   switch (action.type) {
     case 'skip':
       if (state.config.turnTimerSeconds <= 0) {
         throw new InvalidActionError('NOT_PARALYZED', 'you can only skip while paralyzed');
       }
       break;
+    case 'endTurn':
+      break;
     case 'shoot':
+      requireAction();
       if (player.inventory.bullets <= 0) throw new InvalidActionError('NO_AMMO', 'no bullets left');
       break;
     case 'grenade': {
+      requireAction();
       if (player.inventory.grenades <= 0) {
         throw new InvalidActionError('NO_GRENADES', 'no grenades left');
       }
@@ -138,7 +170,14 @@ function validate(state: GameState, action: PlayerAction): void {
       break;
     }
     case 'placeMine':
+      requireAction();
       if (player.inventory.mines <= 0) throw new InvalidActionError('NO_MINES', 'no mines left');
+      break;
+    case 'pickup':
+      requireAction();
+      if (state.treasure.carriedBy !== null || !posEq(state.treasure.pos, player.pos)) {
+        throw new InvalidActionError('NOTHING_TO_PICK_UP', 'there is no treasure here to pick up');
+      }
       break;
     case 'move':
       if (!isPlanar(action.direction)) {
@@ -170,7 +209,9 @@ function driftAtTurnStart(ctx: EngineCtx, player: PlayerState): void {
   runEntryPipeline(ctx, player, { driftBudget: 0 });
 }
 
-function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction): void {
+/** @returns true when the player actually relocated (or left) — that ends
+ * the turn. Bumps and a locked exit are free notes: the turn stays open. */
+function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction): boolean {
   const { state } = ctx;
   const priv: Visibility = { kind: 'private', playerId: player.id };
 
@@ -186,7 +227,7 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
     player.pos = { ...stairs.to };
     ctx.emit(priv, { type: 'tookStairs', direction: wantUp ? 'U' : 'D' });
     runEntryPipeline(ctx, player, { driftBudget: 1 });
-    return;
+    return true;
   }
 
   const edges = state.edges[player.pos.level]!;
@@ -196,24 +237,24 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
     case 'reinforced':
       // Bumping cannot tell a reinforced wall from a plain one.
       ctx.emit(priv, { type: 'bumpedWall', direction });
-      return;
+      return false;
     case 'grate':
       ctx.emit(priv, { type: 'bumpedGrate', direction });
-      return;
+      return false;
     case 'exit':
       if (player.hasTreasure) {
         player.exited = true;
         ctx.emit(priv, { type: 'exitedLabyrinth' });
-      } else {
-        ctx.emit(priv, { type: 'foundExit', direction });
+        return true;
       }
-      return;
+      ctx.emit(priv, { type: 'foundExit', direction });
+      return false;
     case 'open': {
       const next = step(player.pos, direction);
       player.pos = { ...player.pos, ...next };
       ctx.emit(priv, { type: 'moved', direction });
       runEntryPipeline(ctx, player, { driftBudget: 1 });
-      return;
+      return true;
     }
   }
 }
@@ -315,4 +356,6 @@ function advanceTurn(state: GameState): void {
     if (!state.players[state.turnIndex]!.exited) break;
   }
   state.turnNumber++;
+  state.actedThisTurn = false;
+  state.turnStartResolved = false;
 }

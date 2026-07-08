@@ -15,6 +15,10 @@ export function describeEvent(e: GameEvent): string {
           return `${p.playerName} throws a grenade${d}`;
         case 'placeMine':
           return `${p.playerName} fumbles with something on the floor…`;
+        case 'pickup':
+          return `${p.playerName} picks something up`;
+        case 'endTurn':
+          return `${p.playerName} ends their turn`;
         case 'skip':
           return `${p.playerName} stays put`;
       }
@@ -43,7 +47,7 @@ export function describeEvent(e: GameEvent): string {
     case 'treasurePickedUp':
       return 'you found the TREASURE! now get out';
     case 'treasureHere':
-      return 'the treasure lies here, but you cannot lift it right now';
+      return 'the TREASURE lies at your feet — picking it up costs your action';
     case 'treasureDropped':
       return 'you dropped the treasure!';
     case 'monsterEncounter':

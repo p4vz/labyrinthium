@@ -68,6 +68,8 @@ const actionArb: fc.Arbitrary<PlayerAction> = fc.oneof(
     { type: 'grenade', direction: 'W' },
   ) },
   { weight: 1, arbitrary: fc.constant<PlayerAction>({ type: 'placeMine' }) },
+  { weight: 1, arbitrary: fc.constant<PlayerAction>({ type: 'pickup' }) },
+  { weight: 2, arbitrary: fc.constant<PlayerAction>({ type: 'endTurn' }) },
 );
 
 describe('engine invariants under random play', () => {

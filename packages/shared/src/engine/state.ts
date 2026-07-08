@@ -87,6 +87,10 @@ export interface GameState {
   players: PlayerState[];
   turnIndex: number;
   turnNumber: number;
+  /** the active player already spent this turn's single action */
+  actedThisTurn: boolean;
+  /** turn-start river drift already resolved for the active player */
+  turnStartResolved: boolean;
   treasure: { carriedBy: string | null; pos: Pos };
   monsters: MonsterState[];
   rngState: number;
@@ -120,6 +124,8 @@ export function createGame(
     })),
     turnIndex: 0,
     turnNumber: 1,
+    actedThisTurn: false,
+    turnStartResolved: false,
     treasure: { carriedBy: null, pos: { ...map.spawns.treasure } },
     monsters: map.spawns.monsters.map((m, i) => ({
       id: `m${i}`,

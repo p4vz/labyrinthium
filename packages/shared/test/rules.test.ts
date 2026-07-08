@@ -41,7 +41,8 @@ describe('house rules', () => {
     expect(state.floorItems).toHaveLength(1);
     expect(state.floorItems[0]!.items.grenades).toBeGreaterThan(0);
 
-    // p1 is paralyzed (skips); p2 walks onto the pile and takes everything.
+    // p2 ends the turn; p1 is paralyzed (skips); p2 loots the pile.
+    state = turn(state, { type: 'endTurn' }).state;
     state = turn(state, { type: 'skip' }).state; // p1 paralyzed skip
     const loot = turn(state, { type: 'move', direction: 'E' }); // p2 onto (1,0)
     expect(payloadTypes(loot.events)).toContain('itemsFound');
@@ -52,12 +53,34 @@ describe('house rules', () => {
   it('without dropAllOnShot, a shot victim keeps their gear (only treasure drops)', () => {
     const map = testMap({ treasure: { level: 0, x: 1, y: 0 } });
     let state = startGame(map, 2);
-    state = turn(state, { type: 'move', direction: 'E' }).state; // p1 grabs treasure
-    const hit = turn(state, { type: 'shoot', direction: 'E' });
+    state = turn(state, { type: 'move', direction: 'E' }).state; // p1 onto the treasure
+    state = turn(state, { type: 'move', direction: 'S' }).state; // p2 out of the way
+    state = turn(state, { type: 'pickup' }).state; // p1 lifts it (action)...
+    state = turn(state, { type: 'endTurn' }).state; // ...and stays put
+    state = turn(state, { type: 'move', direction: 'N' }).state; // p2 back to (0,0)
+    state = turn(state, { type: 'endTurn' }).state; // p1 holds position
+    const hit = turn(state, { type: 'shoot', direction: 'E' }); // p2 fires down row 0
     const victim = hit.state.players[0]!;
     expect(victim.inventory.grenades).toBeGreaterThan(0);
     expect(victim.hasTreasure).toBe(false);
     expect(hit.state.floorItems).toHaveLength(0);
+  });
+
+  it('a bomb only breaks breakable walls — it never harms whoever stands behind them', () => {
+    const map = testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E' }] });
+    let state = startGame(map, 2);
+    state = turn(state, { type: 'move', direction: 'S' }).state; // p1 to (0,1)
+    state = turn(state, { type: 'move', direction: 'S' }).state; // p2 to (0,1) too
+    state = turn(state, { type: 'move', direction: 'N' }).state; // p1 back to (0,0)
+    state = turn(state, { type: 'move', direction: 'N' }).state; // p2 back to (0,0)... wait, p2 follows p1
+    // p1 grenades the wall east with p2 sharing the very same cell:
+    const boom = turn(state, { type: 'grenade', direction: 'E' });
+    expect(boom.state.players[1]!.paralysis).toBe(0); // nobody is hurt
+    expect(boom.state.players[0]!.paralysis).toBe(0);
+    const evts = payloadTypes(boom.events);
+    expect(evts).toContain('wallDestroyed');
+    expect(evts).not.toContain('youWereShot');
+    expect(evts).not.toContain('screamHeard');
   });
 
   it('replays stay exact with the new rules on', () => {

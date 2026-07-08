@@ -116,6 +116,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
               type: 'game.turn',
               activePlayerId: active.id,
               turnNumber: found.room.state.turnNumber,
+              canAct: !found.room.state.actedThisTurn,
             });
           }
         }
@@ -132,13 +133,33 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
         send(room.roomStateMessage());
         if (room.phase !== 'lobby') {
           send(room.gameStartedMessage(''));
-          const publicTail = room.eventsSince('', -1); // '' matches public events only
-          if (publicTail.length > 0) send({ type: 'game.events', events: publicTail });
+          // Observers see everything: the true map, live positions, and
+          // every player's hand-drawn map so far.
+          send({ type: 'spectate.reveal', map: room.map });
+          const live = room.spectatorStateMessage();
+          if (live) send(live);
+          for (const [playerId, maps] of room.beliefMaps) {
+            const p = room.players.find((x) => x.id === playerId);
+            send({ type: 'spectate.maps', playerId, playerName: p?.name ?? '?', maps });
+          }
+          const tail = room.eventsSince('', -1);
+          if (tail.length > 0) send({ type: 'game.events', events: tail });
           if (room.state && room.phase === 'inProgress') {
             const active = room.state.players[room.state.turnIndex]!;
-            send({ type: 'game.turn', activePlayerId: active.id, turnNumber: room.state.turnNumber });
+            send({
+              type: 'game.turn',
+              activePlayerId: active.id,
+              turnNumber: room.state.turnNumber,
+              canAct: !room.state.actedThisTurn,
+            });
           }
         }
+        return;
+      }
+
+      case 'maps.sync': {
+        requireRoom();
+        conn.room!.handleMapsSync(conn.player!.id, msg.maps);
         return;
       }
 

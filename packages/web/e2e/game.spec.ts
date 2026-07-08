@@ -65,10 +65,16 @@ test('two players race through the labyrinth in real browsers', async ({ browser
   await expect(bob.getByTestId('event-feed')).toContainText('Alice moves east');
   await expect(bob.getByTestId('event-feed')).toContainText('Alice ▸');
 
-  // Bob idles south; Alice keeps going east; Bob returns; Alice exits.
+  // Alice charts a claim: "nothing here" on the entrance cell (gradeable later).
+  await alice.getByTitle('nothing here').click();
+  await alice.locator('[data-cell="0,0"]').click();
+
+  // Bob idles south; Alice lifts the loot (her action) and keeps going east.
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
   await bob.getByTestId('go-S').click();
   await expect(alice.getByTestId('turn-indicator')).toContainText('YOUR TURN');
+  await alice.getByTestId('pickup-btn').click();
+  await expect(alice.getByTestId('event-feed')).toContainText('you found the TREASURE');
   await alice.getByTestId('go-E').click();
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
   await bob.getByTestId('go-N').click();
@@ -79,6 +85,11 @@ test('two players race through the labyrinth in real browsers', async ({ browser
   await expect(alice.getByTestId('reveal')).toContainText('Alice wins');
   await expect(bob.getByTestId('reveal')).toContainText('Alice wins');
   await expect(bob.getByTestId('reveal').locator('svg')).toBeVisible();
+
+  // The reckoning: Alice grades her map against the truth.
+  await alice.getByTestId('compare-btn').click();
+  await expect(alice.getByTestId('compare-section')).toBeVisible();
+  await expect(alice.getByTestId('compare-section')).toContainText('claims were true');
 
   await aliceCtx.close();
   await bobCtx.close();

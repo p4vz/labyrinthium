@@ -47,6 +47,11 @@ export class BotController {
   private pendingDirection: Dir | null = null;
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
+  /** turn-budget bookkeeping (turn = one action + a move) */
+  private canAct = true;
+  private treasureUnderfoot = false;
+  private bumpsThisTurn = 0;
+  private lastTurnNumber = -1;
 
   constructor(
     readonly playerId: string,
@@ -75,6 +80,11 @@ export class BotController {
         }
         break;
       case 'game.turn':
+        if (msg.turnNumber !== this.lastTurnNumber) {
+          this.lastTurnNumber = msg.turnNumber;
+          this.bumpsThisTurn = 0;
+        }
+        this.canAct = msg.canAct;
         if (msg.activePlayerId === this.playerId) {
           // A human-ish pause keeps the game readable (and lets event
           // fan-out settle before the next action arrives). Tests dial it
@@ -103,6 +113,7 @@ export class BotController {
   private observe(p: EventPayload): void {
     switch (p.type) {
       case 'moved':
+        this.treasureUnderfoot = false;
         if (this.pos && isPlanarDir(p.direction)) {
           this.setEdge(this.pos, p.direction, 'open');
           this.pos = stepRel(this.pos, p.direction);
@@ -117,11 +128,15 @@ export class BotController {
         break;
       case 'bumpedWall':
       case 'bumpedGrate':
+        this.bumpsThisTurn++;
         if (this.pos && isPlanarDir(p.direction)) {
           const key = edgeKey(this.pos, p.direction);
           this.edges.set(key, 'blocked');
           this.bumps.set(key, (this.bumps.get(key) ?? 0) + 1);
         }
+        break;
+      case 'treasureHere':
+        this.treasureUnderfoot = true;
         break;
       case 'wallDestroyed':
         if (this.pos && isPlanarDir(p.direction)) {
@@ -149,6 +164,7 @@ export class BotController {
         break;
       case 'treasurePickedUp':
         this.hasTreasure = true;
+        this.treasureUnderfoot = false;
         break;
       case 'treasureDropped':
         this.hasTreasure = false;
@@ -168,6 +184,12 @@ export class BotController {
       type: 'move',
       direction: DIRS[Math.floor(Math.random() * 4)]!,
     });
+    // Standing on the loot: lifting it costs the action — always worth it.
+    if (this.treasureUnderfoot && !this.hasTreasure && this.canAct) {
+      return { type: 'pickup' };
+    }
+    // A turn only ends on a successful move; don't probe walls forever.
+    if (this.bumpsThisTurn > 6) return { type: 'endTurn' };
     if (this.difficulty === 'easy' || !this.pos) return randomMove();
 
     // Carrying the loot and knowing a way out: run for it.
@@ -180,7 +202,7 @@ export class BotController {
       }
     }
 
-    if (this.difficulty === 'hard') {
+    if (this.difficulty === 'hard' && this.canAct) {
       // Blast through a wall we've bumped twice, if it leads somewhere new.
       if (this.inventory.grenades > 0) {
         for (const d of shuffled(DIRS)) {

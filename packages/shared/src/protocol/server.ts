@@ -45,7 +45,29 @@ export type ServerMessage =
       inventory: Inventory;
       rules: ActiveRules;
     }
-  | { type: 'game.turn'; activePlayerId: string; turnNumber: number }
+  | {
+      type: 'game.turn';
+      activePlayerId: string;
+      turnNumber: number;
+      /** the active player's one action (shoot/grenade/mine/pickup) is still available */
+      canAct: boolean;
+    }
+  // ---- observer mode: spectators see everything ----
+  | { type: 'spectate.reveal'; map: MapDocument }
+  | {
+      type: 'spectate.state';
+      players: {
+        id: string;
+        name: string;
+        pos: Pos;
+        paralysis: number;
+        hasTreasure: boolean;
+        exited: boolean;
+      }[];
+      monsters: Pos[];
+      treasure: { pos: Pos; carriedBy: string | null };
+    }
+  | { type: 'spectate.maps'; playerId: string; playerName: string; maps: unknown }
   | { type: 'game.events'; events: GameEvent[] }
   | {
       type: 'game.finished';

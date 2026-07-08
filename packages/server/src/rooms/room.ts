@@ -49,8 +49,11 @@ export class Room {
   eventLog: GameEvent[] = [];
   /** Read-only observers. */
   spectators = new Set<(msg: ServerMessage) => void>();
+  /** each player's hand-drawn maps, shared with spectators only */
+  beliefMaps = new Map<string, unknown>();
   private bots = new Map<string, BotController>();
   private turnTimer: NodeJS.Timeout | null = null;
+  private timerArmedForTurn = -1;
   private gameId = randomUUID();
 
   constructor(
@@ -173,8 +176,11 @@ export class Room {
     for (const p of this.players) {
       p.send?.(this.gameStartedMessage(p.id));
     }
-    // Spectators get the same brief with no player identity.
-    for (const send of this.spectators) send(this.gameStartedMessage(''));
+    // Spectators get the brief plus the unlocked map — they see everything.
+    for (const send of this.spectators) {
+      send(this.gameStartedMessage(''));
+      send({ type: 'spectate.reveal', map: this.map });
+    }
     this.announceTurn();
     this.pumpParalyzed();
   }
@@ -252,17 +258,55 @@ export class Room {
       type: 'game.turn',
       activePlayerId: active.id,
       turnNumber: this.state.turnNumber,
+      canAct: !this.state.actedThisTurn,
     });
+    this.sendSpectatorState();
     this.armTurnTimer();
   }
 
-  /** Optional per-turn clock: when it runs out, the turn is skipped. */
+  /** Live truth for observers: positions, paralysis, the loot. */
+  spectatorStateMessage(): ServerMessage | null {
+    if (!this.state) return null;
+    return {
+      type: 'spectate.state',
+      players: this.state.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        pos: p.pos,
+        paralysis: p.paralysis,
+        hasTreasure: p.hasTreasure,
+        exited: p.exited,
+      })),
+      monsters: this.state.monsters.filter((m) => m.alive).map((m) => m.pos),
+      treasure: { pos: this.state.treasure.pos, carriedBy: this.state.treasure.carriedBy },
+    };
+  }
+
+  private sendSpectatorState(): void {
+    const msg = this.spectatorStateMessage();
+    if (!msg || this.spectators.size === 0) return;
+    for (const send of this.spectators) send(msg);
+  }
+
+  /** A player shared their hand-drawn maps: forward to the watchers. */
+  handleMapsSync(playerId: string, maps: unknown): void {
+    this.beliefMaps.set(playerId, maps);
+    const player = this.players.find((p) => p.id === playerId);
+    for (const send of this.spectators) {
+      send({ type: 'spectate.maps', playerId, playerName: player?.name ?? '?', maps });
+    }
+  }
+
+  /** Optional per-turn clock: when it runs out, the turn is skipped.
+   * Sub-actions and free bumps do NOT reset it — one clock per turn. */
   private armTurnTimer(): void {
+    if (this.config.turnTimerSeconds <= 0 || this.phase !== 'inProgress' || !this.state) return;
+    if (this.timerArmedForTurn === this.state.turnNumber && this.turnTimer) return;
     if (this.turnTimer) {
       clearTimeout(this.turnTimer);
       this.turnTimer = null;
     }
-    if (this.config.turnTimerSeconds <= 0 || this.phase !== 'inProgress' || !this.state) return;
+    this.timerArmedForTurn = this.state.turnNumber;
     const turnAtArm = this.state.turnNumber;
     this.turnTimer = setTimeout(() => {
       if (this.phase !== 'inProgress' || !this.state) return;

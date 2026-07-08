@@ -13,7 +13,7 @@ export type EventPayload =
       type: 'actionAnnounced';
       playerId: string;
       playerName: string;
-      action: 'move' | 'shoot' | 'grenade' | 'placeMine' | 'skip';
+      action: 'move' | 'shoot' | 'grenade' | 'placeMine' | 'pickup' | 'endTurn' | 'skip';
       direction?: Direction;
     }
   | { type: 'moved'; direction: PlanarDirection }

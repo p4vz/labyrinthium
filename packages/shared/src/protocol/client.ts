@@ -60,6 +60,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('room.leave') }),
   z.object({ type: z.literal('room.start') }),
   z.object({ type: z.literal('game.action'), action: playerActionSchema }),
+  // The player's hand-drawn belief maps, shared ONLY with spectators.
+  z.object({ type: z.literal('maps.sync'), maps: z.unknown() }),
   z.object({ type: z.literal('ping') }),
 ]);
 

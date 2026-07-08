@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { describeEvent } from '@labyrinthium/shared';
 import { ActionBar } from '../components/ActionBar.js';
 import { AuxPanel } from '../components/AuxPanel.js';
+import { CompareView, compareLevel } from '../components/CompareView.js';
 import { EventFeed } from '../components/EventFeed.js';
 import { MapGrid } from '../components/MapGrid.js';
 import { Palette } from '../components/Palette.js';
 import { TrueMapView } from '../components/TrueMapView.js';
+import { send } from '../net/ws.js';
 import { useGameStore } from '../state/gameStore.js';
 import { useMapStore } from '../state/mapStore.js';
+import type { PlayerMap } from '../state/playerMap.js';
 
 export function Game(): JSX.Element {
   const room = useGameStore((s) => s.room);
   const finished = useGameStore((s) => s.finished);
   const spectating = useGameStore((s) => s.spectating);
+  const session = useGameStore((s) => s.session);
   const reset = useGameStore((s) => s.reset);
   const feed = useGameStore((s) => s.feed);
   const paletteWide = useMapStore((s) => s.paletteWide);
@@ -20,6 +24,9 @@ export function Game(): JSX.Element {
   const [mapsOpen, setMapsOpen] = useState(false);
   /** full game-master log as a bottom sheet (opened from the ticker) */
   const [logOpen, setLogOpen] = useState(false);
+  /** end-of-game reckoning: grade my map against the truth */
+  const [comparing, setComparing] = useState(false);
+  const [compareLevelIdx, setCompareLevelIdx] = useState(0);
 
   const maps = useMapStore((s) => s.maps);
   const activeMapId = useMapStore((s) => s.activeMapId);
@@ -31,6 +38,25 @@ export function Game(): JSX.Element {
 
   const activeMap = maps.find((m) => m.id === activeMapId) ?? maps[0];
   const grid = activeMap?.grids[Math.min(activeGrid, (activeMap?.grids.length ?? 1) - 1)];
+
+  // Share the hand-drawn maps with any observers, throttled.
+  useEffect(() => {
+    if (spectating || !session) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useMapStore.subscribe((s, prev) => {
+      if (s.maps === prev.maps) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        send({ type: 'maps.sync', maps: useMapStore.getState().maps });
+      }, 1200);
+    });
+    // an initial snapshot so observers see the entrance markings right away
+    send({ type: 'maps.sync', maps: useMapStore.getState().maps });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
+  }, [spectating, session]);
 
   // Keyboard shortcuts for the standard editing verbs.
   useEffect(() => {
@@ -84,7 +110,8 @@ export function Game(): JSX.Element {
         </aside>
 
         <main className="map-col">
-          {activeMap && activeMap.grids.length > 1 && (
+          {spectating && <ObserverPanel />}
+          {!spectating && activeMap && activeMap.grids.length > 1 && (
             <div className="level-tabs">
               {activeMap.grids.map((_, i) => (
                 <button
@@ -97,12 +124,12 @@ export function Game(): JSX.Element {
               ))}
             </div>
           )}
-          {activeMap && activeMap.id !== 'main' && (
+          {!spectating && activeMap && activeMap.id !== 'main' && (
             <div className="aux-banner">
               drawing on <b>{activeMap.name}</b> — an uncharted region
             </div>
           )}
-          {grid && (
+          {!spectating && grid && (
             <div className="map-scroll">
               <MapGrid
                 grid={grid}
@@ -166,22 +193,157 @@ export function Game(): JSX.Element {
           <div className="modal">
             <h1>🏆 {finished.winnerName} wins!</h1>
             <p>
-              Escaped with the treasure on turn {finished.turnNumber}. Here is the labyrinth as it
-              really was:
+              Escaped with the treasure on turn {finished.turnNumber}.{' '}
+              {comparing ? 'Your map, graded against the truth:' : 'Here is the labyrinth as it really was:'}
             </p>
-            <div className="reveal-maps">
-              {finished.mapReveal.levels.map((_, i) => (
-                <div key={i}>
-                  <h3>{i === 0 ? 'ground level' : `level -${i}`}</h3>
-                  <TrueMapView map={finished.mapReveal} level={i} />
-                </div>
-              ))}
+            {!comparing ? (
+              <div className="reveal-maps">
+                {finished.mapReveal.levels.map((_, i) => (
+                  <div key={i}>
+                    <h3>{i === 0 ? 'ground level' : `level -${i}`}</h3>
+                    <TrueMapView map={finished.mapReveal} level={i} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <CompareSection
+                mapReveal={finished.mapReveal}
+                level={compareLevelIdx}
+                setLevel={setCompareLevelIdx}
+              />
+            )}
+            <div className="button-row modal-actions">
+              {!spectating && maps.length > 0 && (
+                <button data-testid="compare-btn" onClick={() => setComparing(!comparing)}>
+                  {comparing ? '🗺 show the true map' : '📝 how good was my map?'}
+                </button>
+              )}
+              <button className="primary" onClick={reset}>
+                back to the surface
+              </button>
             </div>
-            <button className="primary" onClick={reset}>
-              back to the surface
-            </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** End-of-game reckoning: every claim on your map graded green/red. */
+function CompareSection(props: {
+  mapReveal: NonNullable<ReturnType<typeof useGameStore.getState>['finished']>['mapReveal'];
+  level: number;
+  setLevel(i: number): void;
+}): JSX.Element {
+  const maps = useMapStore((s) => s.maps);
+  const main = maps.find((m) => m.id === 'main');
+  if (!main) return <p>no map to grade</p>;
+  const totals = props.mapReveal.levels.reduce(
+    (acc, _, i) => {
+      const belief = main.grids[i];
+      if (!belief) return acc;
+      const r = compareLevel(props.mapReveal, i, belief);
+      return { correct: acc.correct + r.correct, wrong: acc.wrong + r.wrong };
+    },
+    { correct: 0, wrong: 0 },
+  );
+  const total = totals.correct + totals.wrong;
+  const belief = main.grids[props.level];
+  return (
+    <div className="compare-section" data-testid="compare-section">
+      <p className="compare-score">
+        {total === 0
+          ? 'you never marked anything — a purist!'
+          : `${totals.correct} right · ${totals.wrong} wrong — ${Math.round((totals.correct / total) * 100)}% of your claims were true`}
+      </p>
+      {props.mapReveal.levels.length > 1 && (
+        <div className="level-tabs">
+          {props.mapReveal.levels.map((_, i) => (
+            <button key={i} className={i === props.level ? 'active' : ''} onClick={() => props.setLevel(i)}>
+              {i === 0 ? 'ground' : `-${i}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {belief ? (
+        <CompareView map={props.mapReveal} level={props.level} belief={belief} />
+      ) : (
+        <p>you never charted this level</p>
+      )}
+      <p className="hint">
+        faint lines = the real walls · <span style={{ color: '#7dc981' }}>green</span> = you were right ·{' '}
+        <span style={{ color: '#e05b50' }}>red</span> = the labyrinth fooled you
+      </p>
+    </div>
+  );
+}
+
+/** Observer mode: the unlocked truth with live pieces, and each player's
+ * own hand-drawn map one click away. */
+function ObserverPanel(): JSX.Element {
+  const spectate = useGameStore((s) => s.spectate);
+  const setView = useGameStore((s) => s.setSpectateView);
+  const [level, setLevel] = useState(0);
+
+  if (!spectate.trueMap) return <p className="hint">waiting for the game to start…</p>;
+  const players = spectate.live?.players ?? [];
+  const viewing = spectate.view !== 'true' ? spectate.beliefMaps[spectate.view] : undefined;
+  const beliefMaps = viewing ? (viewing.maps as PlayerMap[]) : null;
+  const mainBelief = beliefMaps?.find?.((m) => m.id === 'main') ?? beliefMaps?.[0];
+
+  return (
+    <div className="observer" data-testid="observer">
+      <div className="level-tabs observer-tabs">
+        <button className={spectate.view === 'true' ? 'active' : ''} onClick={() => setView('true')}>
+          👁 true map
+        </button>
+        {players.map((p) => (
+          <button
+            key={p.id}
+            className={spectate.view === p.id ? 'active' : ''}
+            onClick={() => setView(p.id)}
+            title={`${p.name}'s own map`}
+          >
+            🗒 {p.name}
+          </button>
+        ))}
+      </div>
+      {spectate.trueMap.levels.length > 1 && (
+        <div className="level-tabs">
+          {spectate.trueMap.levels.map((_, i) => (
+            <button key={i} className={i === level ? 'active' : ''} onClick={() => setLevel(i)}>
+              {i === 0 ? 'ground' : `-${i}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {spectate.view === 'true' ? (
+        <div className="map-scroll">
+          <TrueMapView
+            map={spectate.trueMap}
+            level={level}
+            overlay={
+              spectate.live
+                ? {
+                    players: spectate.live.players
+                      .filter((p) => !p.exited)
+                      .map((p) => ({ id: p.id, name: p.name, pos: p.pos })),
+                    monsters: spectate.live.monsters,
+                    treasure: spectate.live.treasure.carriedBy ? null : spectate.live.treasure.pos,
+                  }
+                : undefined
+            }
+          />
+        </div>
+      ) : mainBelief?.grids ? (
+        <div className="map-scroll">
+          <MapGrid grid={mainBelief.grids[Math.min(level, mainBelief.grids.length - 1)]!} />
+          <p className="hint">
+            {viewing?.playerName}'s beliefs, live — walls they've charted, marks they've guessed.
+          </p>
+        </div>
+      ) : (
+        <p className="hint">{viewing?.playerName ?? 'this player'} hasn't drawn anything yet.</p>
       )}
     </div>
   );

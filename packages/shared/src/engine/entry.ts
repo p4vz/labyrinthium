@@ -115,15 +115,11 @@ export function runEntryPipeline(
       ctx.emit(priv, { type: 'stairsFound', directions });
     }
 
+    // Treasure is never scooped up in stride: the GM announces it, and
+    // lifting it costs your turn's action ('pickup').
     const treasure = state.treasure;
     if (treasure.carriedBy === null && posEq(treasure.pos, player.pos)) {
-      if (player.paralysis === 0 && !player.hasTreasure) {
-        treasure.carriedBy = player.id;
-        player.hasTreasure = true;
-        ctx.emit(priv, { type: 'treasurePickedUp' });
-      } else {
-        ctx.emit(priv, { type: 'treasureHere' });
-      }
+      ctx.emit(priv, { type: 'treasureHere' });
     }
 
     const monster = state.monsters.find((m) => m.alive && posEq(m.pos, player.pos));

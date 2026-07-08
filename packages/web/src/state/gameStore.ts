@@ -50,8 +50,25 @@ export interface GameStoreState {
   } | null;
   activePlayerId: string | null;
   turnNumber: number;
+  /** the active player's one action is still unspent this turn */
+  canAct: boolean;
+  /** the GM said the treasure lies under your feet (pickup available) */
+  treasureUnderfoot: boolean;
   /** epoch ms when the current turn times out; null = untimed */
   turnDeadline: number | null;
+  /** observer mode: the unlocked truth + everyone's live state + their maps */
+  spectate: {
+    trueMap: MapDocument | null;
+    live: {
+      players: { id: string; name: string; pos: Pos; paralysis: number; hasTreasure: boolean; exited: boolean }[];
+      monsters: Pos[];
+      treasure: { pos: Pos; carriedBy: string | null };
+    } | null;
+    beliefMaps: Record<string, { playerName: string; maps: unknown }>;
+    /** which tab the observer is looking at: 'true' or a playerId */
+    view: string;
+  };
+  setSpectateView(view: string): void;
   feed: FeedEntry[];
   lastAckedSeq: number;
   finished: { winnerId: string; winnerName: string; turnNumber: number; mapReveal: MapDocument } | null;
@@ -96,7 +113,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   started: null,
   activePlayerId: null,
   turnNumber: 0,
+  canAct: true,
+  treasureUnderfoot: false,
   turnDeadline: null,
+  spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
+  setSpectateView(view: string) {
+    set({ spectate: { ...get().spectate, view } });
+  },
   feed: [],
   lastAckedSeq: -1,
   finished: null,
@@ -129,7 +152,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       started: null,
       activePlayerId: null,
       turnNumber: 0,
+      canAct: true,
+      treasureUnderfoot: false,
       turnDeadline: null,
+      spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
       feed: [],
       lastAckedSeq: -1,
       finished: null,
@@ -169,10 +195,42 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
       case 'game.turn': {
         const timer = get().started?.rules.turnTimerSeconds ?? 0;
+        const sameTurn = msg.turnNumber === get().turnNumber;
         set({
           activePlayerId: msg.activePlayerId,
           turnNumber: msg.turnNumber,
-          turnDeadline: timer > 0 ? Date.now() + timer * 1000 : null,
+          canAct: msg.canAct,
+          // sub-actions re-announce the same turn: keep the clock running
+          turnDeadline: sameTurn
+            ? get().turnDeadline
+            : timer > 0
+              ? Date.now() + timer * 1000
+              : null,
+        });
+        break;
+      }
+      case 'spectate.reveal': {
+        set({ spectate: { ...get().spectate, trueMap: msg.map } });
+        break;
+      }
+      case 'spectate.state': {
+        set({
+          spectate: {
+            ...get().spectate,
+            live: { players: msg.players, monsters: msg.monsters, treasure: msg.treasure },
+          },
+        });
+        break;
+      }
+      case 'spectate.maps': {
+        set({
+          spectate: {
+            ...get().spectate,
+            beliefMaps: {
+              ...get().spectate.beliefMaps,
+              [msg.playerId]: { playerName: msg.playerName, maps: msg.maps },
+            },
+          },
         });
         break;
       }
@@ -185,9 +243,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
             useMapStore.getState().moveYouPawn(e.payload.direction);
+            set({ treasureUnderfoot: false });
           } else if (e.payload.type === 'foundExit') {
             // The GM confirmed an exit right next to you — chart the gate.
             useMapStore.getState().markExitEdge(e.payload.direction);
+          } else if (e.payload.type === 'treasureHere') {
+            set({ treasureUnderfoot: true });
+          } else if (e.payload.type === 'treasurePickedUp') {
+            set({ treasureUnderfoot: false });
           }
         }
         const entries: FeedEntry[] = msg.events.map((e) => {
