@@ -191,11 +191,24 @@ export function Game(): JSX.Element {
       {finished && (
         <div className="modal-backdrop" data-testid="reveal">
           <div className="modal">
-            <h1>🏆 {finished.winnerName} wins!</h1>
-            <p>
-              Escaped with the treasure on turn {finished.turnNumber}.{' '}
-              {comparing ? 'Your map, graded against the truth:' : 'Here is the labyrinth as it really was:'}
-            </p>
+            {finished.winnerId ? (
+              <>
+                <h1>🏆 {finished.winnerName} wins!</h1>
+                <p>
+                  Escaped with the treasure on turn {finished.turnNumber}.{' '}
+                  {comparing ? 'Your map, graded against the truth:' : 'Here is the labyrinth as it really was:'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h1>🚪 everyone fled</h1>
+                <p>
+                  The labyrinth keeps its treasure (turn {finished.turnNumber}).{' '}
+                  {comparing ? 'Your map, graded against the truth:' : 'Here is the labyrinth as it really was:'}
+                </p>
+              </>
+            )}
+            {!comparing && <LootSummary />}
             {!comparing ? (
               <div className="reveal-maps">
                 {finished.mapReveal.levels.map((_, i) => (
@@ -225,6 +238,41 @@ export function Game(): JSX.Element {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** What everyone walked away with (or lost in the dark). */
+function LootSummary(): JSX.Element | null {
+  const finished = useGameStore((s) => s.finished);
+  if (!finished || finished.lootSummary.every((p) => p.bankedItems.length === 0 && p.coins === 0 && p.lostRares === 0)) {
+    return null;
+  }
+  return (
+    <div className="loot-summary" data-testid="loot-summary">
+      <h3>The haul</h3>
+      {finished.lootSummary.map((p) => (
+        <div key={p.playerId} className="loot-row">
+          <span className="loot-name">
+            {p.name}
+            {p.left ? ' 🚪' : ''}
+          </span>
+          <span className="loot-detail">
+            {p.coins > 0 && <span>🪙 {p.coins}</span>}
+            {p.bankedItems.map((item) => (
+              <span key={item.id} className={`loot-item rarity-${item.rarity}`} title={`${item.name} (${item.rarity})`}>
+                {item.name}
+              </span>
+            ))}
+            {p.lostRares > 0 && (
+              <span className="loot-lost" title="rares carried but never brought out">
+                lost {p.lostRares} rare{p.lostRares > 1 ? 's' : ''} in the dark
+              </span>
+            )}
+            {p.coins === 0 && p.bankedItems.length === 0 && p.lostRares === 0 && <span className="muted">—</span>}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -282,8 +330,10 @@ function CompareSection(props: {
  * own hand-drawn map one click away. */
 function ObserverPanel(): JSX.Element {
   const spectate = useGameStore((s) => s.spectate);
+  const started = useGameStore((s) => s.started);
   const setView = useGameStore((s) => s.setSpectateView);
   const [level, setLevel] = useState(0);
+  const avatarOf = (id: string) => started?.turnOrder.find((p) => p.id === id)?.avatar;
 
   if (!spectate.trueMap) return <p className="hint">waiting for the game to start…</p>;
   const players = spectate.live?.players ?? [];
@@ -327,7 +377,16 @@ function ObserverPanel(): JSX.Element {
                 ? {
                     players: spectate.live.players
                       .filter((p) => !p.exited)
-                      .map((p) => ({ id: p.id, name: p.name, pos: p.pos })),
+                      .map((p) => {
+                        const avatar = avatarOf(p.id);
+                        return {
+                          id: p.id,
+                          name: p.name,
+                          pos: p.pos,
+                          carriedRareCount: p.carriedRareCount,
+                          ...(avatar ? { avatar } : {}),
+                        };
+                      }),
                     monsters: spectate.live.monsters,
                     treasure: spectate.live.treasure.carriedBy ? null : spectate.live.treasure.pos,
                   }

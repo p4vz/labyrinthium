@@ -229,3 +229,63 @@ React + Vite + zustand + **plain SVG** grids. Layout: **left** palette of dragga
 ## Deliverables of this task
 
 Implement Phases 1–3 (shared engine + generator, server, minimal CLI harness) on branch `claude/labyrinthium-backend-planning-wuuevl`, commit and push. This spec is committed to the repo as `docs/PLAN.md`.
+
+---
+
+## Appendix — Character cosmetics & meta-progression layer (implemented)
+
+Long-term retention layer added on branch `claude/character-cosmetics-layer-vi6vm5`.
+Design goal: make players come back and build a character. **Zero gameplay
+effect** — everything here is aesthetic only.
+
+### Model
+- **Profiles** (`packages/server/src/profiles/`, `persistence/db.ts` migration
+  v1): guest profile minted on first visit, identified by an opaque bearer
+  token (sha256-stored); optional username+password upgrade (scrypt) secures
+  the same profile; login rotates the token. Tables: `profiles`,
+  `profile_items` (PK `(profile_id, item_id)` + `INSERT OR IGNORE` = seed
+  re-farm dedupe), `shop_purchases`.
+- **Cosmetics domain** (`packages/shared/src/cosmetics/`): finite catalog of
+  30 bitmap templates (12 hats / 10 outfits / 8 trinkets, 8 themed sets, gated
+  `minRarity`), 14 dye ramps + 6 skin tones, rarity ladder
+  common→uncommon→rare→epic→legendary, name grammar `[Condition] [Base]
+  of the [Origin]` (rarity-gated affixes, fixed legendary epithets),
+  deterministic `rollCosmetic` + date-seeded `dailyShopStock`.
+- **Map bake** (`generator/placement.ts placeLoot`): coin piles + shallow
+  commons scatter like mines; 1–2 deep rare+ prizes use the treasure's
+  far-from-entrance-and-exit scoring. All rolls happen at generation, so maps
+  stay byte-identical per seed; `LOOT_ON_HAZARD` guards editor maps.
+- **Engine** (`engine/`): loot is auto-scooped in stride (never costs the
+  turn's action). Coins/commons → `player.banked` instantly; rare+ →
+  `player.carriedRares`, dropped on the carrier's tile by shot/mine/trap/
+  monster (stealable), banked on exit. New `leave` action (house rule
+  `allowLeave`, default on): walk out through an adjacent exit without the
+  treasure, forfeiting the race; all-exited ⇒ winnerless finish
+  (`winnerId: null`, `gameEndedNoWinner`). Loot state lives in `GameState`,
+  so replays reproduce it exactly (invariants suite has a loot-conservation
+  property and `leave` in the random-play arbitrary).
+- **Banking** (`rooms/room.ts step()`): server credits profiles from the
+  engine events it just computed — commons/coins at scoop time (survives
+  abandoned rooms), rares at their extraction moment, provenance
+  (date/gameId/extractedAlive) stamped server-side. Aesthetic-only: failures
+  are logged, never break a turn. `game.finished` carries a per-player
+  `lootSummary`.
+- **Web**: `PixelAvatar` composes the 16×16 paper-doll from catalog bitmaps
+  (body→outfit→trinket→hat, palette-swap dyes) in PixelLogo's procedural-SVG
+  style; profile store bootstraps the guest silently
+  (`localStorage 'labyrinthium:profile'`); Wardrobe screen =
+  Equip / Collection (X/Y silhouette log + sets + provenance) / Shop (daily,
+  UTC) / Account (secure-progress upgrade, login); avatars render on Home, in
+  the lobby, as your map pawn, and on the true map (spectate/reveal/replay);
+  at-risk HUD chip + walk-out confirm in the action bar.
+
+### Compatibility
+Old map documents / replays parse and re-run unchanged (additive zod
+variants; `leave` never appears in old logs; old `config_json` reads
+`allowLeave` as false). DB migration is purely additive behind
+`PRAGMA user_version`. All new protocol fields are optional.
+
+### Future ideas (not in scope)
+Bad-luck protection on rare drops (needs per-player spawn instancing),
+seasonal retired rares, coin-farm throttling via `loot_claims`, editor UI for
+placing loot, avatar poses/animation frames.

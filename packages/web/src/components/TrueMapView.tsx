@@ -1,5 +1,6 @@
-import type { MapDocument, Pos } from '@labyrinthium/shared';
+import type { AvatarConfig, MapDocument, Pos } from '@labyrinthium/shared';
 import { doorGlyph, grateGlyph } from './MapGrid.js';
+import { PixelAvatar } from './PixelAvatar.js';
 
 const CS = 34;
 const PAD = 6;
@@ -18,10 +19,12 @@ const FEATURE_GLYPHS: Record<string, string> = {
   trapdoor: '⤵',
   mine: '💣',
   trap: '✖',
+  coins: '🪙',
+  cosmetic: '🎩',
 };
 
 export interface Overlay {
-  players?: { id: string; name: string; pos: Pos }[];
+  players?: { id: string; name: string; pos: Pos; avatar?: AvatarConfig; carriedRareCount?: number }[];
   monsters?: Pos[];
   treasure?: Pos | null;
 }
@@ -106,7 +109,11 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           ? `stairs → L${f.to.level} (${f.to.x},${f.to.y})`
           : f.type === 'trapdoor'
             ? `trap door → L${f.to.level} (${f.to.x},${f.to.y})`
-            : f.type;
+            : f.type === 'cosmetic'
+              ? `${f.item.name} (${f.item.rarity})`
+              : f.type === 'coins'
+                ? `${f.amount} coins`
+                : f.type;
     parts.push(
       <text
         key={`f${f.type}${f.at.x},${f.at.y}`}
@@ -146,12 +153,32 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
   });
   props.overlay?.players?.forEach((p, i) => {
     if (p.pos.level === props.level) {
+      const cx = px(p.pos.x) + CS / 2;
+      const cy = py(p.pos.y) + CS / 2;
+      const seatColor = ['#e5793a', '#7a5fd0', '#2e9e44', '#d04f7a'][i % 4]!;
       parts.push(
         <g key={`pl${p.id}`} pointerEvents="none">
-          <circle cx={px(p.pos.x) + CS / 2} cy={py(p.pos.y) + CS / 2} r={11} fill={['#e5793a', '#7a5fd0', '#2e9e44', '#d04f7a'][i % 4]} opacity={0.85} />
-          <text x={px(p.pos.x) + CS / 2} y={py(p.pos.y) + CS / 2} fontSize={11} fill="#fff" textAnchor="middle" dominantBaseline="central">
-            {p.name.slice(0, 2)}
-          </text>
+          {p.avatar ? (
+            <>
+              {/* seat-color ring keeps the who-is-who system; the pawn is the avatar */}
+              <circle cx={cx} cy={cy} r={13} fill="#16110d" stroke={seatColor} strokeWidth={2} opacity={0.95} />
+              <g transform={`translate(${cx - 11}, ${cy - 11})`}>
+                <PixelAvatar avatar={p.avatar} size={22} title={p.name} />
+              </g>
+            </>
+          ) : (
+            <>
+              <circle cx={cx} cy={cy} r={11} fill={seatColor} opacity={0.85} />
+              <text x={cx} y={cy} fontSize={11} fill="#fff" textAnchor="middle" dominantBaseline="central">
+                {p.name.slice(0, 2)}
+              </text>
+            </>
+          )}
+          {(p.carriedRareCount ?? 0) > 0 && (
+            <text x={cx + 11} y={cy - 10} fontSize={11} textAnchor="middle" dominantBaseline="central">
+              ✨<title>{`carrying ${p.carriedRareCount} rare find(s)`}</title>
+            </text>
+          )}
         </g>,
       );
     }

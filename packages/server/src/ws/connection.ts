@@ -1,6 +1,7 @@
 import type { WebSocket } from 'ws';
 import {
   clientMessageSchema,
+  type AvatarConfig,
   type ClientMessage,
   type ServerMessage,
 } from '@labyrinthium/shared';
@@ -69,7 +70,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
           ...(msg.mapId !== undefined ? { mapId: msg.mapId } : {}),
           ...(msg.rules !== undefined ? { rules: msg.rules } : {}),
         });
-        const { player } = rooms.join(room.code, msg.name);
+        const { player } = rooms.join(room.code, msg.name, resolveProfile(msg.profileToken));
         bind(room, player);
         send({
           type: 'session.created',
@@ -82,7 +83,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
       }
 
       case 'room.join': {
-        const { room, player } = rooms.join(msg.roomCode, msg.name);
+        const { room, player } = rooms.join(msg.roomCode, msg.name, resolveProfile(msg.profileToken));
         bind(room, player);
         send({
           type: 'session.created',
@@ -207,6 +208,17 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
     conn.room = room;
     conn.player = player;
     player.send = send;
+  }
+
+  /** A stale/invalid profile token degrades to anonymous play — the game must
+   * always start; the client gets a non-fatal nudge to re-bootstrap. */
+  function resolveProfile(token: string | undefined): { id: string; avatar: AvatarConfig } | null {
+    if (token === undefined) return null;
+    const profile = rooms.resolveProfile(token);
+    if (!profile) {
+      send({ type: 'error', code: 'PROFILE_TOKEN_INVALID', message: 'profile token not recognized; playing as guest' });
+    }
+    return profile;
   }
 
   function requireRoom(): void {

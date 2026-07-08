@@ -979,3 +979,346 @@ button.glow {
     padding: 6px;
   }
 }
+
+/* ------- character / cosmetics layer ------- */
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.good {
+  color: var(--good);
+}
+
+/* home profile card */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: auto;
+  max-width: 640px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+}
+.profile-card .avatar-button {
+  display: inline-flex !important;
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+  background: var(--header);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  line-height: 0;
+  cursor: pointer;
+}
+.profile-card .avatar-button:hover {
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 14px rgba(224, 144, 46, 0.25);
+}
+.profile-card .profile-meta {
+  flex: 1 1 220px;
+  min-width: 180px;
+  text-align: left;
+}
+.profile-card .profile-meta label {
+  display: block;
+}
+.profile-card .profile-meta input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.profile-card .profile-stats {
+  margin-top: 4px;
+}
+.profile-card > button:last-child {
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+}
+
+/* lobby runway */
+.player-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.lobby-avatar {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: var(--header);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.lobby-avatar.bot {
+  font-size: 18px;
+}
+
+/* wardrobe screen */
+.wardrobe {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+.wardrobe-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wardrobe-header h1 {
+  flex: 1;
+  margin: 0;
+  color: var(--accent);
+  text-shadow: 0 0 16px rgba(224, 144, 46, 0.35);
+}
+.wardrobe-header button {
+  width: auto;
+}
+.coin-balance {
+  background: var(--header);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+.wardrobe-error {
+  margin-top: 10px;
+  background: rgba(224, 91, 80, 0.12);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wardrobe-error button {
+  width: auto;
+  padding: 0 8px;
+}
+.wardrobe-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.wardrobe-tabs button {
+  width: auto;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent;
+}
+.wardrobe-tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--panel-2);
+}
+.wardrobe-equip,
+.wardrobe-collection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.avatar-stage {
+  text-align: center;
+}
+.avatar-stage svg {
+  background: var(--map-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.skin-row,
+.dye-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+.skin-dot {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-block !important;
+}
+.skin-dot.active {
+  border-color: var(--ink);
+  box-shadow: 0 0 8px rgba(226, 214, 189, 0.5);
+}
+.slot-card {
+  width: 300px;
+}
+.slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatch-tile {
+  width: 56px !important;
+  min-height: 56px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 4px !important;
+  margin: 0 !important;
+  cursor: pointer;
+}
+.swatch-tile.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(224, 144, 46, 0.35);
+}
+.swatch-tile.static {
+  cursor: default;
+  width: 72px !important;
+}
+.swatch-tile.undiscovered {
+  opacity: 0.6;
+}
+.swatch-none {
+  font-size: 20px;
+  color: var(--muted);
+}
+.swatch-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.15;
+}
+.dye-row {
+  justify-content: flex-start;
+}
+.sets-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.set-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.set-row.complete {
+  background: rgba(224, 144, 46, 0.1);
+}
+.set-row.complete .set-name {
+  color: var(--accent);
+}
+.wardrobe-shop .shop-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.shop-offer {
+  width: 170px;
+  text-align: center;
+  border-width: 2px;
+}
+.shop-offer .offer-name {
+  margin-top: 6px;
+  font-size: 13px;
+  min-height: 32px;
+}
+.shop-offer svg {
+  background: var(--map-bg);
+  border-radius: 6px;
+  padding: 4px;
+}
+.dye-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+}
+.account-card {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* at-risk loot chip + walk-out */
+.rare-chip {
+  background: rgba(224, 144, 46, 0.12);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+.rare-chip.pulse {
+  animation: rare-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rare-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(224, 144, 46, 0); }
+  50% { box-shadow: 0 0 14px rgba(224, 144, 46, 0.55); }
+}
+.leave-exit {
+  border-color: var(--accent-dark) !important;
+}
+
+/* end-of-game loot summary */
+.loot-summary {
+  margin: 10px 0;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.loot-summary h3 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+.loot-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-top: 1px solid rgba(70, 57, 43, 0.5);
+}
+.loot-row:first-of-type {
+  border-top: none;
+}
+.loot-name {
+  min-width: 110px;
+  font-weight: bold;
+}
+.loot-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.loot-item.rarity-common { color: #9b8a6f; }
+.loot-item.rarity-uncommon { color: var(--good); }
+.loot-item.rarity-rare { color: var(--water); }
+.loot-item.rarity-epic { color: var(--arcane); }
+.loot-item.rarity-legendary { color: var(--accent); }
+.loot-lost {
+  color: var(--bad);
+  font-style: italic;
+}

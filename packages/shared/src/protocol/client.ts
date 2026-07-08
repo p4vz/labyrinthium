@@ -17,6 +17,8 @@ export const gameRulesSchema = z
     treasureDrifts: z.boolean(),
     /** twice the starting grenades/bullets/mines */
     doubleAmmo: z.boolean(),
+    /** players may walk out through an exit without the treasure (default on) */
+    allowLeave: z.boolean(),
   })
   .partial();
 
@@ -43,6 +45,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     seed: z.string().max(120).optional(),
     mapId: z.string().optional(),
     rules: gameRulesSchema.optional(),
+    /** links this seat to a persistent profile so loot banks to it */
+    profileToken: z.string().max(120).optional(),
   }),
   z.object({
     type: z.literal('room.addBot'),
@@ -52,6 +56,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('room.join'),
     roomCode: z.string().min(4).max(8),
     name: z.string().min(1).max(40),
+    /** links this seat to a persistent profile so loot banks to it */
+    profileToken: z.string().max(120).optional(),
   }),
   z.object({
     type: z.literal('room.spectate'),

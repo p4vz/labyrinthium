@@ -9,7 +9,7 @@ import {
 import { featuresAt, levelOf, riverNext, type MapFeature } from '../map/document.js';
 import { blocksMovement, getEdge, isBorderEdge, setEdge } from '../map/grid.js';
 import { InvalidActionError, type PlayerAction } from './actions.js';
-import { dropTreasure, runEntryPipeline, type EngineCtx } from './entry.js';
+import { bankCarriedRares, dropCarriedRares, dropTreasure, runEntryPipeline, type EngineCtx } from './entry.js';
 import type { EventPayload, GameEvent, Visibility } from './events.js';
 import { moveMonsters } from './monsters.js';
 import { activePlayer, cloneState, type GameState, type PlayerState } from './state.js';
@@ -107,6 +107,10 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
         ctx.emit(priv, { type: 'treasurePickedUp' });
         state.actedThisTurn = true;
         break;
+      case 'leave':
+        resolveLeave(ctx, player, action.direction);
+        turnEnds = true;
+        break;
       case 'endTurn':
         turnEnds = true;
         break;
@@ -123,10 +127,33 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
       state.phase = 'finished';
       state.winnerId = player.id;
       ctx.emit({ kind: 'public' }, { type: 'gameWon', playerId: player.id, playerName: player.name });
+    } else if (state.phase === 'inProgress' && state.players.every((p) => p.exited)) {
+      // Everyone walked out without the treasure: the labyrinth keeps it.
+      // Must resolve before advanceTurn, which needs a non-exited player.
+      state.phase = 'finished';
+      ctx.emit({ kind: 'public' }, { type: 'gameEndedNoWinner' });
     }
     if (state.phase === 'inProgress') advanceTurn(state);
   }
   return { state, events };
+}
+
+/**
+ * Walk out through an adjacent exit without the treasure: the extraction
+ * move of the cosmetics layer. Forfeits the race (the game goes on for the
+ * others) but banks the rare loot the player carries. Leaving WITH the
+ * treasure is just winning — the regular win check picks it up.
+ */
+function resolveLeave(ctx: EngineCtx, player: PlayerState, direction: PlanarDirection): void {
+  const priv: Visibility = { kind: 'private', playerId: player.id };
+  player.exited = true;
+  bankCarriedRares(ctx, player);
+  if (player.hasTreasure) {
+    ctx.emit(priv, { type: 'exitedLabyrinth' });
+    return;
+  }
+  ctx.emit(priv, { type: 'leftLabyrinth' });
+  ctx.emit({ kind: 'public' }, { type: 'playerLeft', playerId: player.id, playerName: player.name });
 }
 
 function validate(state: GameState, action: PlayerAction): void {
@@ -179,6 +206,16 @@ function validate(state: GameState, action: PlayerAction): void {
         throw new InvalidActionError('NOTHING_TO_PICK_UP', 'there is no treasure here to pick up');
       }
       break;
+    case 'leave': {
+      if (!state.config.allowLeave) {
+        throw new InvalidActionError('LEAVING_DISABLED', 'walking out early is disabled in this game');
+      }
+      const edges = state.edges[player.pos.level]!;
+      if (getEdge(edges, player.pos, action.direction) !== 'exit') {
+        throw new InvalidActionError('NO_EXIT_THERE', 'there is no exit in that direction');
+      }
+      break;
+    }
     case 'move':
       if (!isPlanar(action.direction)) {
         const level = levelOf(state.map, player.pos.level);
@@ -244,6 +281,7 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
     case 'exit':
       if (player.hasTreasure) {
         player.exited = true;
+        bankCarriedRares(ctx, player); // the winner extracts their rares too
         ctx.emit(priv, { type: 'exitedLabyrinth' });
         return true;
       }
@@ -279,6 +317,7 @@ function resolveShoot(ctx: EngineCtx, player: PlayerState, direction: PlanarDire
       for (const victim of victims) {
         victim.paralysis = state.config.paralysisTurns;
         dropTreasure(ctx, victim);
+        dropCarriedRares(ctx, victim);
         if (state.config.dropAllOnShot) {
           const inv = victim.inventory;
           if (inv.grenades + inv.bullets + inv.mines > 0) {
