@@ -13,6 +13,8 @@ export function Home(): JSX.Element {
   const [seed, setSeed] = useState('');
   const [mapId, setMapId] = useState('');
   const [showRules, setShowRules] = useState(false);
+  const [botCount, setBotCount] = useState(2);
+  const [botLevel, setBotLevel] = useState<'easy' | 'medium' | 'hard' | 'mixed'>('medium');
   const [openInfo, setOpenInfo] = useState(true);
   const [timer, setTimer] = useState(0);
   const [dropAll, setDropAll] = useState(false);
@@ -157,6 +159,48 @@ export function Home(): JSX.Element {
             onClick={() => send({ type: 'room.spectate', roomCode: code })}
           >
             👁 Observe
+          </button>
+
+          <h2 className="bot-match-title">🤖 …or watch a bot match</h2>
+          <p className="hint">
+            No code needed: bots explore a fresh maze (size &amp; complexity from “Create a game”)
+            while you watch everything — including their maps taking shape.
+          </p>
+          <label>
+            Bots
+            <select value={botCount} onChange={(e) => setBotCount(Number(e.target.value))}>
+              <option value={2}>2 bots</option>
+              <option value={3}>3 bots</option>
+              <option value={4}>4 bots</option>
+            </select>
+          </label>
+          <label>
+            Skill
+            <select value={botLevel} onChange={(e) => setBotLevel(e.target.value as typeof botLevel)}>
+              <option value="easy">easy — headless chickens</option>
+              <option value="medium">medium — methodical explorers</option>
+              <option value="hard">hard — armed and dangerous</option>
+              <option value="mixed">mixed — one of each</option>
+            </select>
+          </label>
+          <button
+            data-testid="botmatch-btn"
+            disabled={!connected}
+            onClick={() => {
+              const pool: ('easy' | 'medium' | 'hard')[] =
+                botLevel === 'mixed'
+                  ? ['easy', 'medium', 'hard', 'medium']
+                  : Array.from({ length: 4 }, () => botLevel);
+              send({
+                type: 'room.createBotMatch',
+                bots: pool.slice(0, botCount),
+                preset,
+                complexity,
+                ...(seed ? { seed } : {}),
+              });
+            }}
+          >
+            ▶ Start bot match &amp; observe
           </button>
         </div>
 

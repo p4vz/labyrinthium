@@ -157,6 +157,24 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
         return;
       }
 
+      case 'room.createBotMatch': {
+        // Aquarium mode: a bots-only game with this connection observing.
+        const room = rooms.createRoom({
+          ...(msg.preset !== undefined ? { preset: msg.preset } : {}),
+          ...(msg.complexity !== undefined ? { complexity: msg.complexity } : {}),
+          ...(msg.seed !== undefined ? { seed: msg.seed } : {}),
+          ...(msg.mapId !== undefined ? { mapId: msg.mapId } : {}),
+          ...(msg.rules !== undefined ? { rules: msg.rules } : {}),
+        });
+        for (const difficulty of msg.bots) room.addBot(difficulty);
+        conn.spectating?.spectators.delete(send);
+        conn.spectating = room;
+        room.spectators.add(send);
+        room.start(); // delivers game.started + reveal + live state to us
+        send(room.roomStateMessage());
+        return;
+      }
+
       case 'maps.sync': {
         requireRoom();
         conn.room!.handleMapsSync(conn.player!.id, msg.maps);

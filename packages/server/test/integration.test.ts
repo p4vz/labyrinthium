@@ -413,6 +413,34 @@ describe('full game over WebSockets', () => {
     bob.close();
   }, 15000);
 
+  it('bot matches: bots-only game starts instantly with the caller observing', async () => {
+    process.env.BOT_DELAY_MS = '1';
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const watcher = new TestClient(wsUrl);
+    await watcher.ready();
+    watcher.send({ type: 'room.createBotMatch', bots: ['medium', 'medium'], mapId });
+
+    const started = await watcher.next('game.started');
+    expect(started.yourPlayerId).toBe(''); // we are the observer
+    expect(started.turnOrder).toHaveLength(2);
+    expect(started.turnOrder.every((p) => p.name.includes('Bot'))).toBe(true);
+
+    const reveal = await watcher.next('spectate.reveal');
+    expect(reveal.map.levels).toHaveLength(1); // the unlocked truth
+
+    // The bots' own belief maps stream in as they explore.
+    const botMap = await watcher.next('spectate.maps', 20000);
+    expect(botMap.playerName).toContain('Bot');
+
+    const finished = await watcher.next('game.finished', 30000);
+    expect(finished.winnerName).toContain('Bot');
+
+    watcher.close();
+    delete process.env.BOT_DELAY_MS;
+  }, 40000);
+
   it('rejects out-of-turn actions with a protocol error', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };

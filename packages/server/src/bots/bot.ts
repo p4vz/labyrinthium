@@ -64,12 +64,17 @@ export class BotController {
     if (this.timer) clearTimeout(this.timer);
   }
 
+  private levelSizes: { width: number; height: number }[] = [];
+  private entrance: { level: number; x: number; y: number } | null = null;
+
   handle(msg: ServerMessage): void {
     if (this.stopped) return;
     switch (msg.type) {
       case 'game.started':
         this.pos = { frame: 0, x: 0, y: 0 };
         this.inventory = { ...msg.inventory };
+        this.levelSizes = msg.levelSizes;
+        this.entrance = msg.entrance;
         this.markVisit(this.pos);
         break;
       case 'game.events':
@@ -149,8 +154,13 @@ export class BotController {
         }
         break;
       case 'foundExit':
+        // A locked exit is a free probe too — without the treasure it's a
+        // wall for exploration purposes (the hasTreasure path in decide()
+        // uses knownExits directly, so escaping still works).
+        this.bumpsThisTurn++;
         if (this.pos && isPlanarDir(p.direction)) {
           this.knownExits.push({ pos: { ...this.pos }, direction: p.direction });
+          this.edges.set(edgeKey(this.pos, p.direction), 'blocked');
         }
         break;
       case 'teleported':
@@ -270,6 +280,66 @@ export class BotController {
   private markVisit(p: RelPos): void {
     const key = relKey(p);
     this.visits.set(key, (this.visits.get(key) ?? 0) + 1);
+  }
+
+  /**
+   * Render this bot's beliefs in the same shape the web client draws, so
+   * observers can watch the bot's map grow. Frame 0 is anchored at the
+   * entrance (known to everyone), so its relative coordinates translate to
+   * absolute ones; post-teleport frames are as unplottable for us as for a
+   * disoriented human, so they're omitted.
+   */
+  exportBeliefMaps(): unknown {
+    if (!this.entrance || this.levelSizes.length === 0) return [];
+    const e = this.entrance;
+    const grids = this.levelSizes.map((size, li) => {
+      const grid = {
+        width: size.width,
+        height: size.height,
+        h: new Array<string>((size.height + 1) * size.width).fill('unknown'),
+        v: new Array<string>(size.height * (size.width + 1)).fill('unknown'),
+        cells: new Array<{ stamps: string[] } | null>(size.width * size.height).fill(null),
+      };
+      if (li !== e.level) return grid;
+      // edges learned in frame 0, offset to absolute coordinates
+      for (const [key, state] of this.edges) {
+        const m = /^0:(h|v):(-?\d+),(-?\d+)$/.exec(key);
+        if (!m) continue;
+        const kind = m[1] as 'h' | 'v';
+        const ax = e.x + Number(m[2]);
+        const ay = e.y + Number(m[3]);
+        const mark = state === 'open' ? 'open' : 'wall';
+        if (kind === 'h' && ax >= 0 && ax < size.width && ay >= 0 && ay <= size.height) {
+          grid.h[ay * size.width + ax] = mark;
+        } else if (kind === 'v' && ax >= 0 && ax <= size.width && ay >= 0 && ay < size.height) {
+          grid.v[ay * (size.width + 1) + ax] = mark;
+        }
+      }
+      // exits the GM confirmed
+      for (const exit of this.knownExits) {
+        if (exit.pos.frame !== 0) continue;
+        const ax = e.x + exit.pos.x;
+        const ay = e.y + exit.pos.y;
+        if (ax < 0 || ay < 0 || ax >= size.width || ay >= size.height) continue;
+        if (exit.direction === 'N') grid.h[ay * size.width + ax] = 'exit';
+        else if (exit.direction === 'S') grid.h[(ay + 1) * size.width + ax] = 'exit';
+        else if (exit.direction === 'W') grid.v[ay * (size.width + 1) + ax] = 'exit';
+        else grid.v[ay * (size.width + 1) + ax + 1] = 'exit';
+      }
+      // the bot's pawn (only while it still knows where it is)
+      if (this.pos && this.pos.frame === 0) {
+        const ax = e.x + this.pos.x;
+        const ay = e.y + this.pos.y;
+        if (ax >= 0 && ay >= 0 && ax < size.width && ay < size.height) {
+          const idx = ay * size.width + ax;
+          const stamps = ['you'];
+          if (this.treasureUnderfoot && !this.hasTreasure) stamps.push('treasure');
+          grid.cells[idx] = { stamps };
+        }
+      }
+      return grid;
+    });
+    return [{ id: 'main', name: 'Main map', grids }];
   }
 
   private setEdge(p: RelPos, d: Dir, state: 'open' | 'blocked' | 'reinforced'): void {

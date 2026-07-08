@@ -88,7 +88,8 @@ export class Room {
     if (this.players.length >= 8) throw new RoomError('ROOM_FULL', 'room is full');
     const taken = new Set(this.players.map((p) => p.name));
     const name =
-      BOT_NAMES[difficulty].find((n) => !taken.has(n)) ?? `Bot ${this.players.length + 1}`;
+      BOT_NAMES[difficulty].find((n) => !taken.has(`${n} (${difficulty})`)) ??
+      `Bot ${this.players.length + 1}`;
     const player: RoomPlayer = {
       id: randomUUID(),
       name: `${name} (${difficulty})`,
@@ -234,6 +235,11 @@ export class Room {
       : result.events.filter((e) => e.visibility.kind === 'public');
     if (forSpectators.length > 0) {
       for (const send of this.spectators) send({ type: 'game.events', events: forSpectators });
+    }
+    // Bots share their belief maps too, so observers can watch them think.
+    const actingBot = this.bots.get(playerId);
+    if (actingBot && (this.spectators.size > 0 || this.beliefMaps.has(playerId))) {
+      this.handleMapsSync(playerId, actingBot.exportBeliefMaps());
     }
     if (this.state.phase === 'finished') {
       this.finish();

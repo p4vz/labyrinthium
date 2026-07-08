@@ -979,3 +979,4 @@ button.glow {
     padding: 6px;
   }
 }
+.bot-match-title { margin-top: 18px; font-size: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
