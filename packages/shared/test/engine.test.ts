@@ -231,7 +231,9 @@ describe('teleports', () => {
     expect(state.players[0]!.pos).toMatchObject({ x: 2, y: 2 });
     const tp = events.find((e) => e.payload.type === 'teleported');
     expect(tp).toBeDefined();
-    expect(Object.keys(tp!.payload)).toEqual(['type']); // no coordinates leak
+    // The pad itself is visible (kind, number when labeled) — but no
+    // coordinates ever leak.
+    expect(tp!.payload).toEqual({ type: 'teleported', mode: 'oneWay' });
   });
 
   it('two-way teleports bounce you to the twin, and the twin back', () => {

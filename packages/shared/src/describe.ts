@@ -36,10 +36,13 @@ export function describeEvent(e: GameEvent): string {
       return 'you are standing in a river';
     case 'riverDrift':
       return `the current drags you ${dir(p.direction)}`;
-    case 'teleported':
+    case 'teleported': {
+      const arrival =
+        p.mode === 'twoWay' ? ' — its twin pad glints beneath your feet' : '';
       return p.label !== undefined
-        ? `you step on teleport pad №${p.label} — a flash of light, and you are... somewhere else`
-        : 'a flash of light — you are... somewhere else';
+        ? `you step on teleport pad №${p.label} — a flash of light, and you are... somewhere else${arrival}`
+        : `a flash of light — you are... somewhere else${arrival}`;
+    }
     case 'fellThroughTrapdoor':
       return 'the floor gives way! you fall one level down';
     case 'stairsFound':

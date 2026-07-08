@@ -50,9 +50,11 @@ export function runEntryPipeline(
       visited.add(posKey(teleport.target)); // landing pad never re-fires
       player.pos = { ...teleport.target };
       // The rune on the pad is plainly visible — the destination is not.
+      // (mode is visible too: a two-way arrival has its twin pad underfoot.)
       ctx.emit(priv, {
         type: 'teleported',
         ...(teleport.label !== undefined ? { label: teleport.label } : {}),
+        mode: teleport.mode,
       });
       continue;
     }

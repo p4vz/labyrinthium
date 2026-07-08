@@ -22,8 +22,10 @@ export type EventPayload =
   | { type: 'foundExit'; direction: PlanarDirection }
   | { type: 'riverHere' }
   | { type: 'riverDrift'; direction: PlanarDirection }
-  // The pad's visible rune (pair label) — but never the destination.
-  | { type: 'teleported'; label?: number }
+  // The pad's visible rune (pair label) and kind — but never the destination.
+  // A two-way arrival has its twin pad plainly underfoot; a one-way arrival
+  // is a bare landing spot (the pad's "exit side").
+  | { type: 'teleported'; label?: number; mode?: 'oneWay' | 'twoWay' }
   | { type: 'fellThroughTrapdoor' }
   | { type: 'stairsFound'; directions: ('U' | 'D')[] }
   | { type: 'tookStairs'; direction: 'U' | 'D' }

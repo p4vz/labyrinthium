@@ -8,6 +8,7 @@ export const STAMP_GLYPHS: Record<Stamp, string> = {
   empty: '·',
   river: '➤',
   teleport: '◎',
+  tpExit: '◉',
   stairs: '↕',
   trapdoor: '⤵',
   mine: '💣',
@@ -439,7 +440,7 @@ function renderAnno(
           +{glyphs.length - 4}
         </text>
       )}
-      {anno.tpLabel !== undefined && anno.stamps.includes('teleport') && (
+      {anno.tpLabel !== undefined && (anno.stamps.includes('teleport') || anno.stamps.includes('tpExit')) && (
         <text x={x + 7} y={y + CS - 5} fontSize={9} fontWeight="bold" fill="#c9a3e8" textAnchor="middle">
           {anno.tpLabel}
         </text>

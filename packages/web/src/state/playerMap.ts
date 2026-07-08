@@ -13,6 +13,7 @@ export type Stamp =
   | 'empty' // "checked — nothing here"
   | 'river'
   | 'teleport'
+  | 'tpExit' // where a one-way teleport spat you out
   | 'stairs'
   | 'trapdoor'
   | 'mine'

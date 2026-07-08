@@ -68,6 +68,9 @@ export class BotController {
   private entrance: { level: number; x: number; y: number } | null = null;
   /** labeled teleport pads seen while still oriented (frame-0 coords) */
   private knownTeleports: { x: number; y: number; label: number }[] = [];
+  /** which teleport dropped us into each frame — the frame origin is that
+   * pad's arrival side (twoWay = the twin pad itself) */
+  private frameArrival = new Map<number, { label?: number; mode?: 'oneWay' | 'twoWay' }>();
 
   handle(msg: ServerMessage): void {
     if (this.stopped) return;
@@ -177,6 +180,10 @@ export class BotController {
         }
         this.frame += 1;
         this.pos = { frame: this.frame, x: 0, y: 0 };
+        // The new frame's origin is the pad's arrival side — chart it.
+        if (p.label !== undefined || p.mode !== undefined) {
+          this.frameArrival.set(this.frame, { label: p.label, mode: p.mode });
+        }
         this.knownExits = this.knownExits.filter((e) => e.pos.frame === this.frame);
         this.markVisit(this.pos);
         break;
@@ -365,7 +372,11 @@ export class BotController {
     const maps: unknown[] = [{ id: 'main', name: 'Main map', grids }];
     for (let f = 1; f <= this.frame; f++) {
       const aux = this.exportFrameGrid(f);
-      if (aux) maps.push({ id: `aux-${f}`, name: `Aux ${f}`, grids: [aux] });
+      if (!aux) continue;
+      const arrival = this.frameArrival.get(f);
+      const name =
+        arrival?.label !== undefined ? `After pad №${arrival.label}` : `Aux ${f}`;
+      maps.push({ id: `aux-${f}`, name, grids: [aux] });
     }
     return maps;
   }
@@ -432,13 +443,22 @@ export class BotController {
       else if (exit.direction === 'W') grid.v[ay * (width + 1) + ax] = 'exit';
       else grid.v[ay * (width + 1) + ax + 1] = 'exit';
     }
+    // the frame's origin is where the teleport spat us out — chart it
+    const arrival = this.frameArrival.get(f);
+    if (arrival && ox >= 0 && oy >= 0 && ox < width && oy < height) {
+      grid.cells[oy * width + ox] = {
+        stamps: [arrival.mode === 'twoWay' ? 'teleport' : 'tpExit'],
+        ...(arrival.label !== undefined ? { tpLabel: arrival.label } : {}),
+      } as never;
+    }
     if (this.pos && this.pos.frame === f) {
       const ax = this.pos.x + ox;
       const ay = this.pos.y + oy;
       if (ax >= 0 && ay >= 0 && ax < width && ay < height) {
-        const stamps = ['you'];
-        if (this.treasureUnderfoot && !this.hasTreasure) stamps.push('treasure');
-        grid.cells[ay * width + ax] = { stamps };
+        const cell = (grid.cells[ay * width + ax] ?? { stamps: [] }) as { stamps: string[] };
+        cell.stamps.push('you');
+        if (this.treasureUnderfoot && !this.hasTreasure) cell.stamps.push('treasure');
+        grid.cells[ay * width + ax] = cell;
       }
     }
     return grid;

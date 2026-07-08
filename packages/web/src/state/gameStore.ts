@@ -263,9 +263,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           } else if (e.payload.type === 'treasurePickedUp') {
             set({ treasureUnderfoot: false });
           } else if (e.payload.type === 'teleported') {
-            // The GM announced the pad (and its number): chart it where the
-            // pawn stood — the pawn itself is now somewhere unknown.
-            useMapStore.getState().stampTeleportPad(e.payload.label);
+            // Chart BOTH sides: the pad where the pawn stood, and the
+            // arrival — a known numbered cell, or a fresh aux sheet.
+            useMapStore.getState().chartTeleport(e.payload.label, e.payload.mode);
           }
         }
         const entries: FeedEntry[] = msg.events.map((e) => {

@@ -74,8 +74,14 @@ export interface MapStoreState {
   moveYouPawn(direction: 'N' | 'E' | 'S' | 'W'): void;
   /** the GM revealed an exit next to you: draw the green gate at the pawn */
   markExitEdge(direction: 'N' | 'E' | 'S' | 'W'): void;
-  /** the GM announced you stepped on a (numbered) teleport pad: chart it at the pawn */
-  stampTeleportPad(label?: number): void;
+  /**
+   * The GM announced you stepped on a teleport pad: chart BOTH sides.
+   * The departure pad is stamped under the pawn; the pawn is then lifted
+   * (its old position is meaningless) and set down on the arrival side —
+   * a previously charted cell with the same number if one exists, else a
+   * fresh auxiliary sheet with the arrival marked at its center.
+   */
+  chartTeleport(label?: number, mode?: 'oneWay' | 'twoWay'): void;
   /** one swipe of the wall tool: a run of edges becomes walls (one undo step) */
   paintWalls(edges: { kind: 'h' | 'v'; x: number; y: number }[]): void;
   /** one swipe of the river tool: a chain of cells with flow directions (one undo step) */
@@ -276,12 +282,13 @@ export const useMapStore = create<MapStoreState>((set, get) => {
       }
     },
 
-    stampTeleportPad(label) {
-      // Automatic bookkeeping like moveYouPawn: the GM said "you stepped on
-      // teleport pad №N" — chart the pad under the pawn before the jump.
+    chartTeleport(label, mode) {
+      // Automatic bookkeeping like moveYouPawn — no undo snapshot.
       const { maps, storageKey } = get();
       const next = JSON.parse(JSON.stringify(maps)) as PlayerMap[];
-      let changed = false;
+      // 1. Departure side: the pad's rune was plainly visible — stamp it
+      //    under the pawn on every map that tracks one.
+      const departures: { mapId: string; grid: number; idx: number }[] = [];
       for (const map of next) {
         for (let gi = 0; gi < map.grids.length; gi++) {
           const grid = map.grids[gi]!;
@@ -290,13 +297,70 @@ export const useMapStore = create<MapStoreState>((set, get) => {
           const x = idx % grid.width;
           const y = Math.floor(idx / grid.width);
           map.grids[gi] = stampTeleport(grid, x, y, label);
-          changed = true;
+          departures.push({ mapId: map.id, grid: gi, idx });
         }
       }
-      if (changed) {
-        set({ maps: next });
-        persist({ storageKey, maps: next });
+      // 2. The jump made every old pawn position meaningless — lift them.
+      for (const map of next) {
+        for (const grid of map.grids) {
+          for (const c of grid.cells) {
+            if (c) c.stamps = c.stamps.filter((s) => s !== 'you');
+          }
+        }
       }
+      // 3. Arrival side. A numbered pad always lands in the same place, so
+      //    if that place is already charted (other than where we just left),
+      //    the pawn belongs there: a one-way jump lands on the charted exit
+      //    spot, a two-way jump on the twin pad.
+      let target: { mapId: string; grid: number; idx: number } | null = null;
+      if (label !== undefined) {
+        const preferred: Stamp = mode === 'twoWay' ? 'teleport' : 'tpExit';
+        const find = (wantPreferred: boolean): typeof target => {
+          for (const map of next) {
+            for (let gi = 0; gi < map.grids.length; gi++) {
+              const grid = map.grids[gi]!;
+              for (let i = 0; i < grid.cells.length; i++) {
+                const c = grid.cells[i];
+                if (!c || c.tpLabel !== label) continue;
+                if (wantPreferred && !c.stamps.includes(preferred)) continue;
+                if (departures.some((d) => d.mapId === map.id && d.grid === gi && d.idx === i)) continue;
+                return { mapId: map.id, grid: gi, idx: i };
+              }
+            }
+          }
+          return null;
+        };
+        target = find(true) ?? (mode === undefined ? find(false) : null);
+      }
+      if (target) {
+        const map = next.find((m) => m.id === target!.mapId)!;
+        const cell = map.grids[target.grid]!.cells[target.idx] ?? { stamps: [] };
+        if (!cell.stamps.includes('you')) cell.stamps.push('you');
+        map.grids[target.grid]!.cells[target.idx] = cell;
+        set({ maps: next, activeMapId: target.mapId, activeGrid: target.grid, selection: null, pending: null });
+      } else {
+        // Uncharted territory: start a fresh sheet with the arrival at its
+        // center — a two-way arrival IS a pad; a one-way arrival is only
+        // the pad's exit spot.
+        auxCounter += 1;
+        const id = `aux-${auxCounter}`;
+        const base = next.find((m) => m.id === 'main')?.grids[0];
+        const size = Math.max(base?.width ?? 9, base?.height ?? 9);
+        const grid = createGrid(size, size);
+        const cx = Math.floor(size / 2);
+        const cell: (typeof grid.cells)[number] = {
+          stamps: [mode === 'twoWay' ? 'teleport' : 'tpExit', 'you'],
+          ...(label !== undefined ? { tpLabel: label } : {}),
+        };
+        grid.cells[cx * size + cx] = cell;
+        next.push({
+          id,
+          name: label !== undefined ? `After pad №${label}` : 'After teleport',
+          grids: [grid],
+        });
+        set({ maps: next, activeMapId: id, activeGrid: 0, selection: null, pending: null });
+      }
+      persist({ storageKey, maps: next });
     },
 
     setTool(tool) {

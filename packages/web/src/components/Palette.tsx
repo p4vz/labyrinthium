@@ -9,6 +9,7 @@ const STAMPS: { stamp: Stamp; label: string }[] = [
   { stamp: 'empty', label: 'nothing here' },
   { stamp: 'entrance', label: 'entrance' },
   { stamp: 'teleport', label: 'teleport' },
+  { stamp: 'tpExit', label: 'teleport exit' },
   { stamp: 'stairs', label: 'stairs' },
   { stamp: 'trapdoor', label: 'trap door' },
   { stamp: 'mine', label: 'mine' },
