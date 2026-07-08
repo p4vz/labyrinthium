@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Coord, Pos } from '../geometry.js';
+import { cosmeticItemSchema } from '../cosmetics/items.js';
 import type { EdgeGrid } from './grid.js';
 
 export const MIN_SIZE = 3;
@@ -48,6 +49,11 @@ export const mapFeatureSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('mine'), at: coordSchema }),
   // Single-use trap; springs once, then inert forever.
   z.object({ type: z.literal('trap'), at: coordSchema, paralysis: z.number().int().min(1).max(10) }),
+  // Aesthetic loot (zero gameplay effect). Coins bank instantly on pickup.
+  z.object({ type: z.literal('coins'), at: coordSchema, amount: z.number().int().min(1).max(500) }),
+  // A cosmetic drop, fully rolled at bake time so maps stay deterministic.
+  // common/uncommon bank on pickup; rare+ must be carried out alive.
+  z.object({ type: z.literal('cosmetic'), at: coordSchema, item: cosmeticItemSchema }),
 ]);
 
 export type MapFeature = z.infer<typeof mapFeatureSchema>;
