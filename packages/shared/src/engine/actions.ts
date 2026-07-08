@@ -15,6 +15,10 @@ export const playerActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('grenade'), direction: planarSchema }),
   z.object({ type: z.literal('placeMine') }),
   z.object({ type: z.literal('pickup') }),
+  // Walk out through an adjacent exit WITHOUT the treasure: forfeit the race,
+  // bank the rare cosmetics you carry. A deliberate action (never triggered by
+  // a plain move onto an exit edge) so nobody quits a game by accident.
+  z.object({ type: z.literal('leave'), direction: planarSchema }),
   z.object({ type: z.literal('endTurn') }),
   z.object({ type: z.literal('skip') }),
 ]);
@@ -33,7 +37,9 @@ export type InvalidActionCode =
   | 'NO_STAIRS_HERE'
   | 'BORDER_INDESTRUCTIBLE'
   | 'ALREADY_ACTED'
-  | 'NOTHING_TO_PICK_UP';
+  | 'NOTHING_TO_PICK_UP'
+  | 'NO_EXIT_THERE'
+  | 'LEAVING_DISABLED';
 
 /** Thrown before any state mutation; does not consume the turn. */
 export class InvalidActionError extends Error {

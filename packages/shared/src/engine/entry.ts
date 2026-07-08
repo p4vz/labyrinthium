@@ -1,4 +1,5 @@
 import { directionBetween, posEq, posKey } from '../geometry.js';
+import { isRarePlus } from '../cosmetics/items.js';
 import { featuresAt, levelOf, riverNext } from '../map/document.js';
 import type { MapFeature } from '../map/document.js';
 import type { EventPayload, Visibility } from './events.js';
@@ -15,6 +16,29 @@ export function dropTreasure(ctx: EngineCtx, player: PlayerState): void {
   ctx.state.treasure.carriedBy = null;
   ctx.state.treasure.pos = { ...player.pos };
   ctx.emit({ kind: 'private', playerId: player.id }, { type: 'treasureDropped' });
+}
+
+/** Carried rares fall where the carrier stands — anyone can walk over and
+ * claim them, exactly like the treasure. Called at every treasure-drop site. */
+export function dropCarriedRares(ctx: EngineCtx, player: PlayerState): void {
+  if (player.carriedRares.length === 0) return;
+  for (const item of player.carriedRares) {
+    ctx.state.groundCosmetics.push({ pos: { ...player.pos }, item });
+  }
+  ctx.emit(
+    { kind: 'private', playerId: player.id },
+    { type: 'rareLootDropped', count: player.carriedRares.length },
+  );
+  player.carriedRares = [];
+}
+
+/** The extraction moment: carried rares become permanently the player's. */
+export function bankCarriedRares(ctx: EngineCtx, player: PlayerState): void {
+  if (player.carriedRares.length === 0) return;
+  const items = player.carriedRares;
+  player.carriedRares = [];
+  player.banked.items.push(...items);
+  ctx.emit({ kind: 'private', playerId: player.id }, { type: 'rareLootBanked', items });
 }
 
 function isSprung(state: GameState, pos: { level: number; x: number; y: number }): boolean {
@@ -86,6 +110,7 @@ export function runEntryPipeline(
       else state.sprungTraps.push({ ...player.pos });
       player.paralysis = Math.max(player.paralysis, state.config.mineParalysis);
       dropTreasure(ctx, player);
+      dropCarriedRares(ctx, player);
       ctx.emit(priv, { type: 'mineTriggered', paralysis: state.config.mineParalysis });
       ctx.emit({ kind: 'public' }, { type: 'explosionHeard' });
     }
@@ -95,6 +120,7 @@ export function runEntryPipeline(
       state.sprungTraps.push({ ...player.pos });
       player.paralysis = Math.max(player.paralysis, trap.paralysis);
       dropTreasure(ctx, player);
+      dropCarriedRares(ctx, player);
       ctx.emit(priv, { type: 'trapSprung', paralysis: trap.paralysis });
     }
 
@@ -107,6 +133,31 @@ export function runEntryPipeline(
       player.inventory.mines += found.mines;
       state.floorItems.splice(floorIdx, 1);
       ctx.emit(priv, { type: 'itemsFound', ...found });
+    }
+
+    // Aesthetic loot is scooped in stride — it costs nothing and changes
+    // nothing about play. Coins and commons bank on the spot; rare+ pieces
+    // ride along at risk until the carrier walks out (or drops them).
+    if (player.paralysis === 0) {
+      const coinIdx = state.coinPiles.findIndex((c) => posEq(c.pos, player.pos));
+      if (coinIdx >= 0) {
+        const { amount } = state.coinPiles[coinIdx]!;
+        state.coinPiles.splice(coinIdx, 1);
+        player.banked.coins += amount;
+        ctx.emit(priv, { type: 'coinsFound', amount });
+      }
+      for (let i = state.groundCosmetics.length - 1; i >= 0; i--) {
+        const g = state.groundCosmetics[i]!;
+        if (!posEq(g.pos, player.pos)) continue;
+        state.groundCosmetics.splice(i, 1);
+        if (isRarePlus(g.item.rarity)) {
+          player.carriedRares.push(g.item);
+          ctx.emit(priv, { type: 'rareLootFound', item: g.item });
+        } else {
+          player.banked.items.push(g.item);
+          ctx.emit(priv, { type: 'cosmeticFound', item: g.item });
+        }
+      }
     }
 
     const stairs = feats.filter((f): f is Extract<MapFeature, { type: 'stairs' }> => f.type === 'stairs');
@@ -126,6 +177,7 @@ export function runEntryPipeline(
     if (monster && player.paralysis === 0) {
       player.paralysis = state.config.monsterParalysis;
       dropTreasure(ctx, player);
+      dropCarriedRares(ctx, player);
       ctx.emit(priv, { type: 'monsterEncounter', paralysis: state.config.monsterParalysis });
     }
 

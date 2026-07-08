@@ -8,7 +8,7 @@ export * from './engine/state.js';
 export * from './engine/actions.js';
 export * from './engine/events.js';
 export * from './engine/apply.js';
-export { runEntryPipeline, dropTreasure } from './engine/entry.js';
+export { runEntryPipeline, dropTreasure, dropCarriedRares, bankCarriedRares } from './engine/entry.js';
 export type { EngineCtx } from './engine/entry.js';
 export * from './generator/index.js';
 export * from './protocol/client.js';

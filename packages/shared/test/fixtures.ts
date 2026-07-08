@@ -1,4 +1,5 @@
 import type { Coord, PlanarDirection } from '../src/geometry.js';
+import type { CosmeticItem } from '../src/cosmetics/items.js';
 import type { LevelDocument, MapDocument, MapFeature } from '../src/map/document.js';
 import { createEdgeGrid, setEdge, type EdgeState } from '../src/map/grid.js';
 import { DEFAULT_CONFIG, createGame, type GameConfig, type GameState } from '../src/engine/state.js';
@@ -94,4 +95,17 @@ export function playScript(state: GameState, actions: PlayerAction[]): {
 
 export function payloadTypes(events: GameEvent[]): string[] {
   return events.map((e) => e.payload.type);
+}
+
+/** A hand-rolled cosmetic item for scenario tests. */
+export function testItem(overrides: Partial<CosmeticItem> = {}): CosmeticItem {
+  return {
+    id: 'itm-test-1',
+    slot: 'hat',
+    templateId: 'straw-hat',
+    rarity: 'common',
+    paletteId: 'moss',
+    name: 'Straw Hat',
+    ...overrides,
+  };
 }
