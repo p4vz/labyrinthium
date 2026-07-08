@@ -275,7 +275,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         break;
       }
       case 'error': {
-        set({ errors: [...get().errors, `${msg.code}: ${msg.message}`].slice(-5) });
+        if (msg.code === 'SESSION_NOT_FOUND') {
+          // Our stored game evaporated (server restart / room expired):
+          // stop retrying, clean up, and say it once in plain words.
+          saveSession(null);
+          get().reset();
+          set({
+            errors: [
+              'that game is no longer on the server (it probably restarted) — start a fresh one',
+            ],
+          });
+          break;
+        }
+        const text = `${msg.code}: ${msg.message}`;
+        const errors = get().errors;
+        // reconnect loops can repeat themselves; don't stack duplicates
+        if (errors[errors.length - 1] === text) break;
+        set({ errors: [...errors, text].slice(-5) });
         break;
       }
       case 'room.playerJoined':

@@ -131,16 +131,32 @@ export function Home(): JSX.Element {
             <input data-testid="code-input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="AB12CD" maxLength={8} />
           </label>
           <button data-testid="join-btn" disabled={!connected || !name || code.length < 4} onClick={() => send({ type: 'room.join', roomCode: code, name })}>
-            Join room
+            Join as a player
           </button>
+        </div>
+
+        <div className="card">
+          <h2>👁 Observe a game</h2>
+          <p className="hint">
+            See everything the players can't: the true map, every piece moving live, and each
+            player's hand-drawn map (tap their name in the game).
+          </p>
+          <label>
+            Room code
+            <input
+              data-testid="observe-code-input"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="AB12CD"
+              maxLength={8}
+            />
+          </label>
           <button
+            data-testid="observe-btn"
             disabled={!connected || code.length < 4}
-            onClick={() => {
-              send({ type: 'room.spectate', roomCode: code });
-              setScreen('game');
-            }}
+            onClick={() => send({ type: 'room.spectate', roomCode: code })}
           >
-            Watch as spectator
+            👁 Observe
           </button>
         </div>
 
