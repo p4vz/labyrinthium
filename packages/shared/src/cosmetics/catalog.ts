@@ -117,7 +117,7 @@ export const HATS: CosmeticTemplate[] = [
     minRarity: 'rare',
     set: 'royal',
     legendaryName: 'Crown of the Maze King',
-    y: 1,
+    y: 2,
     rows: ['0000020220200000', '0000122222210000'],
   },
   {
@@ -226,7 +226,7 @@ export const HATS: CosmeticTemplate[] = [
     label: 'Straw Hat',
     minRarity: 'common',
     legendaryName: 'The Scarecrow’s Sunday Best',
-    y: 1,
+    y: 2,
     rows: ['0000012222100000', '0011111111111100'],
   },
 ];

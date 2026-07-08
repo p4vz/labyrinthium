@@ -1002,6 +1002,10 @@ button.glow {
   padding: 12px 16px;
 }
 .profile-card .avatar-button {
+  display: inline-flex !important;
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
   background: var(--header);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1014,16 +1018,24 @@ button.glow {
   box-shadow: 0 0 14px rgba(224, 144, 46, 0.25);
 }
 .profile-card .profile-meta {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 220px;
+  min-width: 180px;
   text-align: left;
+}
+.profile-card .profile-meta label {
+  display: block;
+}
+.profile-card .profile-meta input {
+  width: 100%;
+  box-sizing: border-box;
 }
 .profile-card .profile-stats {
   margin-top: 4px;
 }
 .profile-card > button:last-child {
-  width: auto;
-  margin-top: 0;
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
 }
 
 /* lobby runway */
@@ -1132,12 +1144,14 @@ button.glow {
   justify-content: center;
 }
 .skin-dot {
-  width: 22px;
-  height: 22px;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  flex: 0 0 auto;
   border-radius: 50%;
   border: 2px solid var(--border);
   cursor: pointer;
-  padding: 0;
+  padding: 0 !important;
   margin: 0 !important;
   display: inline-block !important;
 }
@@ -1154,7 +1168,7 @@ button.glow {
   gap: 8px;
 }
 .swatch-tile {
-  width: 56px;
+  width: 56px !important;
   min-height: 56px;
   display: inline-flex;
   flex-direction: column;
@@ -1174,7 +1188,7 @@ button.glow {
 }
 .swatch-tile.static {
   cursor: default;
-  width: 72px;
+  width: 72px !important;
 }
 .swatch-tile.undiscovered {
   opacity: 0.6;
@@ -1240,4 +1254,71 @@ button.glow {
 .account-card {
   width: 100%;
   max-width: 460px;
+}
+
+/* at-risk loot chip + walk-out */
+.rare-chip {
+  background: rgba(224, 144, 46, 0.12);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+.rare-chip.pulse {
+  animation: rare-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rare-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(224, 144, 46, 0); }
+  50% { box-shadow: 0 0 14px rgba(224, 144, 46, 0.55); }
+}
+.leave-exit {
+  border-color: var(--accent-dark) !important;
+}
+
+/* end-of-game loot summary */
+.loot-summary {
+  margin: 10px 0;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.loot-summary h3 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+.loot-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-top: 1px solid rgba(70, 57, 43, 0.5);
+}
+.loot-row:first-of-type {
+  border-top: none;
+}
+.loot-name {
+  min-width: 110px;
+  font-weight: bold;
+}
+.loot-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.loot-item.rarity-common { color: #9b8a6f; }
+.loot-item.rarity-uncommon { color: var(--good); }
+.loot-item.rarity-rare { color: var(--water); }
+.loot-item.rarity-epic { color: var(--arcane); }
+.loot-item.rarity-legendary { color: var(--accent); }
+.loot-lost {
+  color: var(--bad);
+  font-style: italic;
 }

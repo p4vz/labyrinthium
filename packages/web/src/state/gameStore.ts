@@ -59,6 +59,8 @@ export interface GameStoreState {
   canAct: boolean;
   /** the GM said the treasure lies under your feet (pickup available) */
   treasureUnderfoot: boolean;
+  /** you are carrying THE treasure */
+  haveTreasure: boolean;
   /** rare cosmetics you carry — at risk until you walk out */
   carriedRares: CosmeticItem[];
   /** loot already safely banked this run */
@@ -142,6 +144,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   turnNumber: 0,
   canAct: true,
   treasureUnderfoot: false,
+  haveTreasure: false,
   carriedRares: [],
   runLoot: { items: [], coins: 0 },
   exitAdjacent: null,
@@ -185,6 +188,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       turnNumber: 0,
       canAct: true,
       treasureUnderfoot: false,
+      haveTreasure: false,
       carriedRares: [],
       runLoot: { items: [], coins: 0 },
       exitAdjacent: null,
@@ -219,6 +223,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           finished: null,
           screen: 'game',
           spectating: msg.yourPlayerId === '',
+          haveTreasure: false,
           carriedRares: [],
           runLoot: { items: [], coins: 0 },
           exitAdjacent: null,
@@ -293,7 +298,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           } else if (e.payload.type === 'treasureHere') {
             set({ treasureUnderfoot: true });
           } else if (e.payload.type === 'treasurePickedUp') {
-            set({ treasureUnderfoot: false });
+            set({ treasureUnderfoot: false, haveTreasure: true });
+          } else if (e.payload.type === 'treasureDropped') {
+            set({ haveTreasure: false });
           } else if (e.payload.type === 'rareLootFound') {
             set({ carriedRares: [...get().carriedRares, e.payload.item] });
           } else if (e.payload.type === 'rareLootDropped') {
