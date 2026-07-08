@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Fragment, PlayerGrid, Rect, Stamp } from '../state/playerMap.js';
 import { normalizeRect } from '../state/playerMap.js';
 
@@ -45,9 +45,13 @@ export interface MapGridProps {
   selection?: Rect | null;
   pending?: Fragment | null;
   selectMode?: boolean;
+  /** swipe gestures: 'wall' paints edge runs, 'river' paints flow chains */
+  paintMode?: 'wall' | 'river' | null;
   onEdgeClick?(x: number, y: number, side: 'N' | 'W'): void;
   onCellClick?(x: number, y: number): void;
   onDragSelect?(rect: Rect): void;
+  onPaintWalls?(edges: { kind: 'h' | 'v'; x: number; y: number }[]): void;
+  onPaintRiver?(cells: { x: number; y: number; dir: 'N' | 'E' | 'S' | 'W' }[]): void;
 }
 
 /**
@@ -61,20 +65,77 @@ export function MapGrid(props: MapGridProps): JSX.Element {
   const { grid } = props;
   const [drag, setDrag] = useState<Rect | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  /** raw swipe path (SVG units) for the wall/river paint gestures */
+  const paintPath = useRef<{ x: number; y: number }[] | null>(null);
+  /** a completed swipe eats the synthetic click that follows it */
+  const swipeConsumed = useRef(false);
 
   const w = grid.width * CS + PAD * 2;
   const h = grid.height * CS + PAD * 2;
   const px = (x: number): number => PAD + x * CS;
   const py = (y: number): number => PAD + y * CS;
 
-  /** Which cell a pointer event lands on, from raw coordinates. */
-  function cellAt(e: React.PointerEvent<SVGSVGElement>): { x: number; y: number } | null {
+  /** Pointer position in unscaled SVG units. */
+  function svgPoint(e: React.PointerEvent<SVGSVGElement>): { x: number; y: number } {
     const rect = e.currentTarget.getBoundingClientRect();
     const scale = rect.width / w; // SVG may be CSS-scaled on small screens
-    const cx = Math.floor(((e.clientX - rect.left) / scale - PAD) / CS);
-    const cy = Math.floor(((e.clientY - rect.top) / scale - PAD) / CS);
+    return { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
+  }
+
+  /** Which cell a pointer event lands on, from raw coordinates. */
+  function cellAt(e: React.PointerEvent<SVGSVGElement>): { x: number; y: number } | null {
+    const p = svgPoint(e);
+    const cx = Math.floor((p.x - PAD) / CS);
+    const cy = Math.floor((p.y - PAD) / CS);
     if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) return null;
     return { x: cx, y: cy };
+  }
+
+  /** Straight-line wall run along the dominant axis of the swipe. */
+  function wallsFromSwipe(path: { x: number; y: number }[]): { kind: 'h' | 'v'; x: number; y: number }[] {
+    const a = path[0]!;
+    const b = path[path.length - 1]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const out: { kind: 'h' | 'v'; x: number; y: number }[] = [];
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // horizontal swipe -> horizontal edges on the nearest grid line
+      const row = Math.max(0, Math.min(grid.height, Math.round(((a.y + b.y) / 2 - PAD) / CS)));
+      const x0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - PAD) / CS));
+      const x1 = Math.min(grid.width - 1, Math.floor((Math.max(a.x, b.x) - PAD) / CS));
+      for (let x = x0; x <= x1; x++) out.push({ kind: 'h', x, y: row });
+    } else {
+      const col = Math.max(0, Math.min(grid.width, Math.round(((a.x + b.x) / 2 - PAD) / CS)));
+      const y0 = Math.max(0, Math.floor((Math.min(a.y, b.y) - PAD) / CS));
+      const y1 = Math.min(grid.height - 1, Math.floor((Math.max(a.y, b.y) - PAD) / CS));
+      for (let y = y0; y <= y1; y++) out.push({ kind: 'v', x: col, y });
+    }
+    return out;
+  }
+
+  /** River chain following the swipe path, arrows pointing along the flow. */
+  function riverFromSwipe(path: { x: number; y: number }[]): { x: number; y: number; dir: 'N' | 'E' | 'S' | 'W' }[] {
+    const cells: { x: number; y: number }[] = [];
+    for (const p of path) {
+      const cx = Math.floor((p.x - PAD) / CS);
+      const cy = Math.floor((p.y - PAD) / CS);
+      if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) continue;
+      const prev = cells[cells.length - 1];
+      if (!prev || prev.x !== cx || prev.y !== cy) cells.push({ x: cx, y: cy });
+    }
+    if (cells.length === 0) return [];
+    const dirBetween = (a: { x: number; y: number }, b: { x: number; y: number }): 'N' | 'E' | 'S' | 'W' =>
+      Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? (b.x >= a.x ? 'E' : 'W') : (b.y >= a.y ? 'S' : 'N');
+    if (cells.length === 1) {
+      // single cell: the swipe's own direction sets the flow
+      const a = path[0]!;
+      const b = path[path.length - 1]!;
+      return [{ ...cells[0]!, dir: dirBetween({ x: a.x, y: a.y }, { x: b.x, y: b.y }) }];
+    }
+    return cells.map((c, i) => ({
+      ...c,
+      dir: i < cells.length - 1 ? dirBetween(c, cells[i + 1]!) : dirBetween(cells[i - 1]!, c),
+    }));
   }
 
   const cells = [];
@@ -216,9 +277,11 @@ export function MapGrid(props: MapGridProps): JSX.Element {
       height={h}
       viewBox={`0 0 ${w} ${h}`}
       className="player-map-svg"
-      // Block scroll gestures only while a drag-select or paste is active,
-      // so normal panning of a big map still works on touchscreens.
-      style={{ touchAction: props.selectMode || props.pending ? 'none' : 'manipulation' }}
+      // Block scroll gestures while a drag gesture (select, paste ghost,
+      // wall/river swipe) is active, so panning still works otherwise.
+      style={{
+        touchAction: props.selectMode || props.pending || props.paintMode ? 'none' : 'manipulation',
+      }}
       onPointerDown={(e) => {
         if (props.selectMode && !props.pending) {
           const c = cellAt(e);
@@ -226,21 +289,48 @@ export function MapGrid(props: MapGridProps): JSX.Element {
             e.currentTarget.setPointerCapture(e.pointerId);
             setDrag({ x0: c.x, y0: c.y, x1: c.x, y1: c.y });
           }
+        } else if (props.paintMode && !props.pending) {
+          paintPath.current = [svgPoint(e)];
         }
       }}
       onPointerMove={(e) => {
         const c = cellAt(e);
         if (c) setHover(c);
         if (drag && c) setDrag({ ...drag, x1: c.x, y1: c.y });
+        if (paintPath.current) paintPath.current.push(svgPoint(e));
       }}
       onPointerUp={() => {
         if (drag) {
           props.onDragSelect?.(normalizeRect(drag));
           setDrag(null);
         }
+        const path = paintPath.current;
+        paintPath.current = null;
+        if (path && path.length > 1) {
+          const a = path[0]!;
+          const b = path[path.length - 1]!;
+          const moved = Math.hypot(b.x - a.x, b.y - a.y);
+          // Short taps fall through to the normal edge/cell click handlers.
+          if (moved >= CS * 0.45) {
+            if (props.paintMode === 'wall') props.onPaintWalls?.(wallsFromSwipe(path));
+            else if (props.paintMode === 'river') props.onPaintRiver?.(riverFromSwipe(path));
+            swipeConsumed.current = true;
+            setTimeout(() => {
+              swipeConsumed.current = false;
+            }, 0);
+          }
+        }
       }}
       onPointerLeave={() => {
         setHover(null);
+        paintPath.current = null;
+      }}
+      onClickCapture={(e) => {
+        // A finished swipe must not ALSO fire the tap action underneath it.
+        if (swipeConsumed.current) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
       }}
     >
       <rect x={0} y={0} width={w} height={h} fill="#1d1712" rx={6} />

@@ -70,22 +70,23 @@ export function Palette(): JSX.Element {
   return (
     <div className={`palette ${showLabels ? 'wide' : 'narrow'}`} style={{ width }}>
       {showLabels && <h3>Draw</h3>}
-      {btn('wall', tool.kind === 'wall', '▦', <>walls <small>(click edges)</small></>, () => setTool({ kind: 'wall' }), 'walls — click edges')}
+      {btn('wall', tool.kind === 'wall', '▦', <>walls <small>(tap or swipe)</small></>, () => setTool({ kind: 'wall' }), 'walls — tap an edge to cycle, swipe along a line to draw a run')}
       {btn(
         'river',
         isStamp('river'),
         <span style={{ color: '#58a6d8' }}>➤</span>,
-        'river',
+        <>river <small>(swipe the flow)</small></>,
         () => setTool({ kind: 'stamp', stamp: 'river', riverDir: riverDir ?? 'E' }),
-        'river',
+        'river — hold and swipe along the flow; a short swipe sets one cell',
       )}
-      {isStamp('river') && (
+      {isStamp('river') && showLabels && (
         <div className="river-dirs">
           {(['N', 'E', 'S', 'W'] as const).map((d) => (
             <button
               key={d}
               className={riverDir === d ? 'active' : ''}
               onClick={() => setTool({ kind: 'stamp', stamp: 'river', riverDir: d })}
+              title={`tap-to-stamp direction ${d}`}
             >
               {d}
             </button>

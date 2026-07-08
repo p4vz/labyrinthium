@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import {
   PIECE_STAMPS,
   setEdgeMark,
+  setEdgeRaw,
+  stampRiver,
   createGrid,
   extract,
   clearRect,
@@ -70,6 +72,10 @@ export interface MapStoreState {
   moveYouPawn(direction: 'N' | 'E' | 'S' | 'W'): void;
   /** the GM revealed an exit next to you: draw the green gate at the pawn */
   markExitEdge(direction: 'N' | 'E' | 'S' | 'W'): void;
+  /** one swipe of the wall tool: a run of edges becomes walls (one undo step) */
+  paintWalls(edges: { kind: 'h' | 'v'; x: number; y: number }[]): void;
+  /** one swipe of the river tool: a chain of cells with flow directions (one undo step) */
+  paintRiver(cells: { x: number; y: number; dir: 'N' | 'E' | 'S' | 'W' }[]): void;
   setActive(mapId: string, grid?: number): void;
   setTool(tool: Tool): void;
   clickEdge(x: number, y: number, side: 'N' | 'W'): void;
@@ -271,6 +277,24 @@ export const useMapStore = create<MapStoreState>((set, get) => {
       if (get().tool.kind !== 'wall') return;
       withActiveGrid((map, gi) => {
         map.grids[gi] = cycleEdge(map.grids[gi]!, x, y, side);
+      });
+    },
+
+    paintWalls(edges) {
+      if (edges.length === 0) return;
+      withActiveGrid((map, gi) => {
+        for (const e of edges) {
+          map.grids[gi] = setEdgeRaw(map.grids[gi]!, e.kind, e.x, e.y, 'wall');
+        }
+      });
+    },
+
+    paintRiver(cells) {
+      if (cells.length === 0) return;
+      withActiveGrid((map, gi) => {
+        for (const c of cells) {
+          map.grids[gi] = stampRiver(map.grids[gi]!, c.x, c.y, c.dir);
+        }
       });
     },
 

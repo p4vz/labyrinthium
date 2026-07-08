@@ -173,6 +173,35 @@ describe('map store: undo/redo, aux maps, merge', () => {
     expect(after.h[2]).toBe('exit'); // (2,0).N
   });
 
+  it('paintWalls lays a run of walls as one undoable step', () => {
+    const store = fresh();
+    store.getState().paintWalls([
+      { kind: 'h', x: 1, y: 2 },
+      { kind: 'h', x: 2, y: 2 },
+      { kind: 'h', x: 3, y: 2 },
+    ]);
+    const grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.h[2 * 5 + 1]).toBe('wall');
+    expect(grid.h[2 * 5 + 2]).toBe('wall');
+    expect(grid.h[2 * 5 + 3]).toBe('wall');
+    store.getState().undo(); // the whole swipe reverts at once
+    const reverted = store.getState().maps[0]!.grids[0]!;
+    expect(reverted.h[2 * 5 + 2]).toBe('unknown');
+  });
+
+  it('paintRiver lays a flowing chain with per-cell directions', () => {
+    const store = fresh();
+    store.getState().paintRiver([
+      { x: 1, y: 1, dir: 'E' },
+      { x: 2, y: 1, dir: 'S' },
+      { x: 2, y: 2, dir: 'S' },
+    ]);
+    const grid = store.getState().maps[0]!.grids[0]!;
+    expect(grid.cells[1 * 5 + 1]).toMatchObject({ riverDir: 'E' });
+    expect(grid.cells[1 * 5 + 2]).toMatchObject({ riverDir: 'S' });
+    expect(grid.cells[2 * 5 + 2]?.stamps).toContain('river');
+  });
+
   it('cut clears the source region', () => {
     const store = fresh();
     store.getState().setTool({ kind: 'stamp', stamp: 'mine' });

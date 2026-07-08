@@ -110,9 +110,18 @@ export function Game(): JSX.Element {
                 selection={selection && selection.mapId === activeMapId && selection.grid === activeGrid ? selection.rect : null}
                 pending={pending}
                 selectMode={tool.kind === 'select'}
+                paintMode={
+                  tool.kind === 'wall'
+                    ? 'wall'
+                    : tool.kind === 'stamp' && tool.stamp === 'river'
+                      ? 'river'
+                      : null
+                }
                 onEdgeClick={(x, y, side) => mapStore.getState().clickEdge(x, y, side)}
                 onCellClick={(x, y) => mapStore.getState().clickCell(x, y)}
                 onDragSelect={(rect) => mapStore.getState().dragSelect(rect)}
+                onPaintWalls={(edges) => mapStore.getState().paintWalls(edges)}
+                onPaintRiver={(cells) => mapStore.getState().paintRiver(cells)}
               />
             </div>
           )}

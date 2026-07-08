@@ -272,6 +272,41 @@ export function paste(g: PlayerGrid, frag: Fragment, x: number, y: number): Play
   return next;
 }
 
+/** Set an edge by raw grid-array coordinates (h: row 0..height, v: col 0..width). */
+export function setEdgeRaw(
+  g: PlayerGrid,
+  kind: 'h' | 'v',
+  x: number,
+  y: number,
+  mark: EdgeMark,
+): PlayerGrid {
+  const next = cloneGrid(g);
+  if (kind === 'h') {
+    if (x < 0 || x >= g.width || y < 0 || y > g.height) return next;
+    next.h[y * g.width + x] = mark;
+  } else {
+    if (x < 0 || x > g.width || y < 0 || y >= g.height) return next;
+    next.v[y * (g.width + 1) + x] = mark;
+  }
+  return next;
+}
+
+/** Lay river water on a cell with a definite flow direction (idempotent). */
+export function stampRiver(
+  g: PlayerGrid,
+  x: number,
+  y: number,
+  dir: 'N' | 'E' | 'S' | 'W',
+): PlayerGrid {
+  const next = cloneGrid(g);
+  const i = cellIndex(g, x, y);
+  const cell = next.cells[i] ?? { stamps: [] };
+  if (!cell.stamps.includes('river')) cell.stamps.push('river');
+  cell.riverDir = dir;
+  next.cells[i] = cell;
+  return next;
+}
+
 /** Blank out a rectangle (used by cut and by "clear selection"). */
 export function clearRect(g: PlayerGrid, rect: Rect): PlayerGrid {
   const r = normalizeRect(rect);
