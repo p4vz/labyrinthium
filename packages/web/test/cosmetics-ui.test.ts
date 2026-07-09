@@ -38,6 +38,21 @@ describe('PixelAvatar', () => {
     expect(a).toBe(b);
   });
 
+  it('hires renders the Scale4x rendition on a 64x64 grid, low-res stays 16x16', () => {
+    const avatar = { skinToneId: 'skin-2' as const };
+    const low = renderToStaticMarkup(createElement(PixelAvatar, { avatar, size: 128 }));
+    const high = renderToStaticMarkup(createElement(PixelAvatar, { avatar, size: 128, hires: true }));
+    expect(low).toContain('viewBox="0 0 16 16"');
+    expect(high).toContain('viewBox="0 0 64 64"');
+    expect(high).not.toBe(low); // genuinely different rendition, same source art
+    // both renditions use the same palette — Scale4x never invents colors
+    expect(high).toContain(SKIN_TONES['skin-2']![1]);
+    const swatchHigh = renderToStaticMarkup(
+      createElement(PixelSwatch, { templateId: 'miners-helm', paletteId: 'gold', size: 96, hires: true }),
+    );
+    expect(swatchHigh).toContain(PALETTES.gold![1]);
+  });
+
   it('renders distinct body shapes, both in any skin tone', () => {
     const broad = renderToStaticMarkup(
       createElement(PixelAvatar, { avatar: { skinToneId: 'skin-6', bodyId: 'a' }, size: 64 }),

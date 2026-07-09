@@ -47,13 +47,13 @@ export function CharacterSheet({ name, avatar, haul }: CharacterSheetProps): JSX
   return (
     <div className="char-sheet" data-testid="char-sheet">
       <div className="char-stage">
-        <PixelAvatar avatar={a} size={320} title={`${name}'s avatar`} />
+        <PixelAvatar avatar={a} size={320} hires title={`${name}'s avatar`} />
         <div className="char-floor" />
       </div>
       <div className="char-panels">
         <div className="char-plate">
           <div className="char-plate-art">
-            <PixelAvatar avatar={{ skinToneId: a.skinToneId, bodyId: a.bodyId }} size={96} />
+            <PixelAvatar avatar={{ skinToneId: a.skinToneId, bodyId: a.bodyId }} size={96} hires />
           </div>
           <div className="char-plate-meta">
             <span className="char-plate-slot">Body</span>
@@ -70,7 +70,7 @@ export function CharacterSheet({ name, avatar, haul }: CharacterSheetProps): JSX
             <div key={slot} className={`char-plate ${piece ? '' : 'empty'}`}>
               <div className="char-plate-art">
                 {piece && template ? (
-                  <PixelSwatch templateId={piece.templateId} paletteId={piece.paletteId} size={96} title={template.label} />
+                  <PixelSwatch templateId={piece.templateId} paletteId={piece.paletteId} size={96} hires title={template.label} />
                 ) : (
                   <span className="char-plate-none">∅</span>
                 )}
@@ -95,7 +95,7 @@ export function CharacterSheet({ name, avatar, haul }: CharacterSheetProps): JSX
           <div className="char-haul-grid">
             {haul.map((item) => (
               <div key={item.id} className="char-haul-item" style={{ borderColor: RARITY_COLORS[item.rarity] }}>
-                <PixelSwatch templateId={item.templateId} paletteId={item.paletteId} size={72} title={item.name} />
+                <PixelSwatch templateId={item.templateId} paletteId={item.paletteId} size={72} hires title={item.name} />
                 <span style={{ color: RARITY_COLORS[item.rarity] }}>{item.name}</span>
               </div>
             ))}
