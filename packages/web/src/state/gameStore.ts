@@ -1,17 +1,22 @@
 import { create } from 'zustand';
 import type {
   ActiveRules,
+  AvatarConfig,
   ClientMessage,
+  CosmeticItem,
   GameEvent,
   Inventory,
   MapDocument,
+  PlanarDirection,
   PlayerAction,
+  PlayerLootSummary,
   Pos,
   ServerMessage,
 } from '@labyrinthium/shared';
+import { useProfileStore } from './profileStore.js';
 import { useMapStore } from './mapStore.js';
 
-export type Screen = 'home' | 'lobby' | 'game' | 'editor' | 'replay';
+export type Screen = 'home' | 'lobby' | 'game' | 'editor' | 'replay' | 'wardrobe';
 
 export interface FeedEntry {
   seq: number;
@@ -37,7 +42,7 @@ export interface GameStoreState {
     roomCode: string;
     hostId: string;
     phase: 'lobby' | 'inProgress' | 'finished';
-    players: { id: string; name: string; connected: boolean; isBot?: boolean }[];
+    players: { id: string; name: string; connected: boolean; isBot?: boolean; avatar?: AvatarConfig }[];
     mapMeta: { name?: string; difficulty?: number; levelCount: number };
   } | null;
   started: {
@@ -45,7 +50,7 @@ export interface GameStoreState {
     levelSizes: { width: number; height: number }[];
     entrance: Pos;
     exitSides: ('N' | 'E' | 'S' | 'W')[];
-    turnOrder: { id: string; name: string }[];
+    turnOrder: { id: string; name: string; avatar?: AvatarConfig }[];
     inventory: Inventory;
     rules: ActiveRules;
   } | null;
@@ -55,6 +60,16 @@ export interface GameStoreState {
   canAct: boolean;
   /** the GM said the treasure lies under your feet (pickup available) */
   treasureUnderfoot: boolean;
+  /** you are carrying THE treasure */
+  haveTreasure: boolean;
+  /** rare cosmetics you carry — at risk until you walk out */
+  carriedRares: CosmeticItem[];
+  /** loot already safely banked this run */
+  runLoot: { items: CosmeticItem[]; coins: number };
+  /** the GM confirmed an exit right beside you, in this direction */
+  exitAdjacent: PlanarDirection | null;
+  /** you walked out early — the game goes on without you */
+  leftGame: boolean;
   /** epoch ms when the current turn times out; null = untimed */
   turnDeadline: number | null;
   /** an observer (or the host) has frozen the game */
@@ -63,7 +78,15 @@ export interface GameStoreState {
   spectate: {
     trueMap: MapDocument | null;
     live: {
-      players: { id: string; name: string; pos: Pos; paralysis: number; hasTreasure: boolean; exited: boolean }[];
+      players: {
+        id: string;
+        name: string;
+        pos: Pos;
+        paralysis: number;
+        hasTreasure: boolean;
+        exited: boolean;
+        carriedRareCount: number;
+      }[];
       monsters: Pos[];
       treasure: { pos: Pos; carriedBy: string | null };
     } | null;
@@ -74,7 +97,13 @@ export interface GameStoreState {
   setSpectateView(view: string): void;
   feed: FeedEntry[];
   lastAckedSeq: number;
-  finished: { winnerId: string; winnerName: string; turnNumber: number; mapReveal: MapDocument } | null;
+  finished: {
+    winnerId: string;
+    winnerName: string;
+    turnNumber: number;
+    mapReveal: MapDocument;
+    lootSummary: PlayerLootSummary[];
+  } | null;
   errors: string[];
   /** currently selected action mode in the HUD */
   actionMode: 'walk' | 'shoot' | 'grenade';
@@ -118,6 +147,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   turnNumber: 0,
   canAct: true,
   treasureUnderfoot: false,
+  haveTreasure: false,
+  carriedRares: [],
+  runLoot: { items: [], coins: 0 },
+  exitAdjacent: null,
+  leftGame: false,
   turnDeadline: null,
   paused: false,
   spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
@@ -158,6 +192,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       turnNumber: 0,
       canAct: true,
       treasureUnderfoot: false,
+      haveTreasure: false,
+      carriedRares: [],
+      runLoot: { items: [], coins: 0 },
+      exitAdjacent: null,
+      leftGame: false,
       turnDeadline: null,
       paused: false,
       spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
@@ -190,6 +229,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           paused: false,
           screen: 'game',
           spectating: msg.yourPlayerId === '',
+          haveTreasure: false,
+          carriedRares: [],
+          runLoot: { items: [], coins: 0 },
+          exitAdjacent: null,
+          leftGame: false,
         });
         // A fresh main map starts with the entrance marked (its gate side is
         // also the EXIT — common knowledge) and one tracking piece per player
@@ -254,18 +298,40 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
             useMapStore.getState().moveYouPawn(e.payload.direction);
-            set({ treasureUnderfoot: false });
-          } else if (e.payload.type === 'foundExit') {
-            // The GM confirmed an exit right next to you — chart the gate.
-            useMapStore.getState().markExitEdge(e.payload.direction);
-          } else if (e.payload.type === 'treasureHere') {
-            set({ treasureUnderfoot: true });
-          } else if (e.payload.type === 'treasurePickedUp') {
-            set({ treasureUnderfoot: false });
+            // stepping away from the exit (or anywhere) invalidates the hint
+            set({ treasureUnderfoot: false, exitAdjacent: null });
           } else if (e.payload.type === 'teleported') {
+            set({ exitAdjacent: null });
             // Chart BOTH sides: the pad where the pawn stood, and the
             // arrival — a known numbered cell, or a fresh aux sheet.
             useMapStore.getState().chartTeleport(e.payload.label, e.payload.mode);
+          } else if (e.payload.type === 'fellThroughTrapdoor' || e.payload.type === 'tookStairs') {
+            set({ exitAdjacent: null });
+          } else if (e.payload.type === 'foundExit') {
+            // The GM confirmed an exit right next to you — chart the gate.
+            useMapStore.getState().markExitEdge(e.payload.direction);
+            set({ exitAdjacent: e.payload.direction });
+          } else if (e.payload.type === 'treasureHere') {
+            set({ treasureUnderfoot: true });
+          } else if (e.payload.type === 'treasurePickedUp') {
+            set({ treasureUnderfoot: false, haveTreasure: true });
+          } else if (e.payload.type === 'treasureDropped') {
+            set({ haveTreasure: false });
+          } else if (e.payload.type === 'rareLootFound') {
+            set({ carriedRares: [...get().carriedRares, e.payload.item] });
+          } else if (e.payload.type === 'rareLootDropped') {
+            set({ carriedRares: [] });
+          } else if (e.payload.type === 'rareLootBanked') {
+            const loot = get().runLoot;
+            set({ carriedRares: [], runLoot: { ...loot, items: [...loot.items, ...e.payload.items] } });
+          } else if (e.payload.type === 'cosmeticFound') {
+            const loot = get().runLoot;
+            set({ runLoot: { ...loot, items: [...loot.items, e.payload.item] } });
+          } else if (e.payload.type === 'coinsFound') {
+            const loot = get().runLoot;
+            set({ runLoot: { ...loot, coins: loot.coins + e.payload.amount } });
+          } else if (e.payload.type === 'leftLabyrinth') {
+            set({ leftGame: true, exitAdjacent: null });
           }
         }
         const entries: FeedEntry[] = msg.events.map((e) => {
@@ -287,6 +353,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
       case 'game.finished': {
         set({ finished: msg });
+        // pull the server-truth coins/items into the wardrobe right away
+        void useProfileStore.getState().refresh();
         break;
       }
       case 'error': {

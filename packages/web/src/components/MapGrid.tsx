@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react';
 import type { Fragment, PlayerGrid, Rect, Stamp } from '../state/playerMap.js';
 import { normalizeRect } from '../state/playerMap.js';
+import { useProfileStore } from '../state/profileStore.js';
+import { PixelAvatar } from './PixelAvatar.js';
+
+/** The 'you' stamp rendered as your dressed-up avatar (🧍 was here). */
+function YouPawn({ size }: { size: number }): JSX.Element {
+  const avatar = useProfileStore((s) => s.avatar);
+  return <PixelAvatar avatar={avatar} size={size} title="you" />;
+}
 
 export const STAMP_GLYPHS: Record<Stamp, string> = {
   you: '🧍',
@@ -422,19 +430,32 @@ function renderAnno(
           ➤
         </text>
       )}
-      {glyphs.slice(0, 4).map((s, i) => (
-        <text
-          key={s}
-          x={x + CS / 2 + (spots[i]?.[0] ?? 0)}
-          y={y + CS / 2 + (spots[i]?.[1] ?? 0) + (hasRiver ? 6 : 0)}
-          fontSize={s === 'empty' ? 20 : glyphs.length > 1 ? 11 : 16}
-          fill={s === 'empty' ? '#7a6c55' : '#e2d6bd'}
-          textAnchor="middle"
-          dominantBaseline="central"
-        >
-          {STAMP_GLYPHS[s]}
-        </text>
-      ))}
+      {glyphs.slice(0, 4).map((s, i) => {
+        const cx = x + CS / 2 + (spots[i]?.[0] ?? 0);
+        const cy = y + CS / 2 + (spots[i]?.[1] ?? 0) + (hasRiver ? 6 : 0);
+        if (s === 'you') {
+          // your pawn IS your character — the avatar you dressed up
+          const size = glyphs.length > 1 ? 13 : 18;
+          return (
+            <g key={s} transform={`translate(${cx - size / 2}, ${cy - size / 2})`}>
+              <YouPawn size={size} />
+            </g>
+          );
+        }
+        return (
+          <text
+            key={s}
+            x={cx}
+            y={cy}
+            fontSize={s === 'empty' ? 20 : glyphs.length > 1 ? 11 : 16}
+            fill={s === 'empty' ? '#7a6c55' : '#e2d6bd'}
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            {STAMP_GLYPHS[s]}
+          </text>
+        );
+      })}
       {glyphs.length > 4 && (
         <text x={x + CS - 5} y={y + CS - 4} fontSize={8} textAnchor="middle">
           +{glyphs.length - 4}

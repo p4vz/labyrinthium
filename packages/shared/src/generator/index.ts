@@ -7,6 +7,7 @@ import { decideLayerSizes, placeStairs, placeTrapdoors } from './layers.js';
 import { braid, carveMaze, harden } from './maze.js';
 import {
   placeEntrance,
+  placeLoot,
   placeMinesAndTraps,
   placeMonsters,
   placeTeleports,
@@ -104,6 +105,17 @@ function attemptGenerate(opts: GenerateOptions, attempt: number): MapDocument {
   placeTeleports(map, rng, pickCount(params.oneWayTeleports), pickCount(params.twoWayTeleportPairs), occ);
   placeTreasure(map, rng, occ);
   placeMinesAndTraps(map, rng, pickCount(params.mineCount), pickCount(params.trapCount), occ);
+  placeLoot(
+    map,
+    rng,
+    {
+      coinPiles: pickCount(params.coinPileCount),
+      coinValue: params.coinPileValue,
+      cosmetics: pickCount(params.cosmeticCount),
+      deepRares: pickCount(params.deepRareCount),
+    },
+    occ,
+  );
   placeMonsters(map, rng, pickCount(params.monsterCount), params.monsterAIs, occ);
 
   return map;

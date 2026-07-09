@@ -1,4 +1,5 @@
 import type { Direction, PlanarDirection } from '../geometry.js';
+import type { CosmeticItem } from '../cosmetics/items.js';
 
 /**
  * Everything a player (or everyone) learns comes through events. Events
@@ -13,7 +14,7 @@ export type EventPayload =
       type: 'actionAnnounced';
       playerId: string;
       playerName: string;
-      action: 'move' | 'shoot' | 'grenade' | 'placeMine' | 'pickup' | 'endTurn' | 'skip';
+      action: 'move' | 'shoot' | 'grenade' | 'placeMine' | 'pickup' | 'leave' | 'endTurn' | 'skip';
       direction?: Direction;
     }
   | { type: 'moved'; direction: PlanarDirection }
@@ -43,6 +44,15 @@ export type EventPayload =
   | { type: 'screamHeard' } // public: the shot hit someone
   | { type: 'explosionHeard' } // public: grenade or mine
   | { type: 'itemsFound'; grenades: number; bullets: number; mines: number }
+  // ---- aesthetic loot (zero gameplay effect) ----
+  | { type: 'cosmeticFound'; item: CosmeticItem } // common/uncommon: banked instantly
+  | { type: 'coinsFound'; amount: number } // banked instantly
+  | { type: 'rareLootFound'; item: CosmeticItem } // now carried — at risk until you walk out
+  | { type: 'rareLootDropped'; count: number } // your carried rares fell where you stand
+  | { type: 'rareLootBanked'; items: CosmeticItem[] } // the extraction moment
+  | { type: 'leftLabyrinth' } // private: you walked out, race forfeited
+  | { type: 'playerLeft'; playerId: string; playerName: string } // public
+  | { type: 'gameEndedNoWinner' } // public: everyone walked out
   | { type: 'turnSkippedParalyzed'; remaining: number }
   | { type: 'turnTimedOut'; playerName: string } // public: the clock ran out
   | { type: 'monstersStir' } // public: the treasure was lifted — the guardians wake

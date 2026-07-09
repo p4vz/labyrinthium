@@ -6,16 +6,19 @@ import {
   visibleTo,
   InvalidActionError,
   type ActiveRules,
+  type AvatarConfig,
   type BotDifficulty,
   type GameConfig,
   type GameEvent,
   type GameState,
   type MapDocument,
   type PlayerAction,
+  type PlayerLootSummary,
   type ServerMessage,
 } from '@labyrinthium/shared';
 import { BotController, BOT_NAMES } from '../bots/bot.js';
 import type { Db } from '../persistence/db.js';
+import type { ProfileService } from '../profiles/service.js';
 
 export interface RoomPlayer {
   id: string;
@@ -23,6 +26,10 @@ export interface RoomPlayer {
   sessionToken: string;
   send: ((msg: ServerMessage) => void) | null; // null while disconnected
   isBot: boolean;
+  /** persistent profile this seat banks loot to; null = anonymous/bot */
+  profileId: string | null;
+  /** avatar snapshot taken at join — wardrobe changes mid-game don't move pawns */
+  avatar: AvatarConfig | null;
 }
 
 export type RoomPhase = 'lobby' | 'inProgress' | 'finished';
@@ -64,6 +71,7 @@ export class Room {
     seed: string,
     config: GameConfig,
     private db: Db | null,
+    private profiles: ProfileService | null = null,
   ) {
     this.code = code;
     this.map = map;
@@ -72,13 +80,15 @@ export class Room {
     this.hostId = '';
   }
 
-  addPlayer(name: string): RoomPlayer {
+  addPlayer(name: string, profile?: { id: string; avatar: AvatarConfig } | null): RoomPlayer {
     const player: RoomPlayer = {
       id: randomUUID(),
       name,
       sessionToken: randomUUID(),
       send: null,
       isBot: false,
+      profileId: profile?.id ?? null,
+      avatar: profile?.avatar ?? null,
     };
     this.players.push(player);
     if (!this.hostId) this.hostId = player.id;
@@ -98,6 +108,8 @@ export class Room {
       sessionToken: randomUUID(),
       send: null,
       isBot: true,
+      profileId: null, // bots never bank loot
+      avatar: null,
     };
     const bot = new BotController(player.id, difficulty, (action) => {
       try {
@@ -141,6 +153,7 @@ export class Room {
       dropAllOnShot: this.config.dropAllOnShot,
       allowBorderGrenade: this.config.allowBorderGrenade,
       treasureDrifts: this.config.treasureDrifts,
+      allowLeave: this.config.allowLeave,
     };
   }
 
@@ -155,6 +168,7 @@ export class Room {
         name: p.name,
         connected: p.isBot || p.send !== null,
         isBot: p.isBot,
+        ...(p.avatar ? { avatar: p.avatar } : {}),
       })),
       mapMeta: {
         ...(this.map.metadata.name !== undefined ? { name: this.map.metadata.name } : {}),
@@ -201,7 +215,11 @@ export class Room {
       levelSizes: this.map.levels.map((l) => ({ width: l.width, height: l.height })),
       entrance: this.map.entrance,
       exitSides,
-      turnOrder: this.players.map((p) => ({ id: p.id, name: p.name })),
+      turnOrder: this.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        ...(p.avatar ? { avatar: p.avatar } : {}),
+      })),
       inventory: { ...this.config.startingInventory },
       rules: this.activeRules(),
     };
@@ -250,6 +268,19 @@ export class Room {
     this.state = result.state;
     this.actionLog.push({ playerId, action });
     this.eventLog.push(...result.events);
+    // Bank loot the moment its event exists: commons/coins on scoop, rares at
+    // their extraction. Server-authoritative (these are events WE computed)
+    // and aesthetic-only, so a persistence failure never breaks the turn.
+    if (this.profiles) {
+      for (const p of this.players) {
+        if (!p.profileId) continue; // bots and anonymous seats
+        try {
+          this.profiles.creditLootEvents(p.profileId, p.id, result.events, { gameId: this.gameId });
+        } catch (err) {
+          console.error('loot banking failed', err);
+        }
+      }
+    }
     for (const p of this.players) {
       const mine = this.config.openInformation
         ? result.events
@@ -308,6 +339,7 @@ export class Room {
         paralysis: p.paralysis,
         hasTreasure: p.hasTreasure,
         exited: p.exited,
+        carriedRareCount: p.carriedRares.length,
       })),
       monsters: this.state.monsters.filter((m) => m.alive).map((m) => m.pos),
       treasure: { pos: this.state.treasure.pos, carriedBy: this.state.treasure.carriedBy },
@@ -359,12 +391,21 @@ export class Room {
     if (this.turnTimer) clearTimeout(this.turnTimer);
     for (const bot of this.bots.values()) bot.stop();
     const winner = this.players.find((p) => p.id === this.state!.winnerId);
+    const lootSummary: PlayerLootSummary[] = this.state.players.map((p) => ({
+      playerId: p.id,
+      name: p.name,
+      bankedItems: p.banked.items,
+      coins: p.banked.coins,
+      lostRares: p.carriedRares.length,
+      left: p.exited && !p.hasTreasure,
+    }));
     this.broadcast({
       type: 'game.finished',
       winnerId: this.state.winnerId ?? '',
       winnerName: winner?.name ?? '',
       turnNumber: this.state.turnNumber,
       mapReveal: this.map, // the big reveal: everyone finally sees the truth
+      lootSummary,
     });
     try {
       this.db?.saveFinishedGame({
