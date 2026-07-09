@@ -118,7 +118,19 @@ export function Wardrobe(): JSX.Element {
       {tab === 'equip' && (
         <div className="wardrobe-equip">
           <div className="avatar-stage card">
-            <PixelAvatar avatar={avatar} size={128} title="your avatar" />
+            <button
+              className="avatar-button"
+              title="view your character full size"
+              onClick={() =>
+                useGameStore.getState().setInspect({
+                  name: profile?.displayName || 'you',
+                  avatar,
+                  own: false, // already in the wardrobe — no shortcut needed
+                })
+              }
+            >
+              <PixelAvatar avatar={avatar} size={128} hires title="your avatar" />
+            </button>
             <div className="body-row">
               {BODIES.map((b) => (
                 <button
@@ -127,7 +139,7 @@ export function Wardrobe(): JSX.Element {
                   title={`${b.label} build`}
                   onClick={() => void store.equip({ ...avatar, bodyId: b.id })}
                 >
-                  <PixelAvatar avatar={{ skinToneId: avatar.skinToneId, bodyId: b.id }} size={40} title={`${b.label} build`} />
+                  <PixelAvatar avatar={{ skinToneId: avatar.skinToneId, bodyId: b.id }} size={40} hires title={`${b.label} build`} />
                 </button>
               ))}
             </div>
@@ -173,7 +185,7 @@ export function Wardrobe(): JSX.Element {
                         onClick={() => equipPiece(slot, tid)}
                         title={templateById(tid)?.label}
                       >
-                        <PixelSwatch templateId={tid} paletteId={equipped?.templateId === tid ? equipped.paletteId : 'soot'} size={40} />
+                        <PixelSwatch templateId={tid} paletteId={equipped?.templateId === tid ? equipped.paletteId : 'soot'} size={40} hires />
                       </button>
                     ))}
                   </div>
@@ -224,7 +236,7 @@ export function Wardrobe(): JSX.Element {
                         style={found && best ? { borderColor: RARITY_COLORS[best.item.rarity] } : {}}
                         title={found && best ? describeProvenance(best.item) : '??? — still hidden in the dark'}
                       >
-                        <PixelSwatch templateId={t.id} paletteId={best?.item.paletteId ?? 'soot'} size={40} silhouette={!found} />
+                        <PixelSwatch templateId={t.id} paletteId={best?.item.paletteId ?? 'soot'} size={40} hires silhouette={!found} />
                         <span className="swatch-label">{found ? t.label : '???'}</span>
                       </div>
                     );
@@ -273,7 +285,7 @@ export function Wardrobe(): JSX.Element {
                   {offer.item.slot === 'dye' ? (
                     <div className="dye-swatch" style={{ background: PALETTES[offer.item.paletteId]![2] }} />
                   ) : (
-                    <PixelSwatch templateId={offer.item.templateId} paletteId={offer.item.paletteId} size={48} />
+                    <PixelSwatch templateId={offer.item.templateId} paletteId={offer.item.paletteId} size={48} hires />
                   )}
                   <div className="offer-name" style={{ color: RARITY_COLORS[offer.item.rarity] }}>
                     {offer.item.name}

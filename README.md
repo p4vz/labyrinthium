@@ -115,7 +115,7 @@ all of it builds your character:
   where you fall, free for anyone to steal. A house-rule checkbox
   (`allowLeave`, on by default) can disable early walk-outs; if everyone walks
   out, nobody wins.
-- The **Wardrobe** (Home → Wardrobe) is where you dress the avatar: 30
+- The **Wardrobe** (Home → Wardrobe) is where you dress the avatar: 29
   pixel-art templates (hats / outfits / trinkets) across 8 themed sets, 6 skin
   tones, and 14 dye ramps. A collection log tracks which silhouettes you've
   discovered, with provenance on every item (which maze, extracted alive,

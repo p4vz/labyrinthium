@@ -231,7 +231,7 @@ export const HATS: CosmeticTemplate[] = [
     minRarity: 'common',
     legendaryName: 'Band of the Undying Flame',
     y: 1,
-    rows: ['0000000440000000', '0000000340000000', '0000124222210000'],
+    rows: ['0000000040000000', '0000000340000000', '0000124222210000'],
   },
   {
     id: 'cartographers-cap',
@@ -262,8 +262,8 @@ export const HATS: CosmeticTemplate[] = [
     legendaryName: 'Plume of the Royal Line',
     y: 0,
     rows: [
-      '0003300000000000',
-      '0003311111100000',
+      '0000033000000000', // plume, rising straight from the crown
+      '0000033111100000',
       '0000122222210000',
       '0000122222210000',
     ],
@@ -314,7 +314,7 @@ export const OUTFITS: CosmeticTemplate[] = [
     legendaryName: 'Overalls of the Deep Seam',
     y: 8,
     rows: [
-      '0000002002000000', // straps
+      '0000001001000000', // straps
       '0000122222210000',
       '0000122222210000',
       '0000122222210000',
@@ -372,9 +372,10 @@ export const OUTFITS: CosmeticTemplate[] = [
     rows: [
       '0000122222210000',
       '0001322222231000', // puffed shoulders
-      '0001222442221000', // gold buttons
-      '0000122442210000',
+      '0001222442221000', // gold buttons…
       '0000122222210000',
+      '0000122442210000', // …in two separated rows, so they stay buttons at 4x
+
       '0000122002210000',
       '0000122002210000',
       '0000111001110000',
@@ -459,8 +460,8 @@ export const OUTFITS: CosmeticTemplate[] = [
     y: 8,
     rows: [
       '0000122222210000',
-      '0001223223221000', // quilting
-      '0001232232321000',
+      '0001232222321000', // quilting: mirrored diamond lattice
+      '0001223223221000',
       '0000123223210000',
       '0000122222210000',
       '0000122002210000',
@@ -496,11 +497,13 @@ export const TRINKETS: CosmeticTemplate[] = [
     minRarity: 'common',
     set: 'delver',
     legendaryName: 'The Lamp That Never Dims',
-    y: 9,
+    y: 8,
     rows: [
-      '0000000000011100',
-      '0000000000014100', // glowing pane
-      '0000000000011100',
+      '0000000000003000', // hanging loop
+      '0000000000011100', // cap
+      '0000000000014100', // glass, bright at the flame…
+      '0000000000013100', // …dimmer below
+      '0000000000011100', // base
     ],
   },
   {
@@ -521,7 +524,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'cartographer',
     legendaryName: 'The Rope That Found the Way Back',
     y: 10,
-    rows: ['0000000000022200', '0000000000020200', '0000000000022200'],
+    rows: ['0000000000023200', '0000000000030300', '0000000000032300'],
   },
   {
     id: 'skull-charm',
@@ -531,7 +534,12 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'gravekeeper',
     legendaryName: 'Charm of the First Buried',
     y: 10,
-    rows: ['0000000000033300', '0000000000031300', '0000000000003000'],
+    rows: [
+      '0000000000033300', // cranium
+      '0000000000023200', // eye sockets in the mid shade — visible in any dye
+      '0000000000033300', // jaw
+      '0000000000003000', // chin
+    ],
   },
   {
     id: 'golden-bell',
@@ -541,7 +549,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'royal',
     legendaryName: 'Bell of the Court Herald',
     y: 10,
-    rows: ['0000000000003000', '0000000000034300', '0000000000033300'],
+    rows: ['0000000000003000', '0000000000034300', '0000000000033300', '0000000000001000'],
   },
   {
     id: 'river-pearl',
@@ -550,8 +558,8 @@ export const TRINKETS: CosmeticTemplate[] = [
     minRarity: 'uncommon',
     set: 'river-folk',
     legendaryName: 'Pearl of the Undertow',
-    y: 11,
-    rows: ['0000000000034000', '0000000000043000'],
+    y: 10,
+    rows: ['0000000000043000', '0000000000033000'],
   },
   {
     id: 'lockpick-fob',
@@ -561,17 +569,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'rogue',
     legendaryName: 'The Pick That Opened the Last Door',
     y: 9,
-    rows: ['0000000000003000', '0000000000030000', '0000000000003000'],
-  },
-  {
-    id: 'minotaur-nose-ring',
-    slot: 'trinket',
-    label: 'Minotaur Nose-ring',
-    minRarity: 'legendary',
-    set: 'minotaur',
-    legendaryName: 'The Ring the Bull Wore',
-    y: 10,
-    rows: ['0000000000033000', '0000000000330000'],
+    rows: ['0000000000033000', '0000000000034000', '0000000000004000', '0000000000004400'],
   },
 ];
 
@@ -599,7 +597,7 @@ export const SETS: CosmeticSet[] = [
   {
     id: 'minotaur',
     label: 'The Minotaur',
-    templateIds: ['horned-helm', 'bullhide-harness', 'minotaur-nose-ring'],
+    templateIds: ['horned-helm', 'bullhide-harness'],
   },
   { id: 'river-folk', label: 'The River Folk', templateIds: ['fishers-hood', 'oiled-coat', 'river-pearl'] },
   { id: 'rogue', label: 'The Rogue', templateIds: ['rogues-bandana', 'scout-leathers', 'lockpick-fob'] },

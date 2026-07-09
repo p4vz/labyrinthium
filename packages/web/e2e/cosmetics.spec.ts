@@ -69,8 +69,14 @@ test('a guest character is minted, loots the maze, walks out, and wears the spoi
   await bob.getByTestId('name-input').fill('Bob');
   await bob.getByTestId('code-input').fill(roomCode);
   await bob.getByTestId('join-btn').click();
-  // the lobby is the runway: avatars render next to names
+  // the lobby is the runway: avatars render next to names, and clicking one
+  // opens the full-size character card
   await expect(bob.getByTestId('player-list').locator('svg').first()).toBeVisible();
+  await bob.getByTestId('inspect-Alice').click();
+  await expect(bob.getByTestId('character-card')).toContainText('Alice');
+  await expect(bob.getByTestId('char-sheet').locator('svg[width="320"]')).toBeVisible();
+  await bob.getByRole('button', { name: 'close' }).click();
+  await expect(bob.getByTestId('character-card')).toHaveCount(0);
 
   await alice.getByTestId('start-btn').click();
   await expect(alice.getByTestId('turn-indicator')).toContainText('YOUR TURN');

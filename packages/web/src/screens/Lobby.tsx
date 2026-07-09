@@ -6,6 +6,7 @@ export function Lobby(): JSX.Element {
   const room = useGameStore((s) => s.room);
   const session = useGameStore((s) => s.session);
   const reset = useGameStore((s) => s.reset);
+  const setInspect = useGameStore((s) => s.setInspect);
   if (!room) return <div className="lobby">joining…</div>;
   const isHost = session?.playerId === room.hostId;
 
@@ -26,13 +27,25 @@ export function Lobby(): JSX.Element {
         <ul data-testid="player-list" className="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
-              {/* the lobby is the runway: everyone's avatar on parade */}
+              {/* the lobby is the runway: everyone's avatar on parade —
+                  click a player to see their character full size */}
               {p.isBot ? (
                 <span className="lobby-avatar bot">🤖</span>
               ) : (
-                <span className="lobby-avatar">
+                <button
+                  className="lobby-avatar as-button"
+                  data-testid={`inspect-${p.name}`}
+                  title={`view ${p.name}'s character`}
+                  onClick={() =>
+                    setInspect({
+                      name: p.name,
+                      avatar: p.avatar ?? null,
+                      own: p.id === session?.playerId,
+                    })
+                  }
+                >
                   <PixelAvatar avatar={p.avatar ?? null} size={28} title={`${p.name}'s avatar`} />
-                </span>
+                </button>
               )}
               {p.name}
               {p.id === room.hostId ? ' 👑' : ''}

@@ -5,6 +5,7 @@ import {
   SKIN_TONES,
   UNDERWEAR_RAMP,
   bodyById,
+  scale4x,
   templateById,
   type AvatarConfig,
 } from '@labyrinthium/shared';
@@ -13,26 +14,30 @@ import {
  * The paper-doll avatar: a 16×16 pixel sprite composed from bitmap layers in
  * the shared catalog (body → outfit → trinket → hat, later layers overpaint)
  * and colored by 4-color ramps. Same procedural-SVG approach as PixelLogo —
- * no image assets, crisp at any size from 12px pawns to the 128px wardrobe.
+ * no image assets.
+ *
+ * Every asset exists in two renditions from the one catalog source:
+ *  - `hires` (Scale4x, 64×64) for the wardrobe and character-card screens
+ *  - raw 16×16 for everything in-game (pawns, map stamps, lobby chips)
  */
 
 type Ramp = [string, string, string, string];
+type ColorGrid = (string | null)[][];
 
 const FALLBACK_SKIN: Ramp = ['#6b4630', '#d9a06e', '#e8bd8c', '#f4d8b0'];
 
 /** Composite the avatar into a 16×16 color grid; null = transparent. */
-function composite(avatar: AvatarConfig): (string | null)[][] {
-  const grid: (string | null)[][] = Array.from({ length: 16 }, () => Array<string | null>(16).fill(null));
+function composite(avatar: AvatarConfig): ColorGrid {
+  const grid: ColorGrid = Array.from({ length: 16 }, () => Array<string | null>(16).fill(null));
+  // Flat, deliberate color only — all shading comes from the authored ramp
+  // indices. (An earlier per-pixel "torchlight jitter" read as noise/stains
+  // at showcase sizes and was removed.)
   const paint = (y0: number, rows: string[], ramp: Ramp): void => {
     rows.forEach((row, dy) => {
       for (let x = 0; x < 16; x++) {
         const ch = row[x]!;
         if (ch === '0') continue;
-        const y = y0 + dy;
-        // subtle deterministic texture: some base pixels catch the torchlight
-        const idx = Number(ch) - 1;
-        const lit = idx === 1 && (x * 7 + y * 13) % 11 === 0;
-        grid[y]![x] = ramp[lit ? 2 : idx]!;
+        grid[y0 + dy]![x] = ramp[Number(ch) - 1]!;
       }
     });
   };
@@ -50,25 +55,79 @@ function composite(avatar: AvatarConfig): (string | null)[][] {
   return grid;
 }
 
+/** One cosmetic template alone, painted into a 16×16 grid. */
+function templateGrid(templateId: string, paletteId: string, silhouette: boolean): ColorGrid {
+  const grid: ColorGrid = Array.from({ length: 16 }, () => Array<string | null>(16).fill(null));
+  const template = templateById(templateId);
+  if (!template) return grid;
+  const ramp = PALETTES[paletteId] ?? PALETTES.soot!;
+  template.rows.forEach((row, dy) => {
+    for (let x = 0; x < 16; x++) {
+      const ch = row[x]!;
+      if (ch === '0') continue;
+      grid[template.y + dy]![x] = silhouette ? '#2a2119' : ramp[Number(ch) - 1]!;
+    }
+  });
+  return grid;
+}
+
+/** Emit one <rect> per horizontal run of same-colored pixels — a Scale4x
+ * grid is full of runs, so this keeps hires renders cheap. */
+function gridRects(grid: ColorGrid): JSX.Element[] {
+  const rects: JSX.Element[] = [];
+  grid.forEach((row, y) => {
+    let x = 0;
+    while (x < row.length) {
+      const fill = row[x];
+      if (!fill) {
+        x++;
+        continue;
+      }
+      let end = x + 1;
+      while (end < row.length && row[end] === fill) end++;
+      rects.push(<rect key={`${x},${y}`} x={x} y={y} width={end - x} height={1} fill={fill} />);
+      x = end;
+    }
+  });
+  return rects;
+}
+
+/** Occupied bounds of a grid, or null when fully transparent. */
+function bounds(grid: ColorGrid): { minX: number; maxX: number; minY: number; maxY: number } | null {
+  let minX = Infinity;
+  let maxX = -1;
+  let minY = Infinity;
+  let maxY = -1;
+  grid.forEach((row, y) => {
+    row.forEach((c, x) => {
+      if (!c) return;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    });
+  });
+  return maxX < 0 ? null : { minX, maxX, minY, maxY };
+}
+
 export interface PixelAvatarProps {
   avatar?: AvatarConfig | null;
-  /** rendered square size in px (22 pawn, 28 lobby, 64 home, 128 wardrobe) */
+  /** rendered square size in px (22 pawn, 28 lobby, 64 home, 128+ wardrobe) */
   size: number;
+  /** Scale4x rendition for the wardrobe/character screens; raw 16×16 in-game */
+  hires?: boolean;
   title?: string;
 }
 
-export const PixelAvatar = memo(function PixelAvatar({ avatar, size, title }: PixelAvatarProps): JSX.Element {
-  const grid = useMemo(() => composite(avatar ?? DEFAULT_AVATAR), [avatar]);
-  const rects: JSX.Element[] = [];
-  grid.forEach((row, y) => {
-    row.forEach((fill, x) => {
-      if (!fill) return;
-      rects.push(<rect key={`${x},${y}`} x={x} y={y} width={1} height={1} fill={fill} />);
-    });
-  });
+export const PixelAvatar = memo(function PixelAvatar({ avatar, size, hires, title }: PixelAvatarProps): JSX.Element {
+  const grid = useMemo(() => {
+    const base = composite(avatar ?? DEFAULT_AVATAR);
+    return hires ? scale4x(base) : base;
+  }, [avatar, hires]);
+  const dim = grid.length;
   return (
     <svg
-      viewBox="0 0 16 16"
+      viewBox={`0 0 ${dim} ${dim}`}
       width={size}
       height={size}
       shapeRendering="crispEdges"
@@ -77,7 +136,7 @@ export const PixelAvatar = memo(function PixelAvatar({ avatar, size, title }: Pi
       {...(title !== undefined ? { 'aria-label': title } : { 'aria-hidden': true })}
     >
       {title !== undefined ? <title>{title}</title> : null}
-      {rects}
+      {gridRects(grid)}
     </svg>
   );
 });
@@ -86,6 +145,8 @@ export interface PixelSwatchProps {
   templateId: string;
   paletteId: string;
   size: number;
+  /** Scale4x rendition for the wardrobe/character screens */
+  hires?: boolean;
   /** render as a dark silhouette (undiscovered collection entries) */
   silhouette?: boolean;
   title?: string;
@@ -96,47 +157,26 @@ export const PixelSwatch = memo(function PixelSwatch({
   templateId,
   paletteId,
   size,
+  hires,
   silhouette,
   title,
 }: PixelSwatchProps): JSX.Element {
-  const template = templateById(templateId);
-  const ramp = PALETTES[paletteId] ?? PALETTES.soot!;
-  if (!template) return <svg width={size} height={size} />;
-  // tight viewBox around the bitmap's occupied columns for a centered tile
-  let minX = 16;
-  let maxX = 0;
-  template.rows.forEach((row) => {
-    for (let x = 0; x < 16; x++) {
-      if (row[x] !== '0') {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-      }
-    }
-  });
-  const rects: JSX.Element[] = [];
-  template.rows.forEach((row, dy) => {
-    for (let x = 0; x < 16; x++) {
-      const ch = row[x]!;
-      if (ch === '0') continue;
-      rects.push(
-        <rect
-          key={`${x},${dy}`}
-          x={x}
-          y={template.y + dy}
-          width={1}
-          height={1}
-          fill={silhouette ? '#2a2119' : ramp[Number(ch) - 1]!}
-        />,
-      );
-    }
-  });
-  const pad = 1;
-  const w = maxX - minX + 1 + pad * 2;
-  const yMid = template.y + template.rows.length / 2;
-  const side = Math.max(w, template.rows.length + pad * 2);
+  const grid = useMemo(() => {
+    const base = templateGrid(templateId, paletteId, silhouette ?? false);
+    return hires ? scale4x(base) : base;
+  }, [templateId, paletteId, silhouette, hires]);
+  const box = bounds(grid);
+  if (!box) return <svg width={size} height={size} />;
+  // tight square viewBox around the occupied pixels for a centered tile
+  const pad = hires ? 4 : 1;
+  const w = box.maxX - box.minX + 1;
+  const h = box.maxY - box.minY + 1;
+  const side = Math.max(w, h) + pad * 2;
+  const vx = box.minX - (side - w) / 2;
+  const vy = box.minY - (side - h) / 2;
   return (
     <svg
-      viewBox={`${minX - (side - (maxX - minX + 1)) / 2} ${yMid - side / 2} ${side} ${side}`}
+      viewBox={`${vx} ${vy} ${side} ${side}`}
       width={size}
       height={size}
       shapeRendering="crispEdges"
@@ -145,7 +185,7 @@ export const PixelSwatch = memo(function PixelSwatch({
       {...(title !== undefined ? { 'aria-label': title } : { 'aria-hidden': true })}
     >
       {title !== undefined ? <title>{title}</title> : null}
-      {rects}
+      {gridRects(grid)}
     </svg>
   );
 });
