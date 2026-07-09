@@ -663,12 +663,35 @@ h3 {
 }
 .bot-row {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
   font-size: 14px;
-  margin: 10px 0;
-  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.bot-row-label {
+  opacity: 0.75;
+}
+
+/* Even two-per-row grid so all four tiers line up no matter the width. */
+.bot-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.bot-buttons button {
+  width: 100%;
+  text-align: center;
+}
+
+/* expert is the standout tier — give it the torch-amber edge */
+.bot-buttons button.bot-expert {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 /* the pickup button glows when the GM says the loot is underfoot */
 button.glow {

@@ -43,11 +43,18 @@ export function Lobby(): JSX.Element {
       </div>
       {isHost && (
         <div className="bot-row" data-testid="bot-row">
-          add an AI player:
-          <button onClick={() => send({ type: 'room.addBot', difficulty: 'easy' })}>🤖 easy</button>
-          <button onClick={() => send({ type: 'room.addBot', difficulty: 'medium' })}>🤖 medium</button>
-          <button onClick={() => send({ type: 'room.addBot', difficulty: 'hard' })}>🤖 hard</button>
-          <button onClick={() => send({ type: 'room.addBot', difficulty: 'expert' })}>🤖 expert</button>
+          <span className="bot-row-label">add an AI player</span>
+          <div className="bot-buttons">
+            <button onClick={() => send({ type: 'room.addBot', difficulty: 'easy' })}>🤖 easy</button>
+            <button onClick={() => send({ type: 'room.addBot', difficulty: 'medium' })}>🤖 medium</button>
+            <button onClick={() => send({ type: 'room.addBot', difficulty: 'hard' })}>🤖 hard</button>
+            <button
+              className="bot-expert"
+              onClick={() => send({ type: 'room.addBot', difficulty: 'expert' })}
+            >
+              🤖 expert
+            </button>
+          </div>
         </div>
       )}
       {isHost ? (
