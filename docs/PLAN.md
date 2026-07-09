@@ -246,7 +246,7 @@ effect** — everything here is aesthetic only.
   `profile_items` (PK `(profile_id, item_id)` + `INSERT OR IGNORE` = seed
   re-farm dedupe), `shop_purchases`.
 - **Cosmetics domain** (`packages/shared/src/cosmetics/`): finite catalog of
-  30 bitmap templates (12 hats / 10 outfits / 8 trinkets, 8 themed sets, gated
+  29 bitmap templates (12 hats / 10 outfits / 7 trinkets, 8 themed sets, gated
   `minRarity`), 14 dye ramps + 6 skin tones, rarity ladder
   common→uncommon→rare→epic→legendary, name grammar `[Condition] [Base]
   of the [Origin]` (rarity-gated affixes, fixed legendary epithets),

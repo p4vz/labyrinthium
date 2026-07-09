@@ -571,16 +571,6 @@ export const TRINKETS: CosmeticTemplate[] = [
     y: 9,
     rows: ['0000000000033000', '0000000000034000', '0000000000004000', '0000000000004400'],
   },
-  {
-    id: 'minotaur-nose-ring',
-    slot: 'trinket',
-    label: 'Minotaur Nose-ring',
-    minRarity: 'legendary',
-    set: 'minotaur',
-    legendaryName: 'The Ring the Bull Wore',
-    y: 6,
-    rows: ['0000000330000000', '0000003003000000', '0000000440000000'],
-  },
 ];
 
 export const TEMPLATES: CosmeticTemplate[] = [...HATS, ...OUTFITS, ...TRINKETS];
@@ -607,7 +597,7 @@ export const SETS: CosmeticSet[] = [
   {
     id: 'minotaur',
     label: 'The Minotaur',
-    templateIds: ['horned-helm', 'bullhide-harness', 'minotaur-nose-ring'],
+    templateIds: ['horned-helm', 'bullhide-harness'],
   },
   { id: 'river-folk', label: 'The River Folk', templateIds: ['fishers-hood', 'oiled-coat', 'river-pearl'] },
   { id: 'rogue', label: 'The Rogue', templateIds: ['rogues-bandana', 'scout-leathers', 'lockpick-fob'] },
