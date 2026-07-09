@@ -4,6 +4,8 @@ import {
   DEFAULT_AVATAR,
   PALETTES,
   SKIN_TONES,
+  UNDERWEAR_BITMAP,
+  UNDERWEAR_RAMP,
   templateById,
   type AvatarConfig,
 } from '@labyrinthium/shared';
@@ -36,6 +38,8 @@ function composite(avatar: AvatarConfig): (string | null)[][] {
     });
   };
   paint(BODY_BITMAP.y, BODY_BITMAP.rows, SKIN_TONES[avatar.skinToneId] ?? FALLBACK_SKIN);
+  // linen briefs under everything — nobody explores the labyrinth indecent
+  paint(UNDERWEAR_BITMAP.y, UNDERWEAR_BITMAP.rows, UNDERWEAR_RAMP);
   for (const slot of ['outfit', 'trinket', 'hat'] as const) {
     const piece = avatar[slot];
     if (!piece) continue;

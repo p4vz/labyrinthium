@@ -57,7 +57,9 @@ export const SKIN_TONES: Record<string, [string, string, string, string]> = {
   'skin-6': ['#2a1710', '#57301a', '#714428', '#8f5c3a'],
 };
 
-/** The naked 16x16 body every avatar starts from (colored by skin tone). */
+/** The 16x16 body every avatar starts from (colored by skin tone): a neck,
+ * shoulders wider than the waist, and arms held at the sides — so the naked
+ * figure reads as a person, not a gingerbread cookie. */
 export const BODY_BITMAP: { y: number; rows: string[] } = {
   y: 2,
   rows: [
@@ -66,17 +68,36 @@ export const BODY_BITMAP: { y: number; rows: string[] } = {
     '0000122222210000',
     '0000121221210000', // eyes
     '0000122222210000',
-    '0000012222100000', // chin
-    '0000122222210000', // shoulders
-    '0001222222221000', // arms out
-    '0001222222221000',
-    '0000122222210000',
-    '0000122222210000', // hips
+    '0000012222100000', // jaw
+    '0000001221000000', // neck
+    '0001222222221000', // shoulders
+    '0002122222212000', // chest, arms at the sides
+    '0002122222212000',
+    '0000122222210000', // waist
     '0000122002210000', // legs
     '0000122002210000',
     '0000111001110000', // feet
   ],
 };
+
+/**
+ * Modesty layer: linen briefs painted over the bare body, under any outfit.
+ * Fixed cloth ramp for everyone — underwear is not a cosmetic slot.
+ */
+export const UNDERWEAR_BITMAP: { y: number; rows: string[] } = {
+  y: 12,
+  rows: [
+    '0000133333310000', // waistband over the hips
+    '0000133003310000', // leg openings
+  ],
+};
+
+export const UNDERWEAR_RAMP: [string, string, string, string] = [
+  '#4a4234',
+  '#7a7057',
+  '#a89a78',
+  '#cfc4a2',
+];
 
 export const HATS: CosmeticTemplate[] = [
   {

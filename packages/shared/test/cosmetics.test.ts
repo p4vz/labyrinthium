@@ -13,6 +13,8 @@ import {
   SETS,
   SKIN_TONES,
   TEMPLATES,
+  UNDERWEAR_BITMAP,
+  UNDERWEAR_RAMP,
   cosmeticItemSchema,
   dailyShopStock,
   isRarePlus,
@@ -31,7 +33,11 @@ describe('catalog integrity', () => {
   });
 
   it('bitmaps are 16 wide, fit the 16-row frame, and use only chars 0-4', () => {
-    for (const t of [...TEMPLATES, { id: 'body', y: BODY_BITMAP.y, rows: BODY_BITMAP.rows }]) {
+    for (const t of [
+      ...TEMPLATES,
+      { id: 'body', y: BODY_BITMAP.y, rows: BODY_BITMAP.rows },
+      { id: 'underwear', y: UNDERWEAR_BITMAP.y, rows: UNDERWEAR_BITMAP.rows },
+    ]) {
       expect(t.rows.length, t.id).toBeGreaterThan(0);
       expect(t.y, t.id).toBeGreaterThanOrEqual(0);
       expect(t.y + t.rows.length, t.id).toBeLessThanOrEqual(16);
@@ -57,7 +63,7 @@ describe('catalog integrity', () => {
   });
 
   it('palettes and skin tones are 4-color ramps of hex colors', () => {
-    for (const ramp of [...Object.values(PALETTES), ...Object.values(SKIN_TONES)]) {
+    for (const ramp of [...Object.values(PALETTES), ...Object.values(SKIN_TONES), UNDERWEAR_RAMP]) {
       expect(ramp.length).toBe(4);
       for (const c of ramp) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
     }
