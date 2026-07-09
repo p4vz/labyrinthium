@@ -61,6 +61,8 @@ export type EquippedPiece = z.infer<typeof equippedPieceSchema>;
  */
 export const avatarConfigSchema = z.object({
   skinToneId: z.string().min(1),
+  /** body silhouette from the BODIES catalog; absent = 'a' (back-compat) */
+  bodyId: z.string().min(1).optional(),
   hat: equippedPieceSchema.optional(),
   outfit: equippedPieceSchema.optional(),
   trinket: equippedPieceSchema.optional(),

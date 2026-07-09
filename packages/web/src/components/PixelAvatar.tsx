@@ -1,11 +1,10 @@
 import { memo, useMemo } from 'react';
 import {
-  BODY_BITMAP,
   DEFAULT_AVATAR,
   PALETTES,
   SKIN_TONES,
-  UNDERWEAR_BITMAP,
   UNDERWEAR_RAMP,
+  bodyById,
   templateById,
   type AvatarConfig,
 } from '@labyrinthium/shared';
@@ -37,9 +36,10 @@ function composite(avatar: AvatarConfig): (string | null)[][] {
       }
     });
   };
-  paint(BODY_BITMAP.y, BODY_BITMAP.rows, SKIN_TONES[avatar.skinToneId] ?? FALLBACK_SKIN);
-  // linen briefs under everything — nobody explores the labyrinth indecent
-  paint(UNDERWEAR_BITMAP.y, UNDERWEAR_BITMAP.rows, UNDERWEAR_RAMP);
+  const body = bodyById(avatar.bodyId);
+  paint(body.bitmap.y, body.bitmap.rows, SKIN_TONES[avatar.skinToneId] ?? FALLBACK_SKIN);
+  // linen underwear under everything — nobody explores the labyrinth indecent
+  paint(body.underwear.y, body.underwear.rows, UNDERWEAR_RAMP);
   for (const slot of ['outfit', 'trinket', 'hat'] as const) {
     const piece = avatar[slot];
     if (!piece) continue;

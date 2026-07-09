@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import {
+  BODIES,
   DEFAULT_AVATAR,
   FREE_PALETTES,
   PALETTES,
@@ -121,6 +122,10 @@ export class ProfileService {
    */
   equip(profileId: string, avatar: AvatarConfig): void {
     if (!SKIN_TONES[avatar.skinToneId]) throw new ProfileError('NOT_OWNED', 'unknown skin tone');
+    // body shapes are free, but must exist in the catalog
+    if (avatar.bodyId !== undefined && !BODIES.some((b) => b.id === avatar.bodyId)) {
+      throw new ProfileError('NOT_OWNED', 'unknown body shape');
+    }
     const owned = this.db.listItems(profileId);
     for (const slot of ['hat', 'outfit', 'trinket'] as const) {
       const piece = avatar[slot];

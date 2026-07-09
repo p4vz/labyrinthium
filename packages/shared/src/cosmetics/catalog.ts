@@ -57,40 +57,92 @@ export const SKIN_TONES: Record<string, [string, string, string, string]> = {
   'skin-6': ['#2a1710', '#57301a', '#714428', '#8f5c3a'],
 };
 
-/** The 16x16 body every avatar starts from (colored by skin tone): a neck,
- * shoulders wider than the waist, and arms held at the sides — so the naked
- * figure reads as a person, not a gingerbread cookie. */
-export const BODY_BITMAP: { y: number; rows: string[] } = {
-  y: 2,
-  rows: [
-    '0000011111100000', // crown of the head
-    '0000122222210000',
-    '0000122222210000',
-    '0000121221210000', // eyes
-    '0000122222210000',
-    '0000012222100000', // jaw
-    '0000001221000000', // neck
-    '0001222222221000', // shoulders
-    '0002122222212000', // chest, arms at the sides
-    '0002122222212000',
-    '0000122222210000', // waist
-    '0000122002210000', // legs
-    '0000122002210000',
-    '0000111001110000', // feet
-  ],
-};
-
 /**
- * Modesty layer: linen briefs painted over the bare body, under any outfit.
- * Fixed cloth ramp for everyone — underwear is not a cosmetic slot.
+ * Body silhouettes. Every shape shares the same head rows (2-7) so all hats
+ * seat identically, and comes in every skin tone — shape and shade are
+ * independent, free axes picked in the wardrobe. Each shape carries its own
+ * modesty layer (linen underwear painted over the bare skin, under any
+ * outfit) — underwear is not a cosmetic slot.
  */
-export const UNDERWEAR_BITMAP: { y: number; rows: string[] } = {
-  y: 12,
-  rows: [
-    '0000133333310000', // waistband over the hips
-    '0000133003310000', // leg openings
-  ],
-};
+export interface BodyShape {
+  id: string;
+  label: string;
+  bitmap: { y: number; rows: string[] };
+  underwear: { y: number; rows: string[] };
+}
+
+export const BODIES: BodyShape[] = [
+  {
+    id: 'a',
+    label: 'broad', // wide shoulders, straight waist
+    bitmap: {
+      y: 2,
+      rows: [
+        '0000011111100000', // crown of the head
+        '0000122222210000',
+        '0000122222210000',
+        '0000121221210000', // eyes
+        '0000122222210000',
+        '0000012222100000', // jaw
+        '0000001221000000', // neck
+        '0001222222221000', // shoulders
+        '0002122222212000', // chest, arms at the sides
+        '0002122222212000',
+        '0000122222210000', // waist
+        '0000122002210000', // legs
+        '0000122002210000',
+        '0000111001110000', // feet
+      ],
+    },
+    underwear: {
+      y: 12,
+      rows: [
+        '0000133333310000', // waistband over the hips
+        '0000133003310000', // leg openings
+      ],
+    },
+  },
+  {
+    id: 'b',
+    label: 'slender', // softer shoulders, pinched waist, fuller hips
+    bitmap: {
+      y: 2,
+      rows: [
+        '0000011111100000', // crown of the head
+        '0000122222210000',
+        '0000122222210000',
+        '0000121221210000', // eyes
+        '0000122222210000',
+        '0000012222100000', // jaw
+        '0000001221000000', // neck
+        '0000122222210000', // shoulders, a touch narrower
+        '0002122222212000', // chest, arms at the sides
+        '0002012222102000', // pinched waist
+        '0000122222210000', // hips
+        '0000122002210000', // legs
+        '0000122002210000',
+        '0000111001110000', // feet
+      ],
+    },
+    underwear: {
+      y: 10,
+      rows: [
+        '0000133333310000', // linen chest band
+        '0000000000000000',
+        '0000133333310000', // waistband over the hips
+        '0000133003310000', // leg openings
+      ],
+    },
+  },
+];
+
+export function bodyById(id: string | undefined): BodyShape {
+  return BODIES.find((b) => b.id === id) ?? BODIES[0]!;
+}
+
+// Body 'a' aliases, kept for existing call sites and tests.
+export const BODY_BITMAP: { y: number; rows: string[] } = BODIES[0]!.bitmap;
+export const UNDERWEAR_BITMAP: { y: number; rows: string[] } = BODIES[0]!.underwear;
 
 export const UNDERWEAR_RAMP: [string, string, string, string] = [
   '#4a4234',

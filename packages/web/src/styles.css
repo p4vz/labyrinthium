@@ -1367,3 +1367,27 @@ button.glow {
   color: var(--bad);
   font-style: italic;
 }
+
+/* body shape picker */
+.body-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+.body-pick {
+  width: 52px !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.body-pick.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(224, 144, 46, 0.35);
+}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  BODIES,
   FREE_PALETTES,
   PALETTES,
   SETS,
@@ -118,6 +119,18 @@ export function Wardrobe(): JSX.Element {
         <div className="wardrobe-equip">
           <div className="avatar-stage card">
             <PixelAvatar avatar={avatar} size={128} title="your avatar" />
+            <div className="body-row">
+              {BODIES.map((b) => (
+                <button
+                  key={b.id}
+                  className={`body-pick ${(avatar.bodyId ?? 'a') === b.id ? 'active' : ''}`}
+                  title={`${b.label} build`}
+                  onClick={() => void store.equip({ ...avatar, bodyId: b.id })}
+                >
+                  <PixelAvatar avatar={{ skinToneId: avatar.skinToneId, bodyId: b.id }} size={40} title={`${b.label} build`} />
+                </button>
+              ))}
+            </div>
             <div className="skin-row">
               {Object.entries(SKIN_TONES).map(([id, ramp]) => (
                 <button
