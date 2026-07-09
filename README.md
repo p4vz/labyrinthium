@@ -12,7 +12,7 @@ Full game spec and roadmap: [`docs/PLAN.md`](docs/PLAN.md).
 
 | package | what |
 |---|---|
-| `@labyrinthium/shared` | Pure, deterministic game engine + map generator + protocol schemas (zod). No framework deps; runs on the server, in tests, and in the browser (replay viewer). |
+| `@labyrinthium/shared` | Pure, deterministic game engine + map generator + protocol schemas (zod) + the Bayesian bot brain ([`docs/AI.md`](docs/AI.md)). No framework deps; runs on the server, in tests, and in the browser (replay viewer). |
 | `@labyrinthium/server` | Fastify + WebSocket game server: rooms, sessions/reconnect, spectators, SQLite persistence, map CRUD/generate/validate + game-history REST API, serves the built web app. |
 | `@labyrinthium/web` | The browser client: lobby, game HUD with the manual mapping UI (stamp palette, level tabs, auxiliary maps with copy/paste/merge and undo/redo), map editor, replay viewer. |
 | `@labyrinthium/cli` | Terminal client & random-bot harness for smoke-testing games. |
@@ -82,3 +82,15 @@ the whole Railway CLI setup (login, project, deploy, domain, volume) for you
    where you are.
 5. First player to walk out of an exit carrying the treasure wins — then the
    real map is revealed, and the whole game can be replayed move by move.
+
+## AI players
+
+Rooms can be filled with bots (lobby buttons, or "watch a bot match" on the
+home screen). `easy` stumbles, `medium` keeps a tidy map, and `hard` /
+`expert` are Bayesian hypothesis testers: they spend free wall-bumps on
+probes chosen to split their live hypotheses, keep a posterior over every
+possible placement of each post-teleport region, and merge it onto their
+main map the moment the pattern matches — rolling the merge back if reality
+later contradicts it. The `expert` additionally dead-reckons every opponent
+from the open-information table-talk and shoots the probable treasure
+carrier. Design notes: [`docs/AI.md`](docs/AI.md).

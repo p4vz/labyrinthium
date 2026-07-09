@@ -13,3 +13,4 @@ export * from './generator/index.js';
 export * from './protocol/client.js';
 export * from './protocol/server.js';
 export * from './describe.js';
+export * from './ai/index.js';

@@ -102,15 +102,22 @@ export class Room {
     const bot = new BotController(player.id, difficulty, (action) => {
       try {
         this.handleAction(player.id, action);
-      } catch {
-        // e.g. NO_AMMO race: one legal retry, then let the turn timer cope.
+      } catch (err) {
+        // The refusal is information ("no stairs here", "no ammo"): tell the
+        // bot, let it re-decide once with corrected beliefs, then fall back
+        // to a legal shuffle and let the turn timer cope.
+        bot.noteRejected(action, err instanceof RoomError ? err.code : 'UNKNOWN');
         try {
-          this.handleAction(player.id, {
-            type: 'move',
-            direction: (['N', 'E', 'S', 'W'] as const)[Math.floor(Math.random() * 4)]!,
-          });
+          this.handleAction(player.id, bot.decide());
         } catch {
-          /* stay quiet; a re-announce or timeout will recover */
+          try {
+            this.handleAction(player.id, {
+              type: 'move',
+              direction: (['N', 'E', 'S', 'W'] as const)[Math.floor(Math.random() * 4)]!,
+            });
+          } catch {
+            /* stay quiet; a re-announce or timeout will recover */
+          }
         }
       }
     });

@@ -39,6 +39,7 @@ export function Lobby(): JSX.Element {
           <button onClick={() => send({ type: 'room.addBot', difficulty: 'easy' })}>🤖 easy</button>
           <button onClick={() => send({ type: 'room.addBot', difficulty: 'medium' })}>🤖 medium</button>
           <button onClick={() => send({ type: 'room.addBot', difficulty: 'hard' })}>🤖 hard</button>
+          <button onClick={() => send({ type: 'room.addBot', difficulty: 'expert' })}>🤖 expert</button>
         </div>
       )}
       {isHost ? (

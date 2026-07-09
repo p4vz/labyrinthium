@@ -216,7 +216,7 @@ React + Vite + zustand + **plain SVG** grids. Layout: **left** palette of dragga
 - **Phase 2 — `server`** ✅: Fastify + ws, full protocol, room lifecycle, reconnect, SQLite persistence, map CRUD/validate/generate; integration tests green. **Phases 1+2 = the "backend built" milestone for this task.**
 - **Phase 3 — `cli`** ✅: terminal client + `--bot random` for 2-bot smoke games; soak-tests the server.
 - **Phase 4 — `web`** ✅: lobby, HUD, mapping UI (§7), map editor UI.
-- **Phase 5 — extras** ✅ (spectators, replay viewer, end-of-game map reveal, game history API). Still open for later: new elements via the feature registry (pits, fake treasures, bear traps, keys/doors), heuristic bots.
+- **Phase 5 — extras** ✅ (spectators, replay viewer, end-of-game map reveal, game history API). Bots shipped beyond the original plan: `hard`/`expert` are Bayesian hypothesis-testers with post-teleport relocalization and (expert) opponent inference — see `docs/AI.md`. Still open for later: new elements via the feature registry (pits, fake treasures, bear traps, keys/doors).
 
 ## Verification (for the backend build)
 

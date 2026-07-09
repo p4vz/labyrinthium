@@ -14,7 +14,7 @@ export function Home(): JSX.Element {
   const [mapId, setMapId] = useState('');
   const [showRules, setShowRules] = useState(false);
   const [botCount, setBotCount] = useState(2);
-  const [botLevel, setBotLevel] = useState<'easy' | 'medium' | 'hard' | 'mixed'>('medium');
+  const [botLevel, setBotLevel] = useState<'easy' | 'medium' | 'hard' | 'expert' | 'mixed'>('medium');
   const [openInfo, setOpenInfo] = useState(true);
   const [timer, setTimer] = useState(0);
   const [dropAll, setDropAll] = useState(false);
@@ -179,7 +179,8 @@ export function Home(): JSX.Element {
             <select value={botLevel} onChange={(e) => setBotLevel(e.target.value as typeof botLevel)}>
               <option value="easy">easy — headless chickens</option>
               <option value="medium">medium — methodical explorers</option>
-              <option value="hard">hard — armed and dangerous</option>
+              <option value="hard">hard — Bayesian hypothesis testers</option>
+              <option value="expert">expert — they hear your every move</option>
               <option value="mixed">mixed — one of each</option>
             </select>
           </label>
@@ -187,9 +188,9 @@ export function Home(): JSX.Element {
             data-testid="botmatch-btn"
             disabled={!connected}
             onClick={() => {
-              const pool: ('easy' | 'medium' | 'hard')[] =
+              const pool: ('easy' | 'medium' | 'hard' | 'expert')[] =
                 botLevel === 'mixed'
-                  ? ['easy', 'medium', 'hard', 'medium']
+                  ? ['easy', 'medium', 'hard', 'expert']
                   : Array.from({ length: 4 }, () => botLevel);
               send({
                 type: 'room.createBotMatch',

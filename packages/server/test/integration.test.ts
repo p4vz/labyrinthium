@@ -385,6 +385,69 @@ describe('full game over WebSockets', () => {
     delete process.env.BOT_DELAY_MS;
   }, 40000);
 
+  it('the Bayesian tiers work over the wire: an expert bot wins while the host idles', async () => {
+    process.env.BOT_DELAY_MS = '1';
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const host = new TestClient(wsUrl);
+    await host.ready();
+    host.send({ type: 'room.create', name: 'Idle Ivy', mapId });
+    const session = await host.next('session.created');
+    host.send({ type: 'room.addBot', difficulty: 'expert' });
+    await host.next('room.playerJoined');
+    let roomState = await host.next('room.state');
+    while (roomState.players.length < 2) roomState = await host.next('room.state');
+    expect(roomState.players.some((p) => p.isBot && p.name.includes('expert'))).toBe(true);
+
+    host.send({ type: 'room.start' });
+    await host.next('game.started');
+
+    const finished = new Promise<{ winnerName: string }>((resolve) => {
+      void host.next('game.finished', 30000).then(resolve);
+    });
+    const idle = async (): Promise<void> => {
+      for (let i = 0; i < 500; i++) {
+        const turn = await host.next('game.turn', 30000).catch(() => null);
+        if (!turn) return;
+        if (turn.activePlayerId === session.playerId) {
+          host.send({ type: 'game.action', action: { type: 'endTurn' } });
+        }
+      }
+    };
+    void idle();
+
+    const result = await finished;
+    expect(result.winnerName).toContain('expert');
+
+    host.close();
+    delete process.env.BOT_DELAY_MS;
+  }, 40000);
+
+  it('hard bots finish a bots-only match and stream belief maps', async () => {
+    process.env.BOT_DELAY_MS = '1';
+    const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
+    const { id: mapId } = stored.json() as { id: string };
+
+    const watcher = new TestClient(wsUrl);
+    await watcher.ready();
+    watcher.send({ type: 'room.createBotMatch', bots: ['hard', 'expert'], mapId });
+
+    const started = await watcher.next('game.started');
+    expect(started.turnOrder).toHaveLength(2);
+
+    // the Bayesian bots share their evolving belief maps with observers too
+    const botMap = await watcher.next('spectate.maps', 20000);
+    expect(botMap.playerName).toContain('Bot');
+    expect(Array.isArray(botMap.maps)).toBe(true);
+
+    const finished = await watcher.next('game.finished', 30000);
+    expect(finished.winnerName).toContain('Bot');
+
+    watcher.close();
+    delete process.env.BOT_DELAY_MS;
+  }, 40000);
+
   it('the turn timer skips players who stall', async () => {
     const stored = await app.inject({ method: 'POST', url: '/api/maps', payload: simpleTestMap() });
     const { id: mapId } = stored.json() as { id: string };
