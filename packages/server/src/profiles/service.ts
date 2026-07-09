@@ -215,10 +215,10 @@ export class ProfileService {
     for (const event of events) {
       if (!visibleTo(event, playerId) || event.visibility.kind !== 'private') continue;
       const p = event.payload;
-      if (p.type === 'cosmeticFound') this.db.creditItems(profileId, [stamp(p.item)], 'run', ctx.gameId);
-      else if (p.type === 'coinsFound') this.db.creditCoins(profileId, p.amount);
-      else if (p.type === 'rareLootBanked') {
-        this.db.creditItems(profileId, p.items.map((i) => stamp(i, true)), 'run', ctx.gameId);
+      if (p.type === 'coinsFound') this.db.creditCoins(profileId, p.amount);
+      else if (p.type === 'prizeFound') {
+        // the treasure's hidden prize, won by escaping alive
+        this.db.creditItems(profileId, [stamp(p.item, true)], 'run', ctx.gameId);
       }
     }
   }

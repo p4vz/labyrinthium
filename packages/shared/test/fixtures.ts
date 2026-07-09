@@ -25,6 +25,8 @@ export interface TestMapSpec {
   levels?: LevelDocument[];
   entrance?: { level: number; x: number; y: number };
   treasure?: { level: number; x: number; y: number };
+  /** the treasure's hidden prize (won on escape) */
+  prize?: CosmeticItem;
   monsters?: MapDocument['spawns']['monsters'];
   walls?: { level?: number; at: Coord; dir: PlanarDirection; state?: EdgeState }[];
   exits?: { level?: number; at: Coord; dir: PlanarDirection }[];
@@ -40,6 +42,7 @@ export function testMap(spec: TestMapSpec = {}): MapDocument {
     entrance: spec.entrance ?? { level: 0, x: 0, y: 0 },
     spawns: {
       treasure: spec.treasure ?? { level: 0, x: 2, y: 2 },
+      ...(spec.prize ? { prize: spec.prize } : {}),
       monsters: spec.monsters ?? [],
     },
     metadata: { name: 'test' },

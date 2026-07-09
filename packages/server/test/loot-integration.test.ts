@@ -32,9 +32,8 @@ function item(id: string, rarity: CosmeticItem['rarity']): CosmeticItem {
 }
 
 /**
- * 3×3 all-open arena with loot laid along the east wall:
- * entrance (0,0), treasure parked far away at (2,2), exit east of (2,0),
- * coins at (1,0), a common at (2,0), a rare at (2,1).
+ * 3×3 all-open arena: entrance (0,0), treasure at (2,2) hiding the prize,
+ * exit east of (2,0), coins at (1,0).
  */
 function lootArena(): MapDocument {
   const edges = createEdgeGrid(3, 3, 'open');
@@ -54,15 +53,15 @@ function lootArena(): MapDocument {
         width: 3,
         height: 3,
         edges,
-        features: [
-          { type: 'coins', at: { x: 1, y: 0 }, amount: 7 },
-          { type: 'cosmetic', at: { x: 2, y: 0 }, item: item('common-1', 'common') },
-          { type: 'cosmetic', at: { x: 2, y: 1 }, item: item('rare-1', 'rare') },
-        ],
+        features: [{ type: 'coins', at: { x: 1, y: 0 }, amount: 7 }],
       },
     ],
     entrance: { level: 0, x: 0, y: 0 },
-    spawns: { treasure: { level: 0, x: 2, y: 2 }, monsters: [] },
+    spawns: {
+      treasure: { level: 0, x: 2, y: 2 },
+      prize: item('prize-1', 'rare'),
+      monsters: [],
+    },
     metadata: { name: 'loot arena', seed: 'loot-arena' },
   };
 }
@@ -81,7 +80,7 @@ async function createProfile(name: string): Promise<{ token: string; id: string 
 }
 
 describe('loot over WebSockets, banked to profiles', () => {
-  it('banks commons/coins mid-game, rares on walk-out; lootSummary and winnerless end', async () => {
+  it('banks coins mid-game; walking out is winnerless and the prize stays in the chest', async () => {
     const mapId = await storeMap(lootArena());
     const { token } = await createProfile('Ariadne');
 
@@ -97,13 +96,14 @@ describe('loot over WebSockets, banked to profiles', () => {
     expect(started.rules.allowLeave).toBe(true);
     expect(started.turnOrder[0]!.avatar).toBeDefined();
 
-    // walk east: coins at (1,0), common at (2,0)
+    // walk east: coins at (1,0) — wait until the GM confirms the scoop
     alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
-    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
-    await alice.next('game.turn');
-    await alice.next('game.turn');
+    for (;;) {
+      const batch = await alice.next('game.events');
+      if (batch.events.some((e) => e.payload.type === 'coinsFound')) break;
+    }
 
-    // commons and coins are already banked — mid-game, before any finish
+    // coins are already banked — mid-game, before any finish
     const midGame = await app.inject({
       method: 'GET',
       url: '/api/profile',
@@ -112,40 +112,72 @@ describe('loot over WebSockets, banked to profiles', () => {
     const midBody = midGame.json() as {
       profile: { coins: number };
       items: { item: CosmeticItem }[];
-      collection: { hat: { discovered: string[] } };
     };
     expect(midBody.profile.coins).toBe(7);
-    expect(midBody.items.map((i) => i.item.id)).toEqual(['common-1']);
-    expect(midBody.collection.hat.discovered).toContain('straw-hat');
+    expect(midBody.items).toEqual([]); // no floor items exist any more
 
-    // grab the rare at (2,1), come back and walk out without the treasure
-    alice.send({ type: 'game.action', action: { type: 'move', direction: 'S' } });
-    alice.send({ type: 'game.action', action: { type: 'move', direction: 'N' } });
+    // step beside the exit and walk out WITHOUT the treasure: no prize
+    alice.send({ type: 'game.action', action: { type: 'move', direction: 'E' } });
     alice.send({ type: 'game.action', action: { type: 'leave', direction: 'E' } });
 
     const finished = await alice.next('game.finished');
     expect(finished.winnerId).toBe(''); // sole player left: nobody won
     expect(finished.lootSummary).toHaveLength(1);
-    expect(finished.lootSummary[0]).toMatchObject({ coins: 7, left: true, lostRares: 0 });
-    expect(finished.lootSummary[0]!.bankedItems.map((i) => i.id).sort()).toEqual(['common-1', 'rare-1']);
+    expect(finished.lootSummary[0]).toMatchObject({ coins: 7, left: true });
+    expect(finished.lootSummary[0]!.bankedItems).toEqual([]); // the prize stays in the chest
 
-    // the rare reached the profile stamped as extracted alive
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/profile',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect((after.json() as { items: unknown[] }).items).toEqual([]);
+
+    const allEvents = alice.all
+      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
+      .flatMap((m) => m.events.map((e) => e.payload.type));
+    expect(allEvents).toContain('gameEndedNoWinner');
+    expect(allEvents).not.toContain('prizeFound');
+    alice.close();
+  });
+
+  it('the winner receives the treasure prize, stamped and persisted to their profile', async () => {
+    const mapId = await storeMap(lootArena());
+    const { token } = await createProfile('Theseus');
+    const alice = new TestClient(wsUrl);
+    await alice.ready();
+    alice.send({ type: 'room.create', name: 'Theseus', mapId, profileToken: token });
+    await alice.next('session.created');
+    alice.send({ type: 'room.start' });
+    await alice.next('game.started');
+
+    // fetch the treasure at (2,2) and walk out through the exit at (2,0) E
+    for (const direction of ['E', 'E', 'S', 'S'] as const) {
+      alice.send({ type: 'game.action', action: { type: 'move', direction } });
+    }
+    alice.send({ type: 'game.action', action: { type: 'pickup' } });
+    for (const direction of ['N', 'N', 'E'] as const) {
+      alice.send({ type: 'game.action', action: { type: 'move', direction } });
+    }
+    const finished = await alice.next('game.finished');
+    expect(finished.winnerName).toBe('Theseus');
+    expect(finished.lootSummary[0]!.bankedItems.map((i) => i.id)).toEqual(['prize-1']);
+
+    const allEvents = alice.all
+      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
+      .flatMap((m) => m.events.map((e) => e.payload.type));
+    expect(allEvents).toContain('prizeFound');
+
+    // the prize reached the profile, stamped extracted-alive with the map seed
     const after = await app.inject({
       method: 'GET',
       url: '/api/profile',
       headers: { authorization: `Bearer ${token}` },
     });
     const afterBody = after.json() as { items: { item: CosmeticItem }[] };
-    const rare = afterBody.items.find((i) => i.item.id === 'rare-1');
-    expect(rare?.item.provenance?.extractedAlive).toBe(true);
-    expect(rare?.item.provenance?.mapSeed).toBe('loot-arena');
-
-    // the winnerless finish is in the feed
-    const allEvents = alice.all
-      .filter((m): m is Extract<typeof m, { type: 'game.events' }> => m.type === 'game.events')
-      .flatMap((m) => m.events.map((e) => e.payload.type));
-    expect(allEvents).toContain('gameEndedNoWinner');
-    expect(allEvents).toContain('rareLootBanked');
+    const prize = afterBody.items.find((i) => i.item.id === 'prize-1');
+    expect(prize?.item.provenance?.extractedAlive).toBe(true);
+    expect(prize?.item.provenance?.mapSeed).toBe('loot-arena');
     alice.close();
   });
 

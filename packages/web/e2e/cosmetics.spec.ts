@@ -10,7 +10,7 @@ function item(id: string, rarity: CosmeticItem['rarity'], name: string): Cosmeti
   return { id, slot: 'hat', templateId: 'straw-hat', rarity, paletteId: 'moss', name };
 }
 
-/** 3×3 arena with loot on the eastward path and the treasure parked far away. */
+/** 3×3 arena: coins on the eastward path, the prize hidden in the treasure. */
 function lootArena(): MapDocument {
   const edges = createEdgeGrid(3, 3, 'open');
   for (let x = 0; x < 3; x++) {
@@ -29,20 +29,21 @@ function lootArena(): MapDocument {
         width: 3,
         height: 3,
         edges,
-        features: [
-          { type: 'coins', at: { x: 1, y: 0 }, amount: 9 },
-          { type: 'cosmetic', at: { x: 1, y: 0 }, item: item('e2e-common', 'common', 'Straw Hat') },
-          { type: 'cosmetic', at: { x: 2, y: 0 }, item: item('e2e-rare', 'rare', 'Gilded Straw Hat of the Deep') },
-        ],
+        features: [{ type: 'coins', at: { x: 1, y: 0 }, amount: 9 }],
       },
     ],
     entrance: { level: 0, x: 0, y: 0 },
-    spawns: { treasure: { level: 0, x: 2, y: 2 }, monsters: [] },
+    spawns: {
+      treasure: { level: 0, x: 2, y: 2 },
+      // ONE prize, ONE color, hidden inside the treasure — the winner's.
+      prize: item('e2e-prize', 'rare', 'Gilded Straw Hat of the Deep'),
+      monsters: [],
+    },
     metadata: { name: 'e2e loot arena' },
   };
 }
 
-test('a guest character is minted, loots the maze, walks out, and wears the spoils', async ({
+test('coins bank on the floor, the prize hides in the treasure, and the winner wears it', async ({
   browser,
   request,
 }) => {
@@ -75,55 +76,56 @@ test('a guest character is minted, loots the maze, walks out, and wears the spoi
   await alice.getByTestId('start-btn').click();
   await expect(alice.getByTestId('turn-indicator')).toContainText('YOUR TURN');
 
-  // Alice walks east: coins + a common hat bank instantly.
+  // Alice walks east: the coin pile banks instantly. One move = one turn.
   await alice.getByTestId('go-E').click();
-  await expect(alice.getByTestId('event-ticker')).toContainText(/coin|Straw Hat/);
+  await expect(alice.getByTestId('event-ticker')).toContainText(/coin/);
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
   await bob.getByTestId('go-S').click();
 
-  // Second step east: the rare — the at-risk chip lights up.
-  await alice.getByTestId('go-E').click();
-  await expect(alice.getByTestId('rare-chip')).toContainText('carrying 1 rare find');
+  await alice.getByTestId('go-E').click(); // Alice at (2,0), beside the exit
   await bob.getByTestId('go-N').click();
 
-  // Alice probes east and finds the exit; the walk-out button appears.
-  await alice.getByTestId('go-E').click(); // bump: exit found (free note)
+  // Alice probes east: exit found — but the probe consumed her turn.
+  await alice.getByTestId('go-E').click();
+  await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
+  await bob.getByTestId('go-S').click();
+
+  // Her next turn: the walk-out button is live (she still stands by the exit).
   await expect(alice.getByTestId('leave-exit-btn')).toBeVisible();
   await alice.getByTestId('leave-exit-btn').click();
-  await expect(alice.getByTestId('leave-confirm')).toContainText('Gilded Straw Hat of the Deep');
+  await expect(alice.getByTestId('leave-confirm')).toContainText('forfeit the race');
   await alice.getByTestId('leave-confirm-btn').click();
 
   // Alice is out; the game continues for Bob alone.
   await expect(alice.getByTestId('turn-indicator')).toContainText('you walked out');
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
 
-  // Bob fetches the treasure at (2,2) and wins.
+  // Bob fetches the treasure at (2,2) and wins — from (0,1).
   await bob.getByTestId('go-E').click();
   await bob.getByTestId('go-E').click();
-  await bob.getByTestId('go-S').click();
   await bob.getByTestId('go-S').click();
   await bob.getByTestId('pickup-btn').click();
   await bob.getByTestId('go-N').click();
   await bob.getByTestId('go-N').click();
   await bob.getByTestId('go-E').click();
 
-  // The reveal shows the winner AND the haul.
+  // The reveal shows the winner AND the haul: the treasure's hidden prize
+  // belongs to Bob; Alice keeps her coins (and the door she left through).
   await expect(bob.getByTestId('reveal')).toContainText('Bob wins');
-  await expect(alice.getByTestId('loot-summary')).toContainText('Gilded Straw Hat of the Deep');
+  await expect(bob.getByTestId('loot-summary')).toContainText('Gilded Straw Hat of the Deep');
   await expect(alice.getByTestId('loot-summary')).toContainText('🪙 9');
   await expect(alice.getByTestId('loot-summary')).toContainText('🚪');
 
-  // Back on the surface, Alice's wardrobe holds the extracted rare;
-  // she equips it and her avatar changes.
-  await alice.getByTestId('reveal').getByRole('button', { name: /back to the surface/ }).click();
-  await alice.getByTestId('wardrobe-btn').click();
-  await expect(alice.getByText('Hats', { exact: true })).toBeVisible();
-  const hatTile = alice.locator('.swatch-tile[title="Straw Hat"]');
+  // Back on the surface, BOB's wardrobe holds the prize; he wears it.
+  await bob.getByTestId('reveal').getByRole('button', { name: /back to the surface/ }).click();
+  await bob.getByTestId('wardrobe-btn').click();
+  await expect(bob.getByText('Hats', { exact: true })).toBeVisible();
+  const hatTile = bob.locator('.swatch-tile[title="Straw Hat"]');
   await expect(hatTile).toBeVisible();
   await hatTile.click();
   // collection log ticked over
-  await alice.getByRole('button', { name: 'Collection' }).click();
-  await expect(alice.locator('.wardrobe-collection')).toContainText('1/12 discovered');
+  await bob.getByRole('button', { name: 'Collection' }).click();
+  await expect(bob.locator('.wardrobe-collection')).toContainText('1/12 discovered');
 
   await aliceCtx.close();
   await bobCtx.close();

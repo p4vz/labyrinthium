@@ -11,7 +11,6 @@ export function ActionBar(): JSX.Element {
   const canAct = useGameStore((s) => s.canAct);
   const treasureUnderfoot = useGameStore((s) => s.treasureUnderfoot);
   const haveTreasure = useGameStore((s) => s.haveTreasure);
-  const carriedRares = useGameStore((s) => s.carriedRares);
   const exitAdjacent = useGameStore((s) => s.exitAdjacent);
   const leftGame = useGameStore((s) => s.leftGame);
   const finished = useGameStore((s) => s.finished);
@@ -70,16 +69,6 @@ export function ActionBar(): JSX.Element {
         )}
       </div>
 
-      {carriedRares.length > 0 && !finished && !leftGame && (
-        <div
-          className={`rare-chip ${exitAdjacent ? 'pulse' : ''}`}
-          data-testid="rare-chip"
-          title={carriedRares.map((i) => `${i.name} (${i.rarity})`).join('\n')}
-        >
-          ✨ carrying {carriedRares.length} rare find{carriedRares.length > 1 ? 's' : ''} — walk out to keep {carriedRares.length > 1 ? 'them' : 'it'}
-        </div>
-      )}
-
       <div className="modes">
         <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>
           🚶 walk
@@ -129,7 +118,7 @@ export function ActionBar(): JSX.Element {
             data-testid="leave-exit-btn"
             className="glow leave-exit"
             onClick={() => setConfirmLeave(true)}
-            title="walk out through the exit beside you — forfeit the race, keep your rare finds"
+            title="walk out through the exit beside you — forfeit the race, keep your banked coins"
           >
             🚪 walk out
           </button>
@@ -144,14 +133,10 @@ export function ActionBar(): JSX.Element {
               You leave through the exit and <b>forfeit the race</b> — the game continues without
               you.
             </p>
-            {carriedRares.length > 0 ? (
-              <p>
-                You will keep forever:{' '}
-                <b>{carriedRares.map((i) => i.name).join(', ')}</b>
-              </p>
-            ) : (
-              <p className="hint">You carry no rare finds — you'd walk out with empty hands.</p>
-            )}
+            <p className="hint">
+              The coins you've scooped stay yours — but the treasure's hidden
+              prize goes to whoever wins.
+            </p>
             <div className="button-row modal-actions">
               <button onClick={() => setConfirmLeave(false)}>stay and fight</button>
               <button

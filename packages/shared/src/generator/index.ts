@@ -108,12 +108,7 @@ function attemptGenerate(opts: GenerateOptions, attempt: number): MapDocument {
   placeLoot(
     map,
     rng,
-    {
-      coinPiles: pickCount(params.coinPileCount),
-      coinValue: params.coinPileValue,
-      cosmetics: pickCount(params.cosmeticCount),
-      deepRares: pickCount(params.deepRareCount),
-    },
+    { coinPiles: pickCount(params.coinPileCount), coinValue: params.coinPileValue },
     occ,
   );
   placeMonsters(map, rng, pickCount(params.monsterCount), params.monsterAIs, occ);

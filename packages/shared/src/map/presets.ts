@@ -36,13 +36,9 @@ export interface GeneratorParams {
   /** aesthetic loot (all complexities — the meta-layer feeds from every game) */
   coinPileCount: [number, number];
   coinPileValue: [number, number];
-  /** shallow common/uncommon cosmetic drops, banked on pickup */
-  cosmeticCount: [number, number];
-  /** deep-placed rare+ cosmetics that must be carried out alive */
-  deepRareCount: [number, number];
 }
 
-const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinforcedShare' | 'mineCount' | 'trapCount' | 'trapdoorCount' | 'monsterAIs' | 'twoWayTeleportPairs' | 'deepRareCount'>> = {
+const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinforcedShare' | 'mineCount' | 'trapCount' | 'trapdoorCount' | 'monsterAIs' | 'twoWayTeleportPairs'>> = {
   small: {
     minSize: 3,
     maxSize: 5,
@@ -55,7 +51,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     inventory: { grenades: 1, bullets: 1, mines: 0 },
     coinPileCount: [1, 2],
     coinPileValue: [5, 20],
-    cosmeticCount: [1, 2],
   },
   medium: {
     minSize: 6,
@@ -69,7 +64,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     inventory: { grenades: 2, bullets: 2, mines: 1 },
     coinPileCount: [2, 3],
     coinPileValue: [5, 20],
-    cosmeticCount: [2, 3],
   },
   large: {
     minSize: 10,
@@ -83,7 +77,6 @@ const SIZE_BASE: Record<SizePreset, Omit<GeneratorParams, 'layerRange' | 'reinfo
     inventory: { grenades: 3, bullets: 3, mines: 2 },
     coinPileCount: [3, 5],
     coinPileValue: [5, 20],
-    cosmeticCount: [3, 4],
   },
 };
 
@@ -101,7 +94,6 @@ export function generatorParams(preset: SizePreset, complexity: Complexity): Gen
         trapdoorCount: [0, 0],
         monsterAIs: ['wanderer'],
         inventory: { ...base.inventory, mines: 0 },
-        deepRareCount: [0, 1],
       };
     case 'advanced':
       return {
@@ -113,7 +105,6 @@ export function generatorParams(preset: SizePreset, complexity: Complexity): Gen
         trapCount: preset === 'small' ? [0, 0] : [1, 1],
         trapdoorCount: preset === 'small' ? [0, 0] : [0, 1],
         monsterAIs: ['wanderer', 'patroller'],
-        deepRareCount: [1, 1],
       };
     case 'full':
       return {
@@ -125,7 +116,6 @@ export function generatorParams(preset: SizePreset, complexity: Complexity): Gen
         trapCount: preset === 'small' ? [1, 1] : [2, 2],
         trapdoorCount: [1, 2],
         monsterAIs: ['wanderer', 'patroller', 'hunter'],
-        deepRareCount: [1, 2],
       };
   }
 }

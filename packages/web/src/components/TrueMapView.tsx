@@ -22,11 +22,10 @@ const FEATURE_GLYPHS: Record<string, string> = {
   mine: '💣',
   trap: '✖',
   coins: '🪙',
-  cosmetic: '🎩',
 };
 
 export interface Overlay {
-  players?: { id: string; name: string; pos: Pos; avatar?: AvatarConfig; carriedRareCount?: number }[];
+  players?: { id: string; name: string; pos: Pos; avatar?: AvatarConfig }[];
   monsters?: Pos[];
   treasure?: Pos | null;
 }
@@ -111,11 +110,9 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           ? `stairs → L${f.to.level} (${f.to.x},${f.to.y})`
           : f.type === 'trapdoor'
             ? `trap door → L${f.to.level} (${f.to.x},${f.to.y})`
-            : f.type === 'cosmetic'
-              ? `${f.item.name} (${f.item.rarity})`
-              : f.type === 'coins'
-                ? `${f.amount} coins`
-                : f.type;
+            : f.type === 'coins'
+              ? `${f.amount} coins`
+              : f.type;
     parts.push(
       <text
         key={`f${f.type}${f.at.x},${f.at.y}`}
@@ -229,11 +226,6 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
                 {p.name.slice(0, 2)}
               </text>
             </>
-          )}
-          {(p.carriedRareCount ?? 0) > 0 && (
-            <text x={cx + 11} y={cy - 10} fontSize={11} textAnchor="middle" dominantBaseline="central">
-              ✨<title>{`carrying ${p.carriedRareCount} rare find(s)`}</title>
-            </text>
           )}
         </g>,
       );

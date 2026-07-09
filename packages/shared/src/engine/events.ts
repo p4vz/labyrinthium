@@ -46,11 +46,9 @@ export type EventPayload =
   | { type: 'explosionHeard' } // public: grenade or mine
   | { type: 'itemsFound'; grenades: number; bullets: number; mines: number }
   // ---- aesthetic loot (zero gameplay effect) ----
-  | { type: 'cosmeticFound'; item: CosmeticItem } // common/uncommon: banked instantly
   | { type: 'coinsFound'; amount: number } // banked instantly
-  | { type: 'rareLootFound'; item: CosmeticItem } // now carried — at risk until you walk out
-  | { type: 'rareLootDropped'; count: number } // your carried rares fell where you stand
-  | { type: 'rareLootBanked'; items: CosmeticItem[] } // the extraction moment
+  // the treasure's hidden prize, revealed to the winner at the moment of escape
+  | { type: 'prizeFound'; item: CosmeticItem }
   | { type: 'leftLabyrinth' } // private: you walked out, race forfeited
   | { type: 'playerLeft'; playerId: string; playerName: string } // public
   | { type: 'gameEndedNoWinner' } // public: everyone walked out

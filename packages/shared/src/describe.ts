@@ -99,16 +99,10 @@ export function describeEvent(e: GameEvent): string {
       return 'daylight! you are OUT with the treasure!';
     case 'gameWon':
       return `*** ${p.playerName} escaped the labyrinth with the treasure and WINS ***`;
-    case 'cosmeticFound':
-      return `you find ${p.item.name} — stowed safely in your pack`;
     case 'coinsFound':
       return `you scoop up ${p.amount} coin(s)`;
-    case 'rareLootFound':
-      return `you find ${p.item.name} (${p.item.rarity.toUpperCase()}) — carry it OUT to keep it!`;
-    case 'rareLootDropped':
-      return `you drop your rare find${p.count > 1 ? 's' : ''} where you fall!`;
-    case 'rareLootBanked':
-      return `you carried your loot out alive: ${p.items.map((i) => i.name).join(', ')}`;
+    case 'prizeFound':
+      return `hidden inside the treasure: ${p.item.name} (${p.item.rarity.toUpperCase()}) — it is yours!`;
     case 'leftLabyrinth':
       return 'daylight! you walk out — the race goes on without you';
     case 'playerLeft':

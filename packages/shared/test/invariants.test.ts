@@ -47,24 +47,13 @@ function checkInvariants(state: GameState): void {
   } else {
     expect(state.winnerId).toBeNull();
   }
-  // loot conservation: every rare+ item baked into the map is exactly one of
-  // (on the ground | carried | banked); commons/coins only move map -> banked
-  const rareIds = (items: { rarity: string; id: string }[]) =>
-    items.filter((i) => i.rarity === 'rare' || i.rarity === 'epic' || i.rarity === 'legendary').map((i) => i.id);
-  const bakedRares = state.map.levels
-    .flatMap((l) => l.features)
-    .flatMap((f) => (f.type === 'cosmetic' ? rareIds([f.item]) : []))
-    .sort();
-  const trackedRares = [
-    ...rareIds(state.groundCosmetics.map((g) => g.item)),
-    ...state.players.flatMap((p) => rareIds(p.carriedRares)),
-    ...state.players.flatMap((p) => rareIds(p.banked.items)),
-  ].sort();
-  expect(trackedRares).toEqual(bakedRares);
+  // prize conservation: the treasure's hidden prize exists in a player's
+  // bank IFF that player won; coins only move map -> banked
+  const prizeId = state.map.spawns.prize?.id;
   for (const p of state.players) {
     expect(p.banked.coins).toBeGreaterThanOrEqual(0);
-    // carried items are always rare+; commons bank instantly
-    expect(p.carriedRares.every((i) => i.rarity === 'rare' || i.rarity === 'epic' || i.rarity === 'legendary')).toBe(true);
+    const hasPrize = prizeId !== undefined && p.banked.items.some((i) => i.id === prizeId);
+    expect(hasPrize).toBe(prizeId !== undefined && state.winnerId === p.id);
   }
 }
 

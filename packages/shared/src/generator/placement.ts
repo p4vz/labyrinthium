@@ -156,17 +156,8 @@ export function placeMinesAndTraps(
   }
 }
 
-/** Shallow drops stay common/uncommon — the at-risk finds are the deep ones. */
-const SHALLOW_LOOT_WEIGHTS: Record<Rarity, number> = {
-  common: 70,
-  uncommon: 30,
-  rare: 0,
-  epic: 0,
-  legendary: 0,
-};
-
-/** Deep-placed prizes are always worth the walk out. */
-const DEEP_RARE_WEIGHTS: Record<Rarity, number> = {
+/** The treasure's hidden prize is always a piece worth winning for. */
+const PRIZE_WEIGHTS: Record<Rarity, number> = {
   common: 0,
   uncommon: 0,
   rare: 70,
@@ -175,15 +166,16 @@ const DEEP_RARE_WEIGHTS: Record<Rarity, number> = {
 };
 
 /**
- * Aesthetic loot: coin piles and shallow cosmetics scatter like mines
- * (resting cells, min BFS distance from the entrance); deep rares use the
- * treasure's far-from-everything scoring so extracting them is a real trek.
- * Loot can never invalidate a map, so this runs outside the retry shedding.
+ * Aesthetic loot: coin piles scatter like mines (resting cells, min BFS
+ * distance from the entrance). The prize is NOT a floor item — exactly one
+ * single-color cosmetic hides inside the treasure itself, and only the
+ * winner gets it. Loot can never invalidate a map, so this runs outside
+ * the retry shedding.
  */
 export function placeLoot(
   map: MapDocument,
   rng: Rng,
-  counts: { coinPiles: number; coinValue: [number, number]; cosmetics: number; deepRares: number },
+  counts: { coinPiles: number; coinValue: [number, number] },
   occ: Occupied,
 ): void {
   const mapSeed = map.metadata.seed;
@@ -208,36 +200,8 @@ export function placeLoot(
     map.levels[at.level]!.features.push({ type: 'coins', at: { x: at.x, y: at.y }, amount });
   }
 
-  for (let i = 0; i < counts.cosmetics; i++) {
-    const cells = scattered();
-    if (cells.length === 0) break;
-    const at = rng.pick(cells);
-    claim(occ, at);
-    const item = rollCosmetic(rng, { rarity: rollRarity(rng, SHALLOW_LOOT_WEIGHTS), mapSeed });
-    map.levels[at.level]!.features.push({ type: 'cosmetic', at: { x: at.x, y: at.y }, item });
-  }
-
-  const toExit = distancesToExit(map);
-  for (let i = 0; i < counts.deepRares; i++) {
-    const candidates: { pos: Pos; score: number }[] = [];
-    map.levels.forEach((level, li) => {
-      for (const pos of freeCells(level, li, occ)) {
-        const settled = resolveLanding(map, pos);
-        if (posKey(settled) !== posKey(pos)) continue;
-        const dIn = fromEntrance.get(posKey(pos));
-        const dOut = toExit.get(posKey(pos));
-        if (dIn === undefined || dOut === undefined) continue;
-        candidates.push({ pos, score: dIn + dOut });
-      }
-    });
-    if (candidates.length === 0) break;
-    candidates.sort((a, b) => b.score - a.score);
-    const quartile = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 4)));
-    const at = rng.pick(quartile).pos;
-    claim(occ, at);
-    const item = rollCosmetic(rng, { rarity: rollRarity(rng, DEEP_RARE_WEIGHTS), mapSeed });
-    map.levels[at.level]!.features.push({ type: 'cosmetic', at: { x: at.x, y: at.y }, item });
-  }
+  // The treasure's hidden prize: one item, one color (a single palette).
+  map.spawns.prize = rollCosmetic(rng, { rarity: rollRarity(rng, PRIZE_WEIGHTS), mapSeed });
 }
 
 export function placeMonsters(

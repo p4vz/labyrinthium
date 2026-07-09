@@ -9,7 +9,7 @@ import {
 import { featuresAt, levelOf, riverNext, type MapFeature } from '../map/document.js';
 import { blocksMovement, getEdge, isBorderEdge, setEdge } from '../map/grid.js';
 import { InvalidActionError, type PlayerAction } from './actions.js';
-import { bankCarriedRares, dropCarriedRares, dropTreasure, runEntryPipeline, type EngineCtx } from './entry.js';
+import { awardTreasurePrize, dropTreasure, runEntryPipeline, type EngineCtx } from './entry.js';
 import type { EventPayload, GameEvent, Visibility } from './events.js';
 import { moveMonsters } from './monsters.js';
 import { activePlayer, cloneState, type GameState, type PlayerState } from './state.js';
@@ -79,8 +79,9 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
     driftAtTurnStart(ctx, player);
   }
 
-  // A turn is [at most one action] + [a move, which ends it]. Blocked moves
-  // are free information; actions keep the turn open until the move.
+  // A turn is [at most one action] + [ONE movement declaration, which ends
+  // it — whether the step succeeds or bumps]. Actions keep the turn open
+  // until the move.
   let turnEnds = false;
   if (!player.exited) {
     switch (action.type) {
@@ -131,6 +132,8 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
     if (player.exited && player.hasTreasure && state.phase === 'inProgress') {
       state.phase = 'finished';
       state.winnerId = player.id;
+      // Only now does the chest crack open: the hidden prize is the winner's.
+      awardTreasurePrize(ctx, player);
       ctx.emit({ kind: 'public' }, { type: 'gameWon', playerId: player.id, playerName: player.name });
     } else if (state.phase === 'inProgress' && state.players.every((p) => p.exited)) {
       // Everyone walked out without the treasure: the labyrinth keeps it.
@@ -152,7 +155,6 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
 function resolveLeave(ctx: EngineCtx, player: PlayerState, direction: PlanarDirection): void {
   const priv: Visibility = { kind: 'private', playerId: player.id };
   player.exited = true;
-  bankCarriedRares(ctx, player);
   if (player.hasTreasure) {
     ctx.emit(priv, { type: 'exitedLabyrinth' });
     return;
@@ -254,8 +256,9 @@ function driftAtTurnStart(ctx: EngineCtx, player: PlayerState): void {
   runEntryPipeline(ctx, player, { driftBudget: 0 });
 }
 
-/** @returns true when the player actually relocated (or left) — that ends
- * the turn. Bumps and a locked exit are free notes: the turn stays open. */
+/** @returns true when the turn is over. ONE movement declaration per turn:
+ * whether you step through, bump a wall, or rattle a locked exit, calling a
+ * direction was your move — the turn passes. */
 function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction): boolean {
   const { state } = ctx;
   const priv: Visibility = { kind: 'private', playerId: player.id };
@@ -282,19 +285,18 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
     case 'reinforced':
       // Bumping cannot tell a reinforced wall from a plain one.
       ctx.emit(priv, { type: 'bumpedWall', direction });
-      return false;
+      return true;
     case 'grate':
       ctx.emit(priv, { type: 'bumpedGrate', direction });
-      return false;
+      return true;
     case 'exit':
       if (player.hasTreasure) {
         player.exited = true;
-        bankCarriedRares(ctx, player); // the winner extracts their rares too
         ctx.emit(priv, { type: 'exitedLabyrinth' });
         return true;
       }
       ctx.emit(priv, { type: 'foundExit', direction });
-      return false;
+      return true;
     case 'open': {
       const next = step(player.pos, direction);
       player.pos = { ...player.pos, ...next };
@@ -325,7 +327,6 @@ function resolveShoot(ctx: EngineCtx, player: PlayerState, direction: PlanarDire
       for (const victim of victims) {
         victim.paralysis = state.config.paralysisTurns;
         dropTreasure(ctx, victim);
-        dropCarriedRares(ctx, victim);
         if (state.config.dropAllOnShot) {
           const inv = victim.inventory;
           if (inv.grenades + inv.bullets + inv.mines > 0) {

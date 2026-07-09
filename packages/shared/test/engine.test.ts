@@ -10,18 +10,23 @@ describe('movement & walls', () => {
     expect(payloadTypes(events)).toContain('moved');
   });
 
-  it('bumping a wall is a free note — the turn stays open', () => {
+  it('one movement per turn: bumping a wall consumes the turn', () => {
     const map = testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E' }] });
     const state = startGame(map, 2);
     const { state: next, events } = turn(state, { type: 'move', direction: 'E' });
-    expect(next.players[0]!.pos).toMatchObject({ x: 0, y: 0 });
+    expect(next.players[0]!.pos).toMatchObject({ x: 0, y: 0 }); // didn't move…
     expect(payloadTypes(events)).toContain('bumpedWall');
-    // no turn consumed: same turn number, same active player
-    expect(next.turnNumber).toBe(state.turnNumber);
-    expect(next.turnIndex).toBe(state.turnIndex);
-    // ...and a successful move afterwards ends the turn normally
-    const after = turn(next, { type: 'move', direction: 'S' });
-    expect(after.state.turnNumber).toBe(state.turnNumber + 1);
+    // …but calling a direction WAS the move: the turn passes
+    expect(next.turnNumber).toBe(state.turnNumber + 1);
+    expect(next.turnIndex).not.toBe(state.turnIndex);
+  });
+
+  it('one movement per turn: rattling a locked exit consumes the turn too', () => {
+    const map = testMap({ exits: [{ at: { x: 0, y: 0 }, dir: 'N' }] });
+    const state = startGame(map, 2);
+    const { state: next, events } = turn(state, { type: 'move', direction: 'N' });
+    expect(payloadTypes(events)).toContain('foundExit');
+    expect(next.turnNumber).toBe(state.turnNumber + 1);
   });
 
   it('reinforced walls bump exactly like plain walls (indistinguishable)', () => {

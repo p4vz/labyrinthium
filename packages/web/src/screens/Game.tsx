@@ -245,7 +245,7 @@ export function Game(): JSX.Element {
 /** What everyone walked away with (or lost in the dark). */
 function LootSummary(): JSX.Element | null {
   const finished = useGameStore((s) => s.finished);
-  if (!finished || finished.lootSummary.every((p) => p.bankedItems.length === 0 && p.coins === 0 && p.lostRares === 0)) {
+  if (!finished || finished.lootSummary.every((p) => p.bankedItems.length === 0 && p.coins === 0)) {
     return null;
   }
   return (
@@ -264,12 +264,7 @@ function LootSummary(): JSX.Element | null {
                 {item.name}
               </span>
             ))}
-            {p.lostRares > 0 && (
-              <span className="loot-lost" title="rares carried but never brought out">
-                lost {p.lostRares} rare{p.lostRares > 1 ? 's' : ''} in the dark
-              </span>
-            )}
-            {p.coins === 0 && p.bankedItems.length === 0 && p.lostRares === 0 && <span className="muted">—</span>}
+            {p.coins === 0 && p.bankedItems.length === 0 && <span className="muted">—</span>}
           </span>
         </div>
       ))}
@@ -424,7 +419,6 @@ function ObserverPanel(): JSX.Element {
                           id: p.id,
                           name: p.name,
                           pos: p.pos,
-                          carriedRareCount: p.carriedRareCount,
                           ...(avatar ? { avatar } : {}),
                         };
                       }),

@@ -357,7 +357,6 @@ export class Room {
         paralysis: p.paralysis,
         hasTreasure: p.hasTreasure,
         exited: p.exited,
-        carriedRareCount: p.carriedRares.length,
       })),
       monsters: this.state.monsters.filter((m) => m.alive).map((m) => m.pos),
       treasure: { pos: this.state.treasure.pos, carriedBy: this.state.treasure.carriedBy },
@@ -414,7 +413,6 @@ export class Room {
       name: p.name,
       bankedItems: p.banked.items,
       coins: p.banked.coins,
-      lostRares: p.carriedRares.length,
       left: p.exited && !p.hasTreasure,
     }));
     this.broadcast({

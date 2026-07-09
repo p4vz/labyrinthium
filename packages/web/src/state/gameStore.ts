@@ -64,8 +64,6 @@ export interface GameStoreState {
   treasureUnderfoot: boolean;
   /** you are carrying THE treasure */
   haveTreasure: boolean;
-  /** rare cosmetics you carry — at risk until you walk out */
-  carriedRares: CosmeticItem[];
   /** loot already safely banked this run */
   runLoot: { items: CosmeticItem[]; coins: number };
   /** the GM confirmed an exit right beside you, in this direction */
@@ -87,7 +85,6 @@ export interface GameStoreState {
         paralysis: number;
         hasTreasure: boolean;
         exited: boolean;
-        carriedRareCount: number;
       }[];
       monsters: Pos[];
       treasure: { pos: Pos; carriedBy: string | null };
@@ -150,7 +147,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   canAct: true,
   treasureUnderfoot: false,
   haveTreasure: false,
-  carriedRares: [],
   runLoot: { items: [], coins: 0 },
   exitAdjacent: null,
   leftGame: false,
@@ -195,7 +191,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       canAct: true,
       treasureUnderfoot: false,
       haveTreasure: false,
-      carriedRares: [],
       runLoot: { items: [], coins: 0 },
       exitAdjacent: null,
       leftGame: false,
@@ -232,7 +227,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           screen: 'game',
           spectating: msg.yourPlayerId === '',
           haveTreasure: false,
-          carriedRares: [],
           runLoot: { items: [], coins: 0 },
           exitAdjacent: null,
           leftGame: false,
@@ -321,14 +315,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             set({ treasureUnderfoot: false, haveTreasure: true });
           } else if (e.payload.type === 'treasureDropped') {
             set({ haveTreasure: false });
-          } else if (e.payload.type === 'rareLootFound') {
-            set({ carriedRares: [...get().carriedRares, e.payload.item] });
-          } else if (e.payload.type === 'rareLootDropped') {
-            set({ carriedRares: [] });
-          } else if (e.payload.type === 'rareLootBanked') {
-            const loot = get().runLoot;
-            set({ carriedRares: [], runLoot: { ...loot, items: [...loot.items, ...e.payload.items] } });
-          } else if (e.payload.type === 'cosmeticFound') {
+          } else if (e.payload.type === 'prizeFound') {
+            // the treasure cracked open in your hands — the prize is yours
             const loot = get().runLoot;
             set({ runLoot: { ...loot, items: [...loot.items, e.payload.item] } });
           } else if (e.payload.type === 'coinsFound') {

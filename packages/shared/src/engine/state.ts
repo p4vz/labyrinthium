@@ -20,12 +20,10 @@ export interface PlayerState {
   paralysis: number;
   hasTreasure: boolean;
   exited: boolean;
-  /** rare+ cosmetics currently carried — at risk, dropped like the treasure */
-  carriedRares: CosmeticItem[];
   /**
-   * This run's safely banked loot (commons/coins on pickup, rares on
-   * extraction). Lives in state so replays and the server agree byte-for-byte
-   * about who kept what. Purely aesthetic — nothing reads it during play.
+   * This run's safely banked loot (coins on pickup; the treasure's hidden
+   * prize on winning). Lives in state so replays and the server agree
+   * byte-for-byte about who kept what. Purely aesthetic.
    */
   banked: { items: CosmeticItem[]; coins: number };
 }
@@ -106,8 +104,6 @@ export interface GameState {
   sprungTraps: Pos[];
   /** gear dropped on the floor (dropAllOnShot rule); picked up by walking on it */
   floorItems: { pos: Pos; items: Inventory }[];
-  /** cosmetics on the floor: baked spawns plus rares dropped by their carrier */
-  groundCosmetics: { pos: Pos; item: CosmeticItem }[];
   /** un-scooped coin piles from the map bake */
   coinPiles: { pos: Pos; amount: number }[];
   players: PlayerState[];
@@ -141,11 +137,6 @@ export function createGame(
     placedMines: [],
     sprungTraps: [],
     floorItems: [],
-    groundCosmetics: map.levels.flatMap((l, li) =>
-      l.features
-        .filter((f): f is Extract<(typeof l.features)[number], { type: 'cosmetic' }> => f.type === 'cosmetic')
-        .map((f) => ({ pos: { level: li, x: f.at.x, y: f.at.y }, item: { ...f.item } })),
-    ),
     coinPiles: map.levels.flatMap((l, li) =>
       l.features
         .filter((f): f is Extract<(typeof l.features)[number], { type: 'coins' }> => f.type === 'coins')
@@ -159,7 +150,6 @@ export function createGame(
       paralysis: 0,
       hasTreasure: false,
       exited: false,
-      carriedRares: [],
       banked: { items: [], coins: 0 },
     })),
     turnIndex: 0,

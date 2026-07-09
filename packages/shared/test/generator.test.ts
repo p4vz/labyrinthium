@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { generateMap, validateMap } from '../src/generator/index.js';
 import { generatorParams, type Complexity, type SizePreset } from '../src/map/presets.js';
 import { mapDocumentSchema } from '../src/map/document.js';
-import { cosmeticItemSchema, isRarePlus, rollCosmetic } from '../src/cosmetics/index.js';
-import { Rng } from '../src/rng.js';
+import { cosmeticItemSchema, isRarePlus } from '../src/cosmetics/index.js';
 
 const presets: SizePreset[] = ['small', 'medium', 'large'];
 const complexities: Complexity[] = ['classic', 'advanced', 'full'];
@@ -51,7 +50,7 @@ describe('map generator', () => {
         // aesthetic loot is allowed everywhere — it changes nothing about play
         expect(
           level.features.every(
-            (f) => f.type === 'river' || f.type === 'teleport' || f.type === 'coins' || f.type === 'cosmetic',
+            (f) => f.type === 'river' || f.type === 'teleport' || f.type === 'coins',
           ),
         ).toBe(true);
         expect(level.edges.h.every((e) => e !== 'reinforced')).toBe(true);
@@ -61,7 +60,7 @@ describe('map generator', () => {
     }
   });
 
-  it('places aesthetic loot within preset ranges, deep rares rare+ (property)', () => {
+  it('coins stay within preset ranges; every bake hides ONE rare+ prize in the treasure (property)', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...presets),
@@ -72,40 +71,29 @@ describe('map generator', () => {
           const params = generatorParams(preset, complexity);
           const features = map.levels.flatMap((l) => l.features);
           const coins = features.filter((f) => f.type === 'coins');
-          const cosmetics = features.filter((f) => f.type === 'cosmetic');
           expect(coins.length).toBeLessThanOrEqual(params.coinPileCount[1]);
-          expect(cosmetics.length).toBeLessThanOrEqual(params.cosmeticCount[1] + params.deepRareCount[1]);
           for (const c of coins) {
             expect(c.amount).toBeGreaterThanOrEqual(params.coinPileValue[0]);
             expect(c.amount).toBeLessThanOrEqual(params.coinPileValue[1]);
           }
-          const rares = cosmetics.filter((f) => isRarePlus(f.item.rarity));
-          expect(rares.length).toBeLessThanOrEqual(params.deepRareCount[1]);
-          for (const c of cosmetics) {
-            expect(c.item.provenance?.mapSeed).toBe(seed);
-            cosmeticItemSchema.parse(c.item);
-          }
+          // the prize: exactly one item, one color (a single palette), rare+
+          const prize = map.spawns.prize;
+          expect(prize).toBeDefined();
+          expect(isRarePlus(prize!.rarity)).toBe(true);
+          expect(typeof prize!.paletteId).toBe('string');
+          expect(prize!.provenance?.mapSeed).toBe(seed);
+          cosmeticItemSchema.parse(prize);
         },
       ),
       { numRuns: 40 },
     );
   });
 
-  it('a medium/advanced map reliably carries loot including a deep rare', () => {
-    const map = generateMap({ preset: 'medium', complexity: 'advanced', seed: 'loot-check' });
-    const features = map.levels.flatMap((l) => l.features);
-    expect(features.some((f) => f.type === 'coins')).toBe(true);
-    const cosmetics = features.filter((f) => f.type === 'cosmetic');
-    expect(cosmetics.length).toBeGreaterThan(0);
-    expect(cosmetics.some((f) => isRarePlus(f.item.rarity))).toBe(true);
-  });
-
   it('flags loot placed on a hazard cell (editor guard)', () => {
     const map = generateMap({ preset: 'small', complexity: 'classic', seed: 'hazard-guard' });
-    const item = rollCosmetic(Rng.fromSeed('x'), { rarity: 'common' });
-    // drop a cosmetic onto the entrance's teleport-free cell, then add a trap under it
+    // drop a coin pile onto a cell, then add a trap under it
     const at = { x: map.entrance.x, y: map.entrance.y };
-    map.levels[0]!.features.push({ type: 'cosmetic', at, item });
+    map.levels[0]!.features.push({ type: 'coins', at, amount: 5 });
     map.levels[0]!.features.push({ type: 'trap', at, paralysis: 2 });
     const result = validateMap(map);
     expect(result.issues.some((i) => i.code === 'LOOT_ON_HAZARD')).toBe(true);
@@ -115,9 +103,10 @@ describe('map generator', () => {
     const map = generateMap({ preset: 'small', complexity: 'classic', seed: 'old-doc' });
     const stripped = {
       ...map,
+      spawns: { treasure: map.spawns.treasure, monsters: map.spawns.monsters },
       levels: map.levels.map((l) => ({
         ...l,
-        features: l.features.filter((f) => f.type !== 'coins' && f.type !== 'cosmetic'),
+        features: l.features.filter((f) => f.type !== 'coins'),
       })),
     };
     const reparsed = mapDocumentSchema.safeParse(JSON.parse(JSON.stringify(stripped)));

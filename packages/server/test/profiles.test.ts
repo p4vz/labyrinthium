@@ -94,26 +94,24 @@ describe('profile service', () => {
   it('credits loot events with provenance, deduping by item id', () => {
     const { db, service } = freshService();
     const { profile } = service.createGuest();
-    const item = rollCosmetic(Rng.fromSeed('loot'), { rarity: 'common', mapSeed: 'demo' });
-    const rare = rollCosmetic(Rng.fromSeed('rare'), { rarity: 'rare', mapSeed: 'demo' });
+    const prize = rollCosmetic(Rng.fromSeed('rare'), { rarity: 'rare', mapSeed: 'demo' });
     const events: GameEvent[] = [
-      { seq: 0, turn: 1, visibility: { kind: 'private', playerId: 'p1' }, payload: { type: 'cosmeticFound', item } },
       { seq: 1, turn: 1, visibility: { kind: 'private', playerId: 'p1' }, payload: { type: 'coinsFound', amount: 15 } },
       { seq: 2, turn: 2, visibility: { kind: 'private', playerId: 'p2' }, payload: { type: 'coinsFound', amount: 99 } },
-      { seq: 3, turn: 3, visibility: { kind: 'private', playerId: 'p1' }, payload: { type: 'rareLootBanked', items: [rare] } },
+      { seq: 3, turn: 3, visibility: { kind: 'private', playerId: 'p1' }, payload: { type: 'prizeFound', item: prize } },
       { seq: 4, turn: 3, visibility: { kind: 'public' }, payload: { type: 'gameWon', playerId: 'p1', playerName: 'A' } },
     ];
     service.creditLootEvents(profile.id, 'p1', events, { gameId: 'g1' });
     const rows = service.items(profile.id);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(1);
     expect(db.getProfileById(profile.id)!.coins).toBe(15); // p2's coins were not ours
-    const banked = rows.find((r) => r.item.id === rare.id)!;
+    const banked = rows.find((r) => r.item.id === prize.id)!;
     expect(banked.item.provenance?.extractedAlive).toBe(true);
     expect(banked.item.provenance?.gameId).toBe('g1');
     expect(banked.item.provenance?.mapSeed).toBe('demo');
     // replaying the same seed's events cannot duplicate items
     service.creditLootEvents(profile.id, 'p1', events, { gameId: 'g2' });
-    expect(service.items(profile.id)).toHaveLength(2);
+    expect(service.items(profile.id)).toHaveLength(1);
     expect(db.getProfileById(profile.id)!.coins).toBe(30); // coins DO refarm (accepted)
   });
 

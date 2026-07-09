@@ -45,8 +45,6 @@ export interface PlayerLootSummary {
   name: string;
   bankedItems: CosmeticItem[];
   coins: number;
-  /** rares still carried inside when the game ended — lost in the dark */
-  lostRares: number;
   /** walked out without the treasure (forfeited the race) */
   left: boolean;
 }
@@ -98,8 +96,6 @@ export type ServerMessage =
         paralysis: number;
         hasTreasure: boolean;
         exited: boolean;
-        /** how many at-risk rares they carry (details stay private) */
-        carriedRareCount: number;
       }[];
       monsters: Pos[];
       treasure: { pos: Pos; carriedBy: string | null };

@@ -298,7 +298,7 @@ function structuralIssues(map: MapDocument): MapIssue[] {
       }
       // Loot must sit on a plain resting cell so the scoop actually fires
       // where the item is drawn (generator guarantees it; editors might not).
-      if (f.type === 'coins' || f.type === 'cosmetic') {
+      if (f.type === 'coins') {
         const others = featuresAt(level, f.at).filter((g) => g !== f);
         if (others.some((g) => g.type === 'teleport' || g.type === 'trapdoor' || g.type === 'river' || g.type === 'mine' || g.type === 'trap')) {
           issues.push({

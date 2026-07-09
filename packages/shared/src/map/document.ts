@@ -53,9 +53,6 @@ export const mapFeatureSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('trap'), at: coordSchema, paralysis: z.number().int().min(1).max(10) }),
   // Aesthetic loot (zero gameplay effect). Coins bank instantly on pickup.
   z.object({ type: z.literal('coins'), at: coordSchema, amount: z.number().int().min(1).max(500) }),
-  // A cosmetic drop, fully rolled at bake time so maps stay deterministic.
-  // common/uncommon bank on pickup; rare+ must be carried out alive.
-  z.object({ type: z.literal('cosmetic'), at: coordSchema, item: cosmeticItemSchema }),
 ]);
 
 export type MapFeature = z.infer<typeof mapFeatureSchema>;
@@ -86,6 +83,9 @@ export const mapDocumentSchema = z.object({
   entrance: posSchema, // always level 0, on the border ring
   spawns: z.object({
     treasure: posSchema,
+    /** the ONE prize item hidden inside the treasure (one item, one color),
+     * rolled at bake time; the winner receives it on escaping */
+    prize: cosmeticItemSchema.optional(),
     monsters: z.array(monsterSpawnSchema),
   }),
   metadata: z.object({
