@@ -118,7 +118,19 @@ export function Wardrobe(): JSX.Element {
       {tab === 'equip' && (
         <div className="wardrobe-equip">
           <div className="avatar-stage card">
-            <PixelAvatar avatar={avatar} size={128} title="your avatar" />
+            <button
+              className="avatar-button"
+              title="view your character full size"
+              onClick={() =>
+                useGameStore.getState().setInspect({
+                  name: profile?.displayName || 'you',
+                  avatar,
+                  own: false, // already in the wardrobe — no shortcut needed
+                })
+              }
+            >
+              <PixelAvatar avatar={avatar} size={128} title="your avatar" />
+            </button>
             <div className="body-row">
               {BODIES.map((b) => (
                 <button

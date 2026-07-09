@@ -67,6 +67,40 @@ describe('PixelAvatar', () => {
   });
 });
 
+describe('CharacterSheet (the showcase card)', () => {
+  it('renders the avatar at showcase scale plus a large plate per worn piece', async () => {
+    const { CharacterSheet } = await import('../src/components/CharacterCard.js');
+    const html = renderToStaticMarkup(
+      createElement(CharacterSheet, {
+        name: 'Ariadne',
+        avatar: {
+          skinToneId: 'skin-4',
+          bodyId: 'b',
+          hat: { templateId: 'wizard-hood', paletteId: 'arcane' },
+          trinket: { templateId: 'crystal-orb', paletteId: 'pearl' },
+        },
+        haul: [
+          { id: 'h1', slot: 'hat', templateId: 'rusted-crown', rarity: 'rare', paletteId: 'gold', name: 'Ancient Crown of the Deep' },
+        ],
+      }),
+    );
+    expect(html).toContain('width="320"'); // the big render
+    expect(html).toContain('width="96"'); // per-piece plates
+    expect(html).toContain('Wizard Hood');
+    expect(html).toContain('Crystal Orb');
+    expect(html).toContain('slender build');
+    expect(html).toContain('nothing worn'); // the empty outfit slot
+    expect(html).toContain('Ancient Crown of the Deep'); // the haul
+  });
+
+  it('falls back to the default avatar for players without a profile', async () => {
+    const { CharacterSheet } = await import('../src/components/CharacterCard.js');
+    const html = renderToStaticMarkup(createElement(CharacterSheet, { name: 'Anon', avatar: null }));
+    expect(html).toContain('width="320"');
+    expect(html).toContain('broad build');
+  });
+});
+
 describe('profileStore bootstrap', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
