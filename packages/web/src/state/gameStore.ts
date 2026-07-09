@@ -11,6 +11,7 @@ import type {
   PlayerAction,
   PlayerLootSummary,
   Pos,
+  PresentFeature,
   ServerMessage,
 } from '@labyrinthium/shared';
 import { useProfileStore } from './profileStore.js';
@@ -50,6 +51,7 @@ export interface GameStoreState {
     levelSizes: { width: number; height: number }[];
     entrance: Pos;
     exitSides: ('N' | 'E' | 'S' | 'W')[];
+    featuresPresent: PresentFeature[];
     turnOrder: { id: string; name: string; avatar?: AvatarConfig }[];
     inventory: Inventory;
     rules: ActiveRules;
@@ -297,7 +299,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         for (const e of msg.events) {
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
-            useMapStore.getState().moveYouPawn(e.payload.direction);
+            // On hard difficulty riverDrift carries no direction — the pawn
+            // cannot be advanced; the player has lost their bearings.
+            if (e.payload.direction) useMapStore.getState().moveYouPawn(e.payload.direction);
             // stepping away from the exit (or anywhere) invalidates the hint
             set({ treasureUnderfoot: false, exitAdjacent: null });
           } else if (e.payload.type === 'teleported') {

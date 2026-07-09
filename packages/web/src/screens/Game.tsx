@@ -159,33 +159,34 @@ export function Game(): JSX.Element {
         </div>
       </div>
 
-      {feed.length > 0 && (
+      {feed.length > 0 && !logOpen && (
         <button
           className={`event-ticker ${!paletteWide && !spectating ? 'always' : ''}`}
           data-testid="event-ticker"
-          title="tap for the full log"
+          title="tap to swap the controls for the full log"
           onClick={() => setLogOpen(true)}
         >
-          {(() => {
-            const last = feed[feed.length - 1]!;
-            return `${last.ownerName ? `${last.ownerName} ▸ ` : ''}${describeEvent(last.event)}`;
-          })()}
+          {feed.slice(-4).map((entry) => (
+            <span key={entry.seq} className="ticker-line">
+              {entry.ownerName ? `${entry.ownerName} ▸ ` : ''}
+              {describeEvent(entry.event)}
+            </span>
+          ))}
         </button>
       )}
 
-      {logOpen && (
-        <>
-          <div className="log-backdrop" onClick={() => setLogOpen(false)} />
-          <div className="log-sheet" data-testid="log-sheet">
-            <button className="log-close" onClick={() => setLogOpen(false)}>
-              ▾ close log
-            </button>
-            <EventFeed />
-          </div>
-        </>
+      {/* The full log docks where the controls were — the map and the
+          drawing toolbar stay visible, so you can chart while you read. */}
+      {logOpen ? (
+        <div className="log-dock" data-testid="log-sheet">
+          <button className="log-close" onClick={() => setLogOpen(false)}>
+            ▾ back to controls
+          </button>
+          <EventFeed />
+        </div>
+      ) : (
+        <ActionBar />
       )}
-
-      <ActionBar />
 
       {finished && (
         <div className="modal-backdrop" data-testid="reveal">

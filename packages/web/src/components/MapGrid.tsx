@@ -122,29 +122,17 @@ export function MapGrid(props: MapGridProps): JSX.Element {
     return out;
   }
 
-  /** River chain following the swipe path, arrows pointing along the flow. */
+  /** River swipe: ONLY the tile where the finger first landed gets water;
+   * the swipe's overall direction sets that one tile's flow. */
   function riverFromSwipe(path: { x: number; y: number }[]): { x: number; y: number; dir: 'N' | 'E' | 'S' | 'W' }[] {
-    const cells: { x: number; y: number }[] = [];
-    for (const p of path) {
-      const cx = Math.floor((p.x - PAD) / CS);
-      const cy = Math.floor((p.y - PAD) / CS);
-      if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) continue;
-      const prev = cells[cells.length - 1];
-      if (!prev || prev.x !== cx || prev.y !== cy) cells.push({ x: cx, y: cy });
-    }
-    if (cells.length === 0) return [];
-    const dirBetween = (a: { x: number; y: number }, b: { x: number; y: number }): 'N' | 'E' | 'S' | 'W' =>
+    const a = path[0]!;
+    const b = path[path.length - 1]!;
+    const cx = Math.floor((a.x - PAD) / CS);
+    const cy = Math.floor((a.y - PAD) / CS);
+    if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) return [];
+    const dir: 'N' | 'E' | 'S' | 'W' =
       Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? (b.x >= a.x ? 'E' : 'W') : (b.y >= a.y ? 'S' : 'N');
-    if (cells.length === 1) {
-      // single cell: the swipe's own direction sets the flow
-      const a = path[0]!;
-      const b = path[path.length - 1]!;
-      return [{ ...cells[0]!, dir: dirBetween({ x: a.x, y: a.y }, { x: b.x, y: b.y }) }];
-    }
-    return cells.map((c, i) => ({
-      ...c,
-      dir: i < cells.length - 1 ? dirBetween(c, cells[i + 1]!) : dirBetween(cells[i - 1]!, c),
-    }));
+    return [{ x: cx, y: cy, dir }];
   }
 
   const cells = [];

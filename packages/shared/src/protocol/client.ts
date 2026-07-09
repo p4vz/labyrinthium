@@ -11,6 +11,8 @@ export const gameRulesSchema = z
     turnTimerSeconds: z.number().int().min(0).max(600),
     /** a shot player drops ALL gear, not just the treasure */
     dropAllOnShot: z.boolean(),
+    /** hard difficulty: the GM hides which way the current dragged you */
+    hardRivers: z.boolean(),
     /** grenades may breach the outer wall */
     allowBorderGrenade: z.boolean(),
     /** dropped treasure drifts on rivers */

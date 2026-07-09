@@ -22,7 +22,8 @@ export type EventPayload =
   | { type: 'bumpedGrate'; direction: PlanarDirection }
   | { type: 'foundExit'; direction: PlanarDirection }
   | { type: 'riverHere' }
-  | { type: 'riverDrift'; direction: PlanarDirection }
+  // direction is withheld on hard difficulty (config.hardRivers)
+  | { type: 'riverDrift'; direction?: PlanarDirection }
   // The pad's visible rune (pair label) and kind — but never the destination.
   // A two-way arrival has its twin pad plainly underfoot; a one-way arrival
   // is a bare landing spot (the pad's "exit side").

@@ -6,6 +6,7 @@ import {
   visibleTo,
   InvalidActionError,
   type ActiveRules,
+  type PresentFeature,
   type AvatarConfig,
   type BotDifficulty,
   type GameConfig,
@@ -154,6 +155,7 @@ export class Room {
       allowBorderGrenade: this.config.allowBorderGrenade,
       treasureDrifts: this.config.treasureDrifts,
       allowLeave: this.config.allowLeave,
+      hardRivers: this.config.hardRivers,
     };
   }
 
@@ -215,6 +217,7 @@ export class Room {
       levelSizes: this.map.levels.map((l) => ({ width: l.width, height: l.height })),
       entrance: this.map.entrance,
       exitSides,
+      featuresPresent: this.featuresPresent(),
       turnOrder: this.players.map((p) => ({
         id: p.id,
         name: p.name,
@@ -223,6 +226,21 @@ export class Room {
       inventory: { ...this.config.startingInventory },
       rules: this.activeRules(),
     };
+  }
+
+  /** Which element kinds exist anywhere in this maze — the GM announces
+   * what's in play (like reading the box), never where anything is. */
+  private featuresPresent(): PresentFeature[] {
+    const present = new Set<PresentFeature>();
+    for (const level of this.map.levels) {
+      for (const f of level.features) {
+        if (f.type === 'river' || f.type === 'teleport' || f.type === 'stairs' || f.type === 'trapdoor' || f.type === 'mine' || f.type === 'trap') {
+          present.add(f.type);
+        }
+      }
+    }
+    if (this.map.spawns.monsters.length > 0) present.add('monster');
+    return [...present];
   }
 
   /** Observers (and the host) can freeze the whole table. */

@@ -135,8 +135,14 @@ export class BotController {
         }
         break;
       case 'riverDrift':
-        if (this.pos && isPlanarDir(p.direction)) {
+        if (this.pos && p.direction !== undefined && isPlanarDir(p.direction)) {
           this.pos = stepRel(this.pos, p.direction);
+          this.markVisit(this.pos);
+        } else {
+          // Hard rivers: dragged who-knows-where — bearings lost, fresh frame.
+          this.frame += 1;
+          this.pos = { frame: this.frame, x: 0, y: 0 };
+          this.knownExits = this.knownExits.filter((e) => e.pos.frame === this.frame);
           this.markVisit(this.pos);
         }
         break;

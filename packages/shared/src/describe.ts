@@ -37,7 +37,9 @@ export function describeEvent(e: GameEvent): string {
     case 'riverHere':
       return 'you are standing in a river';
     case 'riverDrift':
-      return `the current drags you ${dir(p.direction)}`;
+      return p.direction
+        ? `the current drags you ${dir(p.direction)}`
+        : 'the current drags you… somewhere — you have lost your bearings';
     case 'teleported': {
       const arrival =
         p.mode === 'twoWay' ? ' — its twin pad glints beneath your feet' : '';

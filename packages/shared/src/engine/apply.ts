@@ -247,7 +247,10 @@ function driftAtTurnStart(ctx: EngineCtx, player: PlayerState): void {
   const direction = directionBetween(player.pos, next);
   if (!direction) return;
   player.pos = { ...player.pos, ...next };
-  ctx.emit({ kind: 'private', playerId: player.id }, { type: 'riverDrift', direction });
+  ctx.emit(
+    { kind: 'private', playerId: player.id },
+    { type: 'riverDrift', ...(ctx.state.config.hardRivers ? {} : { direction }) },
+  );
   runEntryPipeline(ctx, player, { driftBudget: 0 });
 }
 

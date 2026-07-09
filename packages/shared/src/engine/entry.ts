@@ -101,7 +101,10 @@ export function runEntryPipeline(
           if (direction) {
             driftBudget--;
             player.pos = { ...player.pos, ...next };
-            ctx.emit(priv, { type: 'riverDrift', direction });
+            ctx.emit(priv, {
+              type: 'riverDrift',
+              ...(state.config.hardRivers ? {} : { direction }),
+            });
             continue;
           }
         }

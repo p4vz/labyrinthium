@@ -34,6 +34,7 @@ export function Home(): JSX.Element {
   const [drift, setDrift] = useState(false);
   const [doubleAmmo, setDoubleAmmo] = useState(false);
   const [allowLeave, setAllowLeave] = useState(true);
+  const [hardRivers, setHardRivers] = useState(false);
 
   return (
     <div className="home">
@@ -87,6 +88,17 @@ export function Home(): JSX.Element {
               <option value="classic">classic — the original game</option>
               <option value="advanced">advanced — layers, mines, traps</option>
               <option value="full">full — everything, dialed up</option>
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select
+              data-testid="difficulty-select"
+              value={hardRivers ? 'hard' : 'easy'}
+              onChange={(e) => setHardRivers(e.target.value === 'hard')}
+            >
+              <option value="easy">easy — the GM says which way currents drag you</option>
+              <option value="hard">hard — currents drag you who-knows-where</option>
             </select>
           </label>
           <label>
@@ -158,6 +170,7 @@ export function Home(): JSX.Element {
                   treasureDrifts: drift,
                   doubleAmmo,
                   allowLeave,
+                  hardRivers,
                 },
               })
             }

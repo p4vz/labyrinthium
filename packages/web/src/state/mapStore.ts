@@ -402,6 +402,38 @@ export const useMapStore = create<MapStoreState>((set, get) => {
         return;
       }
       if (tool.kind === 'stamp') {
+        if (tool.stamp === 'teleport' || tool.stamp === 'tpExit') {
+          // Pads are numbered — ask which one (blank = unnumbered).
+          const { maps, activeMapId, activeGrid } = get();
+          const map = maps.find((m) => m.id === activeMapId);
+          const grid = map?.grids[Math.min(activeGrid, (map?.grids.length ?? 1) - 1)];
+          const cell = grid?.cells[y * (grid?.width ?? 0) + x];
+          const removing = cell?.stamps.includes(tool.stamp) ?? false;
+          let label: number | undefined;
+          if (!removing) {
+            let raw: string | null | undefined = '';
+            try {
+              raw = window.prompt(
+                'Pad number (leave blank if unknown):',
+                cell?.tpLabel !== undefined ? String(cell.tpLabel) : '',
+              );
+            } catch {
+              raw = ''; // environments without a prompt: stamp unnumbered
+            }
+            if (raw === null) return; // cancelled
+            const trimmed = (raw ?? '').trim();
+            const n = Number(trimmed);
+            if (trimmed !== '' && Number.isInteger(n) && n >= 1 && n <= 99) label = n;
+          }
+          withActiveGrid((m, gi) => {
+            m.grids[gi] = toggleStamp(m.grids[gi]!, x, y, tool.stamp);
+            if (!removing && label !== undefined) {
+              const c = m.grids[gi]!.cells[y * m.grids[gi]!.width + x];
+              if (c) c.tpLabel = label;
+            }
+          });
+          return;
+        }
         withActiveGrid((map, gi) => {
           map.grids[gi] = toggleStamp(map.grids[gi]!, x, y, tool.stamp, tool.riverDir);
         });

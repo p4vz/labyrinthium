@@ -32,6 +32,7 @@ export function configFromRules(rules: GameRules | undefined): GameConfig {
   if (rules.openInformation !== undefined) base.openInformation = rules.openInformation;
   if (rules.turnTimerSeconds !== undefined) base.turnTimerSeconds = rules.turnTimerSeconds;
   if (rules.dropAllOnShot !== undefined) base.dropAllOnShot = rules.dropAllOnShot;
+  if (rules.hardRivers !== undefined) base.hardRivers = rules.hardRivers;
   if (rules.allowBorderGrenade !== undefined) base.allowBorderGrenade = rules.allowBorderGrenade;
   if (rules.treasureDrifts !== undefined) base.treasureDrifts = rules.treasureDrifts;
   if (rules.allowLeave !== undefined) base.allowLeave = rules.allowLeave;
