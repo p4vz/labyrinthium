@@ -38,6 +38,22 @@ describe('PixelAvatar', () => {
     expect(a).toBe(b);
   });
 
+  it('renders distinct body shapes, both in any skin tone', () => {
+    const broad = renderToStaticMarkup(
+      createElement(PixelAvatar, { avatar: { skinToneId: 'skin-6', bodyId: 'a' }, size: 64 }),
+    );
+    const slender = renderToStaticMarkup(
+      createElement(PixelAvatar, { avatar: { skinToneId: 'skin-6', bodyId: 'b' }, size: 64 }),
+    );
+    expect(broad).not.toBe(slender);
+    expect(slender).toContain(SKIN_TONES['skin-6']![1]); // same shade applies
+    // absent bodyId renders shape 'a'
+    const legacy = renderToStaticMarkup(
+      createElement(PixelAvatar, { avatar: { skinToneId: 'skin-6' }, size: 64 }),
+    );
+    expect(legacy).toBe(broad);
+  });
+
   it('PixelSwatch renders a template alone, and a silhouette when undiscovered', () => {
     const colored = renderToStaticMarkup(
       createElement(PixelSwatch, { templateId: 'miners-helm', paletteId: 'gold', size: 40 }),
