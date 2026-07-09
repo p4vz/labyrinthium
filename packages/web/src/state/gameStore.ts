@@ -104,8 +104,18 @@ export interface GameStoreState {
   errors: string[];
   /** currently selected action mode in the HUD */
   actionMode: 'walk' | 'shoot' | 'grenade';
+  /** the character card overlay: whose avatar is on display */
+  inspect: {
+    name: string;
+    avatar: AvatarConfig | null;
+    /** this run's banked haul, when opened from the finish screen */
+    haul?: CosmeticItem[];
+    /** it's your own character (shows the wardrobe shortcut) */
+    own?: boolean;
+  } | null;
 
   setScreen(screen: Screen): void;
+  setInspect(inspect: GameStoreState['inspect']): void;
   setActionMode(mode: 'walk' | 'shoot' | 'grenade'): void;
   handleMessage(msg: ServerMessage): void;
   setConnected(up: boolean): void;
@@ -159,9 +169,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   finished: null,
   errors: [],
   actionMode: 'walk',
+  inspect: null,
 
   setScreen(screen) {
-    set({ screen });
+    set({ screen, inspect: null });
+  },
+
+  setInspect(inspect) {
+    set({ inspect });
   },
 
   setActionMode(actionMode) {

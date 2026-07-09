@@ -43,7 +43,18 @@ export function Home(): JSX.Element {
       <div className={`conn-dot ${connected ? 'up' : 'down'}`}>{connected ? 'connected' : 'connecting…'}</div>
 
       <div className="profile-card card" data-testid="profile-card">
-        <button className="avatar-button" title="open the wardrobe" onClick={() => setScreen('wardrobe')}>
+        <button
+          className="avatar-button"
+          data-testid="inspect-self"
+          title="view your character"
+          onClick={() =>
+            useGameStore.getState().setInspect({
+              name: profile?.displayName || name || 'you',
+              avatar,
+              own: true,
+            })
+          }
+        >
           <PixelAvatar avatar={avatar} size={64} title="your avatar" />
         </button>
         <div className="profile-meta">
