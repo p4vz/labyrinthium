@@ -497,11 +497,13 @@ export const TRINKETS: CosmeticTemplate[] = [
     minRarity: 'common',
     set: 'delver',
     legendaryName: 'The Lamp That Never Dims',
-    y: 9,
+    y: 8,
     rows: [
-      '0000000000011100',
-      '0000000000014100', // glowing pane
-      '0000000000011100',
+      '0000000000003000', // hanging loop
+      '0000000000011100', // cap
+      '0000000000014100', // glass, bright at the flame…
+      '0000000000013100', // …dimmer below
+      '0000000000011100', // base
     ],
   },
   {
@@ -522,7 +524,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'cartographer',
     legendaryName: 'The Rope That Found the Way Back',
     y: 10,
-    rows: ['0000000000022200', '0000000000020200', '0000000000022200'],
+    rows: ['0000000000023200', '0000000000030300', '0000000000032300'],
   },
   {
     id: 'skull-charm',
@@ -532,7 +534,12 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'gravekeeper',
     legendaryName: 'Charm of the First Buried',
     y: 10,
-    rows: ['0000000000033300', '0000000000031300', '0000000000003000'],
+    rows: [
+      '0000000000033300', // cranium
+      '0000000000023200', // eye sockets in the mid shade — visible in any dye
+      '0000000000033300', // jaw
+      '0000000000003000', // chin
+    ],
   },
   {
     id: 'golden-bell',
@@ -542,7 +549,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'royal',
     legendaryName: 'Bell of the Court Herald',
     y: 10,
-    rows: ['0000000000003000', '0000000000034300', '0000000000033300'],
+    rows: ['0000000000003000', '0000000000034300', '0000000000033300', '0000000000001000'],
   },
   {
     id: 'river-pearl',
@@ -572,7 +579,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'minotaur',
     legendaryName: 'The Ring the Bull Wore',
     y: 6,
-    rows: ['0000000330000000', '0000003003000000', '0000000330000000'],
+    rows: ['0000000330000000', '0000003003000000', '0000000340000000'],
   },
 ];
 
