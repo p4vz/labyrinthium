@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { connect } from './net/ws.js';
+import { Toasts } from './components/Toasts.js';
 import { useGameStore } from './state/gameStore.js';
 import { useProfileStore } from './state/profileStore.js';
 import { Editor } from './screens/Editor.js';
@@ -18,18 +19,27 @@ export function App(): JSX.Element {
     void useProfileStore.getState().bootstrap();
   }, []);
 
-  switch (screen) {
-    case 'home':
-      return <Home />;
-    case 'lobby':
-      return <Lobby />;
-    case 'game':
-      return <Game />;
-    case 'editor':
-      return <Editor />;
-    case 'replay':
-      return <Replay />;
-    case 'wardrobe':
-      return <Wardrobe />;
-  }
+  const body = (() => {
+    switch (screen) {
+      case 'home':
+        return <Home />;
+      case 'lobby':
+        return <Lobby />;
+      case 'game':
+        return <Game />;
+      case 'editor':
+        return <Editor />;
+      case 'replay':
+        return <Replay />;
+      case 'wardrobe':
+        return <Wardrobe />;
+    }
+  })();
+
+  return (
+    <>
+      {body}
+      <Toasts />
+    </>
+  );
 }

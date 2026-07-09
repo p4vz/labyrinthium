@@ -16,6 +16,7 @@ export function ActionBar(): JSX.Element {
   const leftGame = useGameStore((s) => s.leftGame);
   const finished = useGameStore((s) => s.finished);
   const spectating = useGameStore((s) => s.spectating);
+  const paused = useGameStore((s) => s.paused);
   const mode = useGameStore((s) => s.actionMode);
   const setMode = useGameStore((s) => s.setActionMode);
   const [now, setNow] = useState(Date.now());
@@ -33,7 +34,13 @@ export function ActionBar(): JSX.Element {
   }, [canAct, mode, setMode]);
   const secondsLeft = turnDeadline ? Math.max(0, Math.ceil((turnDeadline - now) / 1000)) : null;
 
-  const myTurn = !spectating && !finished && !leftGame && started !== null && activePlayerId === started.yourPlayerId;
+  const myTurn =
+    !spectating &&
+    !finished &&
+    !paused &&
+    !leftGame &&
+    started !== null &&
+    activePlayerId === started.yourPlayerId;
   const activeName =
     started?.turnOrder.find((p) => p.id === activePlayerId)?.name ?? '…';
   const canLeave =
@@ -49,13 +56,15 @@ export function ActionBar(): JSX.Element {
       <div className={`turn-indicator ${myTurn ? 'my-turn' : ''}`} data-testid="turn-indicator">
         {finished
           ? 'game over'
-          : leftGame
-            ? 'you walked out — the race goes on below'
-            : spectating
-              ? `watching — ${activeName}'s turn (t${turnNumber})`
-              : myTurn
-                ? `YOUR TURN (t${turnNumber})`
-                : `${activeName}'s turn (t${turnNumber})`}
+          : paused
+            ? '⏸ game paused by the observer'
+            : leftGame
+              ? 'you walked out — the race goes on below'
+              : spectating
+                ? `watching — ${activeName}'s turn (t${turnNumber})`
+                : myTurn
+                  ? `YOUR TURN (t${turnNumber})`
+                  : `${activeName}'s turn (t${turnNumber})`}
         {secondsLeft !== null && !finished && (
           <span className={`turn-clock ${secondsLeft <= 5 ? 'urgent' : ''}`}> ⏱ {secondsLeft}s</span>
         )}

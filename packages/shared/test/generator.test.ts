@@ -142,6 +142,61 @@ describe('map generator', () => {
     }
   });
 
+  it('the way in IS the way out: the only exit edge sits on the entrance cell', () => {
+    for (const preset of presets) {
+      const map = generateMap({ preset, complexity: 'full', seed: `gate-${preset}` });
+      const e = map.entrance;
+      let exits = 0;
+      let onEntrance = 0;
+      map.levels.forEach((level, li) => {
+        const { width, height, edges } = level;
+        edges.h.forEach((state, i) => {
+          if (state !== 'exit') return;
+          exits++;
+          const x = i % width;
+          const row = Math.floor(i / width);
+          // the exit edge must touch the entrance cell (N or S side)
+          if (li === e.level && x === e.x && (row === e.y || row === e.y + 1)) onEntrance++;
+        });
+        edges.v.forEach((state, i) => {
+          if (state !== 'exit') return;
+          exits++;
+          const col = i % (width + 1);
+          const y = Math.floor(i / (width + 1));
+          if (li === e.level && y === e.y && (col === e.x || col === e.x + 1)) onEntrance++;
+        });
+        void height;
+      });
+      expect(exits).toBe(1);
+      expect(onEntrance).toBe(1);
+    }
+  });
+
+  it('teleport pads are numbered; two-way twins share their number', () => {
+    // large/full maps always roll teleports
+    const map = generateMap({ preset: 'large', complexity: 'full', seed: 'tp-labels' });
+    const pads = map.levels.flatMap((l) => l.features.filter((f) => f.type === 'teleport'));
+    expect(pads.length).toBeGreaterThan(0);
+    const byLabel = new Map<number, typeof pads>();
+    for (const p of pads) {
+      expect(p.label).toBeGreaterThanOrEqual(1);
+      byLabel.set(p.label!, [...(byLabel.get(p.label!) ?? []), p]);
+    }
+    for (const [, group] of byLabel) {
+      if (group[0]!.mode === 'oneWay') {
+        expect(group).toHaveLength(1);
+      } else {
+        // a two-way pair: two mirrored entries under one number
+        expect(group).toHaveLength(2);
+        expect(group.every((g) => g.mode === 'twoWay')).toBe(true);
+        const [a, b] = group;
+        expect(a!.target).toMatchObject(
+          expect.objectContaining({ x: b!.at.x, y: b!.at.y }),
+        );
+      }
+    }
+  });
+
   it('difficulty is scored 1..10', () => {
     for (const preset of presets) {
       for (const complexity of complexities) {

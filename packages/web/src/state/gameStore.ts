@@ -11,6 +11,7 @@ import type {
   PlayerAction,
   PlayerLootSummary,
   Pos,
+  PresentFeature,
   ServerMessage,
 } from '@labyrinthium/shared';
 import { useProfileStore } from './profileStore.js';
@@ -49,6 +50,8 @@ export interface GameStoreState {
     yourPlayerId: string;
     levelSizes: { width: number; height: number }[];
     entrance: Pos;
+    exitSides: ('N' | 'E' | 'S' | 'W')[];
+    featuresPresent: PresentFeature[];
     turnOrder: { id: string; name: string; avatar?: AvatarConfig }[];
     inventory: Inventory;
     rules: ActiveRules;
@@ -71,6 +74,8 @@ export interface GameStoreState {
   leftGame: boolean;
   /** epoch ms when the current turn times out; null = untimed */
   turnDeadline: number | null;
+  /** an observer (or the host) has frozen the game */
+  paused: boolean;
   /** observer mode: the unlocked truth + everyone's live state + their maps */
   spectate: {
     trueMap: MapDocument | null;
@@ -150,6 +155,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   exitAdjacent: null,
   leftGame: false,
   turnDeadline: null,
+  paused: false,
   spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
   setSpectateView(view: string) {
     set({ spectate: { ...get().spectate, view } });
@@ -194,6 +200,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       exitAdjacent: null,
       leftGame: false,
       turnDeadline: null,
+      paused: false,
       spectate: { trueMap: null, live: null, beliefMaps: {}, view: 'true' },
       feed: [],
       lastAckedSeq: -1,
@@ -221,6 +228,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           started: msg,
           feed: [],
           finished: null,
+          paused: false,
           screen: 'game',
           spectating: msg.yourPlayerId === '',
           haveTreasure: false,
@@ -229,12 +237,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           exitAdjacent: null,
           leftGame: false,
         });
-        // A fresh main map starts with the entrance marked and one tracking
-        // piece per player (everyone begins there) plus your own pawn.
+        // A fresh main map starts with the entrance marked (its gate side is
+        // also the EXIT — common knowledge) and one tracking piece per player
+        // (everyone begins there) plus your own pawn.
         const key = get().session?.roomCode ?? get().room?.roomCode ?? 'solo';
         useMapStore
           .getState()
-          .initForGame(key, msg.levelSizes, msg.entrance, msg.turnOrder.length);
+          .initForGame(key, msg.levelSizes, msg.entrance, msg.turnOrder.length, msg.exitSides);
         break;
       }
       case 'game.turn': {
@@ -251,6 +260,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               ? Date.now() + timer * 1000
               : null,
         });
+        break;
+      }
+      case 'game.paused': {
+        set({ paused: msg.paused });
         break;
       }
       case 'spectate.reveal': {
@@ -286,10 +299,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         for (const e of msg.events) {
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
-            useMapStore.getState().moveYouPawn(e.payload.direction);
+            // On hard difficulty riverDrift carries no direction — the pawn
+            // cannot be advanced; the player has lost their bearings.
+            if (e.payload.direction) useMapStore.getState().moveYouPawn(e.payload.direction);
             // stepping away from the exit (or anywhere) invalidates the hint
             set({ treasureUnderfoot: false, exitAdjacent: null });
-          } else if (e.payload.type === 'teleported' || e.payload.type === 'fellThroughTrapdoor' || e.payload.type === 'tookStairs') {
+          } else if (e.payload.type === 'teleported') {
+            set({ exitAdjacent: null });
+            // Chart BOTH sides: the pad where the pawn stood, and the
+            // arrival — a known numbered cell, or a fresh aux sheet.
+            useMapStore.getState().chartTeleport(e.payload.label, e.payload.mode);
+          } else if (e.payload.type === 'fellThroughTrapdoor' || e.payload.type === 'tookStairs') {
             set({ exitAdjacent: null });
           } else if (e.payload.type === 'foundExit') {
             // The GM confirmed an exit right next to you — chart the gate.
@@ -342,7 +362,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         break;
       }
       case 'error': {
-        set({ errors: [...get().errors, `${msg.code}: ${msg.message}`].slice(-5) });
+        if (msg.code === 'SESSION_NOT_FOUND') {
+          // Our stored game evaporated (server restart / room expired):
+          // stop retrying, clean up, and say it once in plain words.
+          saveSession(null);
+          get().reset();
+          set({
+            errors: [
+              'that game is no longer on the server (it probably restarted) — start a fresh one',
+            ],
+          });
+          break;
+        }
+        const text = `${msg.code}: ${msg.message}`;
+        const errors = get().errors;
+        // reconnect loops can repeat themselves; don't stack duplicates
+        if (errors[errors.length - 1] === text) break;
+        set({ errors: [...errors, text].slice(-5) });
         break;
       }
       case 'room.playerJoined':

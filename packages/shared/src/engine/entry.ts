@@ -73,7 +73,13 @@ export function runEntryPipeline(
       visited.add(here);
       visited.add(posKey(teleport.target)); // landing pad never re-fires
       player.pos = { ...teleport.target };
-      ctx.emit(priv, { type: 'teleported' });
+      // The rune on the pad is plainly visible — the destination is not.
+      // (mode is visible too: a two-way arrival has its twin pad underfoot.)
+      ctx.emit(priv, {
+        type: 'teleported',
+        ...(teleport.label !== undefined ? { label: teleport.label } : {}),
+        mode: teleport.mode,
+      });
       continue;
     }
 
@@ -95,7 +101,10 @@ export function runEntryPipeline(
           if (direction) {
             driftBudget--;
             player.pos = { ...player.pos, ...next };
-            ctx.emit(priv, { type: 'riverDrift', direction });
+            ctx.emit(priv, {
+              type: 'riverDrift',
+              ...(state.config.hardRivers ? {} : { direction }),
+            });
             continue;
           }
         }

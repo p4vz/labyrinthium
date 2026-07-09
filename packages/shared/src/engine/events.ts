@@ -22,8 +22,12 @@ export type EventPayload =
   | { type: 'bumpedGrate'; direction: PlanarDirection }
   | { type: 'foundExit'; direction: PlanarDirection }
   | { type: 'riverHere' }
-  | { type: 'riverDrift'; direction: PlanarDirection }
-  | { type: 'teleported' }
+  // direction is withheld on hard difficulty (config.hardRivers)
+  | { type: 'riverDrift'; direction?: PlanarDirection }
+  // The pad's visible rune (pair label) and kind — but never the destination.
+  // A two-way arrival has its twin pad plainly underfoot; a one-way arrival
+  // is a bare landing spot (the pad's "exit side").
+  | { type: 'teleported'; label?: number; mode?: 'oneWay' | 'twoWay' }
   | { type: 'fellThroughTrapdoor' }
   | { type: 'stairsFound'; directions: ('U' | 'D')[] }
   | { type: 'tookStairs'; direction: 'U' | 'D' }
@@ -52,6 +56,7 @@ export type EventPayload =
   | { type: 'gameEndedNoWinner' } // public: everyone walked out
   | { type: 'turnSkippedParalyzed'; remaining: number }
   | { type: 'turnTimedOut'; playerName: string } // public: the clock ran out
+  | { type: 'monstersStir' } // public: the treasure was lifted — the guardians wake
   | { type: 'exitedLabyrinth' }
   | { type: 'gameWon'; playerId: string; playerName: string };
 

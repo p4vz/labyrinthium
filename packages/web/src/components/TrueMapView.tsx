@@ -2,7 +2,9 @@ import type { AvatarConfig, MapDocument, Pos } from '@labyrinthium/shared';
 import { doorGlyph, grateGlyph } from './MapGrid.js';
 import { PixelAvatar } from './PixelAvatar.js';
 
-const CS = 34;
+// Same cell size as the players' hand-drawn maps, so an observer flipping
+// between the true map and belief maps sees everything at one scale.
+const CS = 36;
 const PAD = 6;
 
 const TRUE_EDGE_STYLE: Record<string, { stroke: string; width: number; dash?: string } | null> = {
@@ -104,7 +106,7 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
     const glyph = FEATURE_GLYPHS[f.type] ?? '?';
     const title =
       f.type === 'teleport'
-        ? `teleport (${f.mode}) → L${f.target.level} (${f.target.x},${f.target.y})`
+        ? `teleport${f.label !== undefined ? ` №${f.label}` : ''} (${f.mode}) → L${f.target.level} (${f.target.x},${f.target.y})`
         : f.type === 'stairs'
           ? `stairs → L${f.to.level} (${f.to.x},${f.to.y})`
           : f.type === 'trapdoor'
@@ -129,19 +131,73 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
         <title>{title}</title>
       </text>,
     );
+    if (f.type === 'teleport' && f.label !== undefined) {
+      parts.push(
+        <text
+          key={`tpl${f.at.x},${f.at.y}`}
+          x={px(f.at.x) + 7}
+          y={py(f.at.y) + CS - 5}
+          fontSize={9}
+          fontWeight="bold"
+          fill="#c9a3e8"
+          textAnchor="middle"
+          pointerEvents="none"
+        >
+          {f.label}
+        </text>,
+      );
+    }
   }
 
-  // Entrance / spawns on this level.
+  // One-way teleport ARRIVAL spots: both sides of every teleport belong on
+  // the map. (Two-way twins are pad features and already drawn above.)
+  props.map.levels.forEach((srcLevel, srcIdx) => {
+    for (const f of srcLevel.features) {
+      if (f.type !== 'teleport' || f.mode !== 'oneWay') continue;
+      if (f.target.level !== props.level) continue;
+      const tx = px(f.target.x) + CS / 2;
+      const ty = py(f.target.y) + CS / 2;
+      parts.push(
+        <text
+          key={`tpx${srcIdx}:${f.at.x},${f.at.y}`}
+          x={tx}
+          y={ty}
+          fontSize={15}
+          fill="#9a86c9"
+          textAnchor="middle"
+          dominantBaseline="central"
+          pointerEvents="none"
+        >
+          ◉
+          <title>
+            {`teleport${f.label !== undefined ? ` №${f.label}` : ''} arrival — pad on L${srcIdx} (${f.at.x},${f.at.y})`}
+          </title>
+        </text>,
+      );
+      if (f.label !== undefined) {
+        parts.push(
+          <text
+            key={`tpxl${srcIdx}:${f.at.x},${f.at.y}`}
+            x={px(f.target.x) + 7}
+            y={py(f.target.y) + CS - 5}
+            fontSize={9}
+            fontWeight="bold"
+            fill="#9a86c9"
+            textAnchor="middle"
+            pointerEvents="none"
+          >
+            {f.label}
+          </text>,
+        );
+      }
+    }
+  });
+
+  // Entrance / spawns on this level. The way in IS the way out — the gate is
+  // an 'exit' edge on the entrance cell, drawn by the edge pass below.
   if (props.map.entrance.level === props.level) {
     const e = props.map.entrance;
     parts.push(cellGlyph('entrance', px(e.x), py(e.y), '🏁'));
-    // the way in: amber gate arches on the entrance cell's border sides
-    if (e.y === 0) parts.push(<g key="gN">{doorGlyph(px(e.x) + CS / 2, py(0), 'gate')}</g>);
-    if (e.x === 0) parts.push(<g key="gW">{doorGlyph(px(0), py(e.y) + CS / 2, 'gate')}</g>);
-    if (e.y === grid.height - 1)
-      parts.push(<g key="gS">{doorGlyph(px(e.x) + CS / 2, py(grid.height), 'gate')}</g>);
-    if (e.x === grid.width - 1)
-      parts.push(<g key="gE">{doorGlyph(px(grid.width), py(e.y) + CS / 2, 'gate')}</g>);
   }
   const treasure = props.overlay?.treasure ?? props.map.spawns.treasure;
   if (treasure && treasure.level === props.level) {

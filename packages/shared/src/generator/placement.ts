@@ -30,24 +30,11 @@ function freeCells(level: LevelDocument, levelIdx: number, occ: Occupied): Pos[]
   return out;
 }
 
-/** Turn `count` border wall edges of level 0 into exits, spread apart. */
-export function placeExits(level0: LevelDocument, count: number, rng: Rng, occ: Occupied): void {
-  const candidates = rng.shuffle(borderCells(level0.edges));
-  const chosen: Coord[] = [];
-  const minGap = Math.max(2, Math.floor((level0.width + level0.height) / (count + 1) / 2));
-  for (const cell of candidates) {
-    if (chosen.length >= count) break;
-    if (chosen.some((c) => Math.abs(c.x - cell.x) + Math.abs(c.y - cell.y) < minGap)) continue;
-    const borderDirs = PLANAR_DIRECTIONS.filter(
-      (d) => !inBounds(level0.edges, step(cell, d)) && getEdge(level0.edges, cell, d) === 'wall',
-    );
-    if (borderDirs.length === 0) continue;
-    setEdge(level0.edges, cell, rng.pick(borderDirs), 'exit');
-    chosen.push(cell);
-    claim(occ, { level: 0, ...cell });
-  }
-}
-
+/**
+ * The way in IS the way out: the entrance is a gate in the outer wall, and
+ * leaving with the treasure means returning to it. Everyone knows where it
+ * is from the first turn.
+ */
 export function placeEntrance(map: MapDocument, rng: Rng, occ: Occupied): void {
   const level0 = map.levels[0]!;
   const candidates = rng.shuffle(borderCells(level0.edges)).filter((c) =>
@@ -56,8 +43,14 @@ export function placeEntrance(map: MapDocument, rng: Rng, occ: Occupied): void {
   const cell = candidates[0] ?? borderCells(level0.edges)[0]!;
   map.entrance = { level: 0, ...cell };
   claim(occ, map.entrance);
+  const borderDirs = PLANAR_DIRECTIONS.filter(
+    (d) => !inBounds(level0.edges, step(cell, d)) && getEdge(level0.edges, cell, d) === 'wall',
+  );
+  if (borderDirs.length > 0) setEdge(level0.edges, cell, rng.pick(borderDirs), 'exit');
 }
 
+/** Every teleport SET carries a visible rune (label 1, 2, …) on its pads,
+ * so players can tell pads apart and match departure to arrival. */
 export function placeTeleports(
   map: MapDocument,
   rng: Rng,
@@ -65,6 +58,7 @@ export function placeTeleports(
   twoWayPairs: number,
   occ: Occupied,
 ): void {
+  let label = 1;
   for (let i = 0; i < oneWay; i++) {
     const ats = map.levels.flatMap((l, li) => freeCells(l, li, occ));
     if (ats.length < 2) return;
@@ -79,6 +73,7 @@ export function placeTeleports(
       at: { x: at.x, y: at.y },
       target,
       mode: 'oneWay',
+      label: label++,
     });
   }
   for (let i = 0; i < twoWayPairs; i++) {
@@ -90,8 +85,9 @@ export function placeTeleports(
     if (rest.length === 0) return;
     const b = rng.pick(rest);
     claim(occ, b);
-    map.levels[a.level]!.features.push({ type: 'teleport', at: { x: a.x, y: a.y }, target: b, mode: 'twoWay' });
-    map.levels[b.level]!.features.push({ type: 'teleport', at: { x: b.x, y: b.y }, target: a, mode: 'twoWay' });
+    map.levels[a.level]!.features.push({ type: 'teleport', at: { x: a.x, y: a.y }, target: b, mode: 'twoWay', label });
+    map.levels[b.level]!.features.push({ type: 'teleport', at: { x: b.x, y: b.y }, target: a, mode: 'twoWay', label });
+    label++;
   }
 }
 

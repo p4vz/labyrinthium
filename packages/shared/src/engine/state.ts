@@ -61,6 +61,11 @@ export interface GameConfig {
   /** a shot player drops grenades/bullets/mines on their tile, not just treasure */
   dropAllOnShot: boolean;
   /**
+   * Hard difficulty: the GM says the current dragged you but NOT which way —
+   * you must rediscover where you are. Easy (default) names the direction.
+   */
+  hardRivers: boolean;
+  /**
    * Any player may walk out through an exit without the treasure, forfeiting
    * the race but keeping (banking) the rare cosmetics they carry. The game
    * continues for everyone else; if all players leave, nobody wins.
@@ -78,6 +83,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   openInformation: true,
   turnTimerSeconds: 0,
   dropAllOnShot: false,
+  hardRivers: false,
   allowLeave: true,
   startingInventory: { grenades: 2, bullets: 2, mines: 1 },
 };
@@ -113,6 +119,8 @@ export interface GameState {
   turnStartResolved: boolean;
   treasure: { carriedBy: string | null; pos: Pos };
   monsters: MonsterState[];
+  /** guardians sleep until the treasure is first lifted */
+  monstersAwake: boolean;
   rngState: number;
   nextEventSeq: number;
   config: GameConfig;
@@ -167,6 +175,7 @@ export function createGame(
       ...(m.route ? { route: m.route.map((c) => ({ ...c })), routeIdx: 0 } : {}),
       ...(m.scentRadius !== undefined ? { scentRadius: m.scentRadius } : {}),
     })),
+    monstersAwake: false,
     rngState: hashSeed(seed),
     nextEventSeq: 0,
     config,

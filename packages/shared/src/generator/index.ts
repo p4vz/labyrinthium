@@ -7,7 +7,6 @@ import { decideLayerSizes, placeStairs, placeTrapdoors } from './layers.js';
 import { braid, carveMaze, harden } from './maze.js';
 import {
   placeEntrance,
-  placeExits,
   placeLoot,
   placeMinesAndTraps,
   placeMonsters,
@@ -102,8 +101,7 @@ function attemptGenerate(opts: GenerateOptions, attempt: number): MapDocument {
 
   placeStairs(map, rng, occ);
   placeTrapdoors(map, rng, pickCount(params.trapdoorCount), occ);
-  placeExits(map.levels[0]!, params.exitCount, rng, occ);
-  placeEntrance(map, rng, occ);
+  placeEntrance(map, rng, occ); // the entrance gate doubles as THE exit
   placeTeleports(map, rng, pickCount(params.oneWayTeleports), pickCount(params.twoWayTeleportPairs), occ);
   placeTreasure(map, rng, occ);
   placeMinesAndTraps(map, rng, pickCount(params.mineCount), pickCount(params.trapCount), occ);

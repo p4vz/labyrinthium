@@ -25,6 +25,8 @@ export function Home(): JSX.Element {
   const [seed, setSeed] = useState('');
   const [mapId, setMapId] = useState('');
   const [showRules, setShowRules] = useState(false);
+  const [botCount, setBotCount] = useState(2);
+  const [botLevel, setBotLevel] = useState<'easy' | 'medium' | 'hard' | 'mixed'>('medium');
   const [openInfo, setOpenInfo] = useState(true);
   const [timer, setTimer] = useState(0);
   const [dropAll, setDropAll] = useState(false);
@@ -32,6 +34,7 @@ export function Home(): JSX.Element {
   const [drift, setDrift] = useState(false);
   const [doubleAmmo, setDoubleAmmo] = useState(false);
   const [allowLeave, setAllowLeave] = useState(true);
+  const [hardRivers, setHardRivers] = useState(false);
 
   return (
     <div className="home">
@@ -85,6 +88,17 @@ export function Home(): JSX.Element {
               <option value="classic">classic — the original game</option>
               <option value="advanced">advanced — layers, mines, traps</option>
               <option value="full">full — everything, dialed up</option>
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select
+              data-testid="difficulty-select"
+              value={hardRivers ? 'hard' : 'easy'}
+              onChange={(e) => setHardRivers(e.target.value === 'hard')}
+            >
+              <option value="easy">easy — the GM says which way currents drag you</option>
+              <option value="hard">hard — currents drag you who-knows-where</option>
             </select>
           </label>
           <label>
@@ -156,6 +170,7 @@ export function Home(): JSX.Element {
                   treasureDrifts: drift,
                   doubleAmmo,
                   allowLeave,
+                  hardRivers,
                 },
               })
             }
@@ -175,16 +190,74 @@ export function Home(): JSX.Element {
             disabled={!connected || !name || code.length < 4}
             onClick={() => send({ type: 'room.join', roomCode: code, name, ...(profileToken ? { profileToken } : {}) })}
           >
-            Join room
+            Join as a player
           </button>
+        </div>
+
+        <div className="card">
+          <h2>👁 Observe a game</h2>
+          <p className="hint">
+            See everything the players can't: the true map, every piece moving live, and each
+            player's hand-drawn map (tap their name in the game).
+          </p>
+          <label>
+            Room code
+            <input
+              data-testid="observe-code-input"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="AB12CD"
+              maxLength={8}
+            />
+          </label>
           <button
+            data-testid="observe-btn"
             disabled={!connected || code.length < 4}
+            onClick={() => send({ type: 'room.spectate', roomCode: code })}
+          >
+            👁 Observe
+          </button>
+
+          <h2 className="bot-match-title">🤖 …or watch a bot match</h2>
+          <p className="hint">
+            No code needed: bots explore a fresh maze (size &amp; complexity from “Create a game”)
+            while you watch everything — including their maps taking shape.
+          </p>
+          <label>
+            Bots
+            <select value={botCount} onChange={(e) => setBotCount(Number(e.target.value))}>
+              <option value={2}>2 bots</option>
+              <option value={3}>3 bots</option>
+              <option value={4}>4 bots</option>
+            </select>
+          </label>
+          <label>
+            Skill
+            <select value={botLevel} onChange={(e) => setBotLevel(e.target.value as typeof botLevel)}>
+              <option value="easy">easy — headless chickens</option>
+              <option value="medium">medium — methodical explorers</option>
+              <option value="hard">hard — armed and dangerous</option>
+              <option value="mixed">mixed — one of each</option>
+            </select>
+          </label>
+          <button
+            data-testid="botmatch-btn"
+            disabled={!connected}
             onClick={() => {
-              send({ type: 'room.spectate', roomCode: code });
-              setScreen('game');
+              const pool: ('easy' | 'medium' | 'hard')[] =
+                botLevel === 'mixed'
+                  ? ['easy', 'medium', 'hard', 'medium']
+                  : Array.from({ length: 4 }, () => botLevel);
+              send({
+                type: 'room.createBotMatch',
+                bots: pool.slice(0, botCount),
+                preset,
+                complexity,
+                ...(seed ? { seed } : {}),
+              });
             }}
           >
-            Watch as spectator
+            ▶ Start bot match &amp; observe
           </button>
         </div>
 

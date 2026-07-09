@@ -34,12 +34,14 @@ export const edgeGridSchema = z.object({
 export const mapFeatureSchema = z.discriminatedUnion('type', [
   // Ordered cells; flow runs cells[i] -> cells[i+1]. Last cell is the mouth.
   z.object({ type: z.literal('river'), cells: z.array(coordSchema).min(2) }),
-  // twoWay teleports are stored as two mirrored one-step entries.
+  // twoWay teleports are stored as two mirrored one-step entries. `label`
+  // is the visible rune on the pad (pair #1, #2, ...) — both ends share it.
   z.object({
     type: z.literal('teleport'),
     at: coordSchema,
     target: posSchema,
     mode: z.enum(['oneWay', 'twoWay']),
+    label: z.number().int().min(1).max(99).optional(),
   }),
   // Bidirectional; a mirrored entry must exist on the target level.
   z.object({ type: z.literal('stairs'), at: coordSchema, to: posSchema }),

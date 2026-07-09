@@ -13,7 +13,10 @@ export function Lobby(): JSX.Element {
     <div className="lobby">
       <h1>Room</h1>
       <div className="room-code" data-testid="room-code">{room.roomCode}</div>
-      <p>Share this code. Friends join from their own devices — nobody sees anybody's map.</p>
+      <p>
+        Share this code. Friends join as players from their own devices — or pick{' '}
+        <b>👁 Observe</b> on the home screen with the same code to watch everything live.
+      </p>
       <div className="card">
         <h2>
           Map: {room.mapMeta.name ?? 'secret'}

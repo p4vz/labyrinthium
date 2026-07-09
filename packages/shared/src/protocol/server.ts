@@ -25,7 +25,19 @@ export interface ActiveRules {
   allowBorderGrenade: boolean;
   treasureDrifts: boolean;
   allowLeave: boolean;
+  hardRivers: boolean;
 }
+
+/** Map-element kinds that exist in the current maze — table knowledge, so
+ * the drawing palette can grey out stamps that can never apply. */
+export type PresentFeature =
+  | 'river'
+  | 'teleport'
+  | 'stairs'
+  | 'trapdoor'
+  | 'mine'
+  | 'trap'
+  | 'monster';
 
 /** Per-player end-of-game haul, shown on the finish screen. */
 export interface PlayerLootSummary {
@@ -57,10 +69,17 @@ export type ServerMessage =
       yourPlayerId: string;
       levelSizes: { width: number; height: number }[];
       entrance: Pos;
+      /** which border side(s) of the entrance cell are the way in AND out —
+       * common knowledge, marked on everyone's map automatically */
+      exitSides: ('N' | 'E' | 'S' | 'W')[];
+      /** which element kinds exist in this maze (the GM announces the rules
+       * in play, never their positions) */
+      featuresPresent: PresentFeature[];
       turnOrder: { id: string; name: string; avatar?: AvatarConfig }[];
       inventory: Inventory;
       rules: ActiveRules;
     }
+  | { type: 'game.paused'; paused: boolean }
   | {
       type: 'game.turn';
       activePlayerId: string;

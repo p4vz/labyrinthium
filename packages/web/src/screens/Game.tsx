@@ -159,34 +159,34 @@ export function Game(): JSX.Element {
         </div>
       </div>
 
-      {feed.length > 0 && (
+      {feed.length > 0 && !logOpen && (
         <button
           className={`event-ticker ${!paletteWide && !spectating ? 'always' : ''}`}
           data-testid="event-ticker"
-          title="tap for the full log"
+          title="tap to swap the controls for the full log"
           onClick={() => setLogOpen(true)}
         >
-          {(() => {
-            const last = feed[feed.length - 1]!;
-            return `${last.ownerName ? `${last.ownerName} ▸ ` : ''}${describeEvent(last.event)}`;
-          })()}
+          {feed.slice(-4).map((entry) => (
+            <span key={entry.seq} className="ticker-line">
+              {entry.ownerName ? `${entry.ownerName} ▸ ` : ''}
+              {describeEvent(entry.event)}
+            </span>
+          ))}
         </button>
       )}
 
-      {logOpen && (
-        <>
-          <div className="log-backdrop" onClick={() => setLogOpen(false)} />
-          <div className="log-sheet" data-testid="log-sheet">
-            <button className="log-close" onClick={() => setLogOpen(false)}>
-              ▾ close log
-            </button>
-            <EventFeed />
-          </div>
-        </>
+      {/* The full log docks where the controls were — the map and the
+          drawing toolbar stay visible, so you can chart while you read. */}
+      {logOpen ? (
+        <div className="log-dock" data-testid="log-sheet">
+          <button className="log-close" onClick={() => setLogOpen(false)}>
+            ▾ back to controls
+          </button>
+          <EventFeed />
+        </div>
+      ) : (
+        <ActionBar />
       )}
-
-      <ActionBar />
-      <Errors />
 
       {finished && (
         <div className="modal-backdrop" data-testid="reveal">
@@ -327,19 +327,32 @@ function CompareSection(props: {
 }
 
 /** Observer mode: the unlocked truth with live pieces, and each player's
- * own hand-drawn map one click away. */
+ * own hand-drawn maps — main AND auxiliary — one click away. */
 function ObserverPanel(): JSX.Element {
   const spectate = useGameStore((s) => s.spectate);
   const started = useGameStore((s) => s.started);
   const setView = useGameStore((s) => s.setSpectateView);
+  const paused = useGameStore((s) => s.paused);
+  const finished = useGameStore((s) => s.finished);
   const [level, setLevel] = useState(0);
+  /** which of the viewed player's maps (main / aux) is open */
+  const [mapSel, setMapSel] = useState('main');
+
+  // Switching players resets to their main map.
+  useEffect(() => {
+    setMapSel('main');
+  }, [spectate.view]);
+
   const avatarOf = (id: string) => started?.turnOrder.find((p) => p.id === id)?.avatar;
 
   if (!spectate.trueMap) return <p className="hint">waiting for the game to start…</p>;
   const players = spectate.live?.players ?? [];
   const viewing = spectate.view !== 'true' ? spectate.beliefMaps[spectate.view] : undefined;
   const beliefMaps = viewing ? (viewing.maps as PlayerMap[]) : null;
-  const mainBelief = beliefMaps?.find?.((m) => m.id === 'main') ?? beliefMaps?.[0];
+  const beliefMap =
+    beliefMaps?.find?.((m) => m.id === mapSel) ??
+    beliefMaps?.find?.((m) => m.id === 'main') ??
+    beliefMaps?.[0];
 
   return (
     <div className="observer" data-testid="observer">
@@ -357,10 +370,38 @@ function ObserverPanel(): JSX.Element {
             🗒 {p.name}
           </button>
         ))}
+        {!finished && (
+          <button
+            className={`pause-btn ${paused ? 'active' : ''}`}
+            data-testid="pause-btn"
+            onClick={() => send({ type: 'room.pause', paused: !paused })}
+            title={paused ? 'let the game continue' : 'freeze the game to study the maps'}
+          >
+            {paused ? '▶ resume' : '⏸ pause'}
+          </button>
+        )}
       </div>
-      {spectate.trueMap.levels.length > 1 && (
+      {paused && (
+        <div className="aux-banner" data-testid="paused-banner">
+          ⏸ game paused — nobody can move until you resume
+        </div>
+      )}
+      {beliefMaps && beliefMaps.length > 1 && (
+        <div className="level-tabs" data-testid="observer-map-tabs">
+          {beliefMaps.map((m) => (
+            <button
+              key={m.id}
+              className={m.id === (beliefMap?.id ?? 'main') ? 'active' : ''}
+              onClick={() => setMapSel(m.id)}
+            >
+              {m.id === 'main' ? '🗺 main' : `📄 ${m.name}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {(spectate.view === 'true' ? spectate.trueMap.levels.length > 1 : (beliefMap?.grids.length ?? 0) > 1) && (
         <div className="level-tabs">
-          {spectate.trueMap.levels.map((_, i) => (
+          {(spectate.view === 'true' ? spectate.trueMap.levels : beliefMap!.grids).map((_, i) => (
             <button key={i} className={i === level ? 'active' : ''} onClick={() => setLevel(i)}>
               {i === 0 ? 'ground' : `-${i}`}
             </button>
@@ -371,7 +412,7 @@ function ObserverPanel(): JSX.Element {
         <div className="map-scroll">
           <TrueMapView
             map={spectate.trueMap}
-            level={level}
+            level={Math.min(level, spectate.trueMap.levels.length - 1)}
             overlay={
               spectate.live
                 ? {
@@ -394,9 +435,9 @@ function ObserverPanel(): JSX.Element {
             }
           />
         </div>
-      ) : mainBelief?.grids ? (
+      ) : beliefMap?.grids ? (
         <div className="map-scroll">
-          <MapGrid grid={mainBelief.grids[Math.min(level, mainBelief.grids.length - 1)]!} />
+          <MapGrid grid={beliefMap.grids[Math.min(level, beliefMap.grids.length - 1)]!} />
           <p className="hint">
             {viewing?.playerName}'s beliefs, live — walls they've charted, marks they've guessed.
           </p>
@@ -408,16 +449,3 @@ function ObserverPanel(): JSX.Element {
   );
 }
 
-function Errors(): JSX.Element {
-  const errors = useGameStore((s) => s.errors);
-  const dismiss = useGameStore((s) => s.dismissError);
-  return (
-    <div className="toasts">
-      {errors.map((e, i) => (
-        <div key={`${i}${e}`} className="toast" onClick={() => dismiss(i)}>
-          {e}
-        </div>
-      ))}
-    </div>
-  );
-}

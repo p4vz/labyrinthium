@@ -13,6 +13,7 @@ export type Stamp =
   | 'empty' // "checked — nothing here"
   | 'river'
   | 'teleport'
+  | 'tpExit' // where a one-way teleport spat you out
   | 'stairs'
   | 'trapdoor'
   | 'mine'
@@ -52,6 +53,8 @@ export interface CellAnno {
   /** believed river flow, for the arrow */
   riverDir?: 'N' | 'E' | 'S' | 'W';
   note?: string;
+  /** teleport pad number, when the game master announced one (pads are labeled) */
+  tpLabel?: number;
 }
 
 export interface PlayerGrid {
@@ -161,6 +164,8 @@ export function toggleStamp(g: PlayerGrid, x: number, y: number, stamp: Stamp, r
   const cell = next.cells[i] ?? { stamps: [] };
   if (cell.stamps.includes(stamp) && stamp !== 'river') {
     cell.stamps = cell.stamps.filter((s) => s !== stamp);
+    // the pad number belongs to the teleport marks — gone with the last one
+    if (!cell.stamps.some((s) => s === 'teleport' || s === 'tpExit')) delete cell.tpLabel;
   } else if (stamp === 'river' && cell.stamps.includes('river') && cell.riverDir === riverDir) {
     cell.stamps = cell.stamps.filter((s) => s !== 'river');
     delete cell.riverDir;
@@ -303,6 +308,17 @@ export function stampRiver(
   const cell = next.cells[i] ?? { stamps: [] };
   if (!cell.stamps.includes('river')) cell.stamps.push('river');
   cell.riverDir = dir;
+  next.cells[i] = cell;
+  return next;
+}
+
+/** Chart a teleport pad on a cell, optionally numbered (idempotent). */
+export function stampTeleport(g: PlayerGrid, x: number, y: number, label?: number): PlayerGrid {
+  const next = cloneGrid(g);
+  const i = cellIndex(g, x, y);
+  const cell = next.cells[i] ?? { stamps: [] };
+  if (!cell.stamps.includes('teleport')) cell.stamps.push('teleport');
+  if (label !== undefined) cell.tpLabel = label;
   next.cells[i] = cell;
   return next;
 }

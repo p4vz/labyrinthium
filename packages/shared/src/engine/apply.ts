@@ -106,6 +106,11 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
         player.hasTreasure = true;
         ctx.emit(priv, { type: 'treasurePickedUp' });
         state.actedThisTurn = true;
+        // Lifting the treasure wakes its guardians, once and for all.
+        if (!state.monstersAwake && state.monsters.some((m) => m.alive)) {
+          state.monstersAwake = true;
+          ctx.emit({ kind: 'public' }, { type: 'monstersStir' });
+        }
         break;
       case 'leave':
         resolveLeave(ctx, player, action.direction);
@@ -242,7 +247,10 @@ function driftAtTurnStart(ctx: EngineCtx, player: PlayerState): void {
   const direction = directionBetween(player.pos, next);
   if (!direction) return;
   player.pos = { ...player.pos, ...next };
-  ctx.emit({ kind: 'private', playerId: player.id }, { type: 'riverDrift', direction });
+  ctx.emit(
+    { kind: 'private', playerId: player.id },
+    { type: 'riverDrift', ...(ctx.state.config.hardRivers ? {} : { direction }) },
+  );
   runEntryPipeline(ctx, player, { driftBudget: 0 });
 }
 

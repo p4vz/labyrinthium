@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto';
 import {
   applyAction,
   createGame,
+  getEdge,
   visibleTo,
   InvalidActionError,
   type ActiveRules,
+  type PresentFeature,
   type AvatarConfig,
   type BotDifficulty,
   type GameConfig,
@@ -61,6 +63,7 @@ export class Room {
   private bots = new Map<string, BotController>();
   private turnTimer: NodeJS.Timeout | null = null;
   private timerArmedForTurn = -1;
+  paused = false;
   private gameId = randomUUID();
 
   constructor(
@@ -98,7 +101,8 @@ export class Room {
     if (this.players.length >= 8) throw new RoomError('ROOM_FULL', 'room is full');
     const taken = new Set(this.players.map((p) => p.name));
     const name =
-      BOT_NAMES[difficulty].find((n) => !taken.has(n)) ?? `Bot ${this.players.length + 1}`;
+      BOT_NAMES[difficulty].find((n) => !taken.has(`${n} (${difficulty})`)) ??
+      `Bot ${this.players.length + 1}`;
     const player: RoomPlayer = {
       id: randomUUID(),
       name: `${name} (${difficulty})`,
@@ -151,6 +155,7 @@ export class Room {
       allowBorderGrenade: this.config.allowBorderGrenade,
       treasureDrifts: this.config.treasureDrifts,
       allowLeave: this.config.allowLeave,
+      hardRivers: this.config.hardRivers,
     };
   }
 
@@ -200,11 +205,19 @@ export class Room {
   }
 
   gameStartedMessage(playerId: string): ServerMessage {
+    // The entrance gate doubles as the exit and is common knowledge.
+    const level0 = this.map.levels[0]!;
+    const e = this.map.entrance;
+    const exitSides = (['N', 'E', 'S', 'W'] as const).filter(
+      (d) => getEdge(level0.edges, e, d) === 'exit',
+    );
     return {
       type: 'game.started',
       yourPlayerId: playerId,
       levelSizes: this.map.levels.map((l) => ({ width: l.width, height: l.height })),
       entrance: this.map.entrance,
+      exitSides,
+      featuresPresent: this.featuresPresent(),
       turnOrder: this.players.map((p) => ({
         id: p.id,
         name: p.name,
@@ -215,11 +228,43 @@ export class Room {
     };
   }
 
+  /** Which element kinds exist anywhere in this maze — the GM announces
+   * what's in play (like reading the box), never where anything is. */
+  private featuresPresent(): PresentFeature[] {
+    const present = new Set<PresentFeature>();
+    for (const level of this.map.levels) {
+      for (const f of level.features) {
+        if (f.type === 'river' || f.type === 'teleport' || f.type === 'stairs' || f.type === 'trapdoor' || f.type === 'mine' || f.type === 'trap') {
+          present.add(f.type);
+        }
+      }
+    }
+    if (this.map.spawns.monsters.length > 0) present.add('monster');
+    return [...present];
+  }
+
+  /** Observers (and the host) can freeze the whole table. */
+  setPaused(paused: boolean): void {
+    if (this.paused === paused || this.phase !== 'inProgress') return;
+    this.paused = paused;
+    this.broadcast({ type: 'game.paused', paused });
+    if (paused) {
+      if (this.turnTimer) {
+        clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+      }
+      this.timerArmedForTurn = -1;
+    } else {
+      this.announceTurn(); // re-kick bots and re-arm the clock
+    }
+  }
+
   /** The active player submitted an action. Throws RoomError to the caller only. */
   handleAction(playerId: string, action: PlayerAction): void {
     if (this.phase !== 'inProgress' || !this.state) {
       throw new RoomError('NOT_IN_GAME', 'no game in progress');
     }
+    if (this.paused) throw new RoomError('GAME_PAUSED', 'the game is paused');
     const active = this.state.players[this.state.turnIndex]!;
     if (active.id !== playerId) throw new RoomError('NOT_YOUR_TURN', 'not your turn');
     this.step(playerId, action);
@@ -265,6 +310,11 @@ export class Room {
       : result.events.filter((e) => e.visibility.kind === 'public');
     if (forSpectators.length > 0) {
       for (const send of this.spectators) send({ type: 'game.events', events: forSpectators });
+    }
+    // Bots share their belief maps too, so observers can watch them think.
+    const actingBot = this.bots.get(playerId);
+    if (actingBot && (this.spectators.size > 0 || this.beliefMaps.has(playerId))) {
+      this.handleMapsSync(playerId, actingBot.exportBeliefMaps());
     }
     if (this.state.phase === 'finished') {
       this.finish();

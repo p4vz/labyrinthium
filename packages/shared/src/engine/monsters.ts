@@ -59,6 +59,25 @@ function pickMove(ctx: EngineCtx, monster: MonsterState): PlanarDirection | null
   const edges = ctx.state.edges[monster.pos.level];
   if (!edges) return null;
 
+  // Awake guardians have one job: the treasure. Hunt whoever carries it
+  // (same level — monsters never climb), or squat on it where it lies.
+  const treasure = ctx.state.treasure;
+  const carrier = treasure.carriedBy
+    ? ctx.state.players.find((p) => p.id === treasure.carriedBy && !p.exited)
+    : undefined;
+  const guardTarget =
+    carrier && carrier.pos.level === monster.pos.level
+      ? { x: carrier.pos.x, y: carrier.pos.y }
+      : !carrier && treasure.pos.level === monster.pos.level
+        ? { x: treasure.pos.x, y: treasure.pos.y }
+        : null;
+  if (guardTarget) {
+    const d = huntStep(edges, monster.pos, [guardTarget], edges.width * edges.height);
+    if (d) return d;
+    if (monster.pos.x === guardTarget.x && monster.pos.y === guardTarget.y) return null; // on station
+    // no path (sealed off): fall through to the monster's own habits
+  }
+
   if (monster.ai === 'patroller' && monster.route && monster.route.length > 1) {
     const idx = monster.routeIdx ?? 0;
     const nextIdx = (idx + 1) % monster.route.length;
@@ -90,8 +109,13 @@ function pickMove(ctx: EngineCtx, monster: MonsterState): PlanarDirection | null
  * World phase: each living monster takes one step. Monsters never change
  * level, never ride rivers or teleports, and never trigger mines or traps —
  * they are "something moving" a player can learn to map around.
+ *
+ * Guardians SLEEP until the treasure is first lifted; once woken they
+ * prioritize protecting it — hunting the carrier or camping where it lies.
+ * (A sleeping monster still mauls anyone who stumbles onto it.)
  */
 export function moveMonsters(ctx: EngineCtx): void {
+  if (!ctx.state.monstersAwake) return;
   for (const monster of ctx.state.monsters) {
     if (!monster.alive) continue;
     const d = pickMove(ctx, monster);
