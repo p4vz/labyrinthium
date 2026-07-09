@@ -186,17 +186,51 @@ describe('map store: undo/redo, aux maps, merge', () => {
     expect(grid.h[0]).toBe('wall'); // (0,0).N — plain outer wall
   });
 
-  it('stampTeleportPad charts a numbered pad under the pawn', () => {
+  it('chartTeleport marks BOTH sides: the pad under the pawn and a fresh arrival sheet', () => {
     const store = fresh();
     store.getState().moveYouPawn('E'); // pawn to (1,0)
-    store.getState().stampTeleportPad(4);
-    const grid = store.getState().maps[0]!.grids[0]!;
-    expect(grid.cells[1]?.stamps).toContain('teleport');
-    expect(grid.cells[1]?.tpLabel).toBe(4);
-    // idempotent: stepping on the same pad again doesn't duplicate the stamp
-    store.getState().stampTeleportPad(4);
-    const again = store.getState().maps[0]!.grids[0]!;
-    expect(again.cells[1]?.stamps.filter((s) => s === 'teleport')).toHaveLength(1);
+    store.getState().chartTeleport(4, 'oneWay');
+    const main = store.getState().maps.find((m) => m.id === 'main')!;
+    // departure side: pad №4 charted where the pawn stood; pawn lifted
+    expect(main.grids[0]!.cells[1]?.stamps).toContain('teleport');
+    expect(main.grids[0]!.cells[1]?.tpLabel).toBe(4);
+    expect(main.grids[0]!.cells[1]?.stamps).not.toContain('you');
+    // arrival side: a new aux sheet with the exit spot + pawn at center
+    const aux = store.getState().maps.find((m) => m.name === 'After pad №4')!;
+    expect(aux).toBeDefined();
+    expect(store.getState().activeMapId).toBe(aux.id);
+    const center = aux.grids[0]!.cells.find((c) => c?.stamps.includes('tpExit'));
+    expect(center?.stamps).toContain('you');
+    expect(center?.tpLabel).toBe(4);
+  });
+
+  it('chartTeleport reuses a known arrival: repeat trips land the pawn on the charted cell', () => {
+    const store = fresh();
+    store.getState().chartTeleport(7, 'oneWay'); // first trip: aux created
+    const auxId = store.getState().activeMapId;
+    // wander a bit on the arrival sheet, then somehow step on pad №7 again
+    store.getState().moveYouPawn('E');
+    store.getState().chartTeleport(7, 'oneWay');
+    // no second sheet; the pawn is back on the SAME arrival cell
+    expect(store.getState().maps.filter((m) => m.name === 'After pad №7')).toHaveLength(1);
+    expect(store.getState().activeMapId).toBe(auxId);
+    const aux = store.getState().maps.find((m) => m.id === auxId)!;
+    const cell = aux.grids[0]!.cells.find((c) => c?.stamps.includes('tpExit'));
+    expect(cell?.stamps).toContain('you');
+  });
+
+  it('chartTeleport two-way round trip: the pawn returns to the charted main-map pad', () => {
+    const store = fresh(); // pawn at (0,0) on main
+    store.getState().chartTeleport(2, 'twoWay'); // to the twin: aux with a PAD (not exit)
+    const aux = store.getState().maps.find((m) => m.name === 'After pad №2')!;
+    const twin = aux.grids[0]!.cells.find((c) => c?.tpLabel === 2);
+    expect(twin?.stamps).toContain('teleport'); // a two-way arrival IS a pad
+    // step back through the twin: pawn lands on the original main-map pad
+    store.getState().chartTeleport(2, 'twoWay');
+    expect(store.getState().activeMapId).toBe('main');
+    const main = store.getState().maps.find((m) => m.id === 'main')!;
+    expect(main.grids[0]!.cells[0]?.stamps).toContain('you');
+    expect(main.grids[0]!.cells[0]?.tpLabel).toBe(2);
   });
 
   it('paintWalls lays a run of walls as one undoable step', () => {

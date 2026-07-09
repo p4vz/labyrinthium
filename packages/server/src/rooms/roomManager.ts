@@ -9,7 +9,9 @@ import {
   type SizePreset,
 } from '@labyrinthium/shared';
 import { randomInt } from 'node:crypto';
+import type { AvatarConfig } from '@labyrinthium/shared';
 import type { Db } from '../persistence/db.js';
+import type { ProfileService } from '../profiles/service.js';
 import { Room, RoomError, type RoomPlayer } from './room.js';
 
 // No 0/O/1/I — room codes get read out loud across the table.
@@ -30,8 +32,10 @@ export function configFromRules(rules: GameRules | undefined): GameConfig {
   if (rules.openInformation !== undefined) base.openInformation = rules.openInformation;
   if (rules.turnTimerSeconds !== undefined) base.turnTimerSeconds = rules.turnTimerSeconds;
   if (rules.dropAllOnShot !== undefined) base.dropAllOnShot = rules.dropAllOnShot;
+  if (rules.hardRivers !== undefined) base.hardRivers = rules.hardRivers;
   if (rules.allowBorderGrenade !== undefined) base.allowBorderGrenade = rules.allowBorderGrenade;
   if (rules.treasureDrifts !== undefined) base.treasureDrifts = rules.treasureDrifts;
+  if (rules.allowLeave !== undefined) base.allowLeave = rules.allowLeave;
   if (rules.doubleAmmo) {
     base.startingInventory = {
       grenades: base.startingInventory.grenades * 2,
@@ -46,7 +50,10 @@ export class RoomManager {
   private rooms = new Map<string, Room>();
   private byToken = new Map<string, { room: Room; player: RoomPlayer }>();
 
-  constructor(private db: Db | null) {}
+  constructor(
+    private db: Db | null,
+    private profiles: ProfileService | null = null,
+  ) {}
 
   createRoom(opts: CreateRoomOptions): Room {
     let map: MapDocument;
@@ -67,7 +74,7 @@ export class RoomManager {
       });
     }
     const code = this.uniqueCode();
-    const room = new Room(code, map, seed, configFromRules(opts.rules), this.db);
+    const room = new Room(code, map, seed, configFromRules(opts.rules), this.db, this.profiles);
     this.rooms.set(code, room);
     return room;
   }
@@ -76,14 +83,26 @@ export class RoomManager {
     return this.rooms.get(code.toUpperCase());
   }
 
-  join(code: string, name: string): { room: Room; player: RoomPlayer } {
+  join(
+    code: string,
+    name: string,
+    profile?: { id: string; avatar: AvatarConfig } | null,
+  ): { room: Room; player: RoomPlayer } {
     const room = this.get(code);
     if (!room) throw new RoomError('ROOM_NOT_FOUND', `no room ${code}`);
     if (room.phase !== 'lobby') throw new RoomError('GAME_IN_PROGRESS', 'game already started');
     if (room.players.length >= 8) throw new RoomError('ROOM_FULL', 'room is full');
-    const player = room.addPlayer(name);
+    const player = room.addPlayer(name, profile);
     this.byToken.set(player.sessionToken, { room, player });
     return { room, player };
+  }
+
+  /** Resolve an optional profile token into the seat's profile snapshot. */
+  resolveProfile(token: string | undefined): { id: string; avatar: AvatarConfig } | null {
+    if (!token || !this.profiles) return null;
+    const profile = this.profiles.authenticate(token);
+    if (!profile) return null;
+    return { id: profile.id, avatar: this.profiles.avatarOf(profile) };
   }
 
   resume(token: string): { room: Room; player: RoomPlayer } | undefined {

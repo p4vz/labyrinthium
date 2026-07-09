@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { payloadTypes, playScript, startGame, testMap, turn } from './fixtures.js';
+import { openLevel, payloadTypes, playScript, startGame, testMap, turn } from './fixtures.js';
 
 describe('house rules', () => {
   it('open information announces actions publicly; secret mode keeps them private', () => {
@@ -96,5 +96,35 @@ describe('house rules', () => {
     const b = playScript(startGame(map, 2, cfg), [...script]);
     expect(JSON.stringify(a.state)).toBe(JSON.stringify(b.state));
     expect(JSON.stringify(a.events)).toBe(JSON.stringify(b.events));
+  });
+});
+
+describe('difficulty: hard rivers', () => {
+  const riverMap = () =>
+    testMap({
+      levels: [openLevel(4, 3)],
+      treasure: { level: 0, x: 3, y: 2 },
+      features: [
+        { feature: { type: 'river', cells: [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }] } },
+      ],
+    });
+
+  it('easy (default): the GM names the drift direction', () => {
+    const { events } = turn(startGame(riverMap()), { type: 'move', direction: 'E' });
+    const drift = events.find((e) => e.payload.type === 'riverDrift');
+    expect(drift?.payload).toEqual({ type: 'riverDrift', direction: 'E' });
+  });
+
+  it('hard: you are dragged, but not told which way', () => {
+    const { state, events } = turn(startGame(riverMap(), 1, { hardRivers: true }), {
+      type: 'move',
+      direction: 'E',
+    });
+    // the drift itself still happens...
+    expect(state.players[0]!.pos).toMatchObject({ x: 2, y: 0 });
+    // ...but the event carries no direction (turn-start drift too)
+    const drifts = events.filter((e) => e.payload.type === 'riverDrift');
+    expect(drifts.length).toBeGreaterThan(0);
+    for (const d of drifts) expect(d.payload).toEqual({ type: 'riverDrift' });
   });
 });

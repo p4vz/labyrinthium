@@ -1,7 +1,7 @@
 import type { Coord, PlanarDirection, Pos } from '../geometry.js';
 import { cellId, edgeId, WorldBelief, type CellKnow, type EdgeObs } from './beliefs.js';
 
-export type FrameKind = 'teleport' | 'trapdoor' | 'stairs';
+export type FrameKind = 'teleport' | 'trapdoor' | 'stairs' | 'river';
 
 export interface FrameEdge {
   x: number;

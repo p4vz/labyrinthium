@@ -17,6 +17,8 @@ export function describeEvent(e: GameEvent): string {
           return `${p.playerName} fumbles with something on the floor…`;
         case 'pickup':
           return `${p.playerName} picks something up`;
+        case 'leave':
+          return `${p.playerName} heads for the exit…`;
         case 'endTurn':
           return `${p.playerName} ends their turn`;
         case 'skip':
@@ -35,11 +37,16 @@ export function describeEvent(e: GameEvent): string {
     case 'riverHere':
       return 'you are standing in a river';
     case 'riverDrift':
-      return `the current drags you ${dir(p.direction)}`;
-    case 'teleported':
+      return p.direction
+        ? `the current drags you ${dir(p.direction)}`
+        : 'the current drags you… somewhere — you have lost your bearings';
+    case 'teleported': {
+      const arrival =
+        p.mode === 'twoWay' ? ' — its twin pad glints beneath your feet' : '';
       return p.label !== undefined
-        ? `you step on teleport pad №${p.label} — a flash of light, and you are... somewhere else`
-        : 'a flash of light — you are... somewhere else';
+        ? `you step on teleport pad №${p.label} — a flash of light, and you are... somewhere else${arrival}`
+        : `a flash of light — you are... somewhere else${arrival}`;
+    }
     case 'fellThroughTrapdoor':
       return 'the floor gives way! you fall one level down';
     case 'stairsFound':
@@ -92,7 +99,25 @@ export function describeEvent(e: GameEvent): string {
       return 'daylight! you are OUT with the treasure!';
     case 'gameWon':
       return `*** ${p.playerName} escaped the labyrinth with the treasure and WINS ***`;
+    case 'cosmeticFound':
+      return `you find ${p.item.name} — stowed safely in your pack`;
+    case 'coinsFound':
+      return `you scoop up ${p.amount} coin(s)`;
+    case 'rareLootFound':
+      return `you find ${p.item.name} (${p.item.rarity.toUpperCase()}) — carry it OUT to keep it!`;
+    case 'rareLootDropped':
+      return `you drop your rare find${p.count > 1 ? 's' : ''} where you fall!`;
+    case 'rareLootBanked':
+      return `you carried your loot out alive: ${p.items.map((i) => i.name).join(', ')}`;
+    case 'leftLabyrinth':
+      return 'daylight! you walk out — the race goes on without you';
+    case 'playerLeft':
+      return `${p.playerName} has left the labyrinth`;
+    case 'gameEndedNoWinner':
+      return '*** everyone has fled — the labyrinth keeps its treasure ***';
   }
+  // Cheap armor for clients older than the event stream they're reading.
+  return '…something stirs in the dark';
 }
 
 function dir(d: string): string {

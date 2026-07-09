@@ -13,6 +13,7 @@ export type Stamp =
   | 'empty' // "checked — nothing here"
   | 'river'
   | 'teleport'
+  | 'tpExit' // where a one-way teleport spat you out
   | 'stairs'
   | 'trapdoor'
   | 'mine'
@@ -163,6 +164,8 @@ export function toggleStamp(g: PlayerGrid, x: number, y: number, stamp: Stamp, r
   const cell = next.cells[i] ?? { stamps: [] };
   if (cell.stamps.includes(stamp) && stamp !== 'river') {
     cell.stamps = cell.stamps.filter((s) => s !== stamp);
+    // the pad number belongs to the teleport marks — gone with the last one
+    if (!cell.stamps.some((s) => s === 'teleport' || s === 'tpExit')) delete cell.tpLabel;
   } else if (stamp === 'river' && cell.stamps.includes('river') && cell.riverDir === riverDir) {
     cell.stamps = cell.stamps.filter((s) => s !== 'river');
     delete cell.riverDir;

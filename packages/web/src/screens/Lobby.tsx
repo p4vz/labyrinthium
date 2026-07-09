@@ -1,3 +1,4 @@
+import { PixelAvatar } from '../components/PixelAvatar.js';
 import { send } from '../net/ws.js';
 import { useGameStore } from '../state/gameStore.js';
 
@@ -22,10 +23,17 @@ export function Lobby(): JSX.Element {
           {room.mapMeta.difficulty ? ` · difficulty ${room.mapMeta.difficulty}/10` : ''}
           {` · ${room.mapMeta.levelCount} level${room.mapMeta.levelCount > 1 ? 's' : ''}`}
         </h2>
-        <ul data-testid="player-list">
+        <ul data-testid="player-list" className="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
-              {p.isBot ? '🤖 ' : ''}
+              {/* the lobby is the runway: everyone's avatar on parade */}
+              {p.isBot ? (
+                <span className="lobby-avatar bot">🤖</span>
+              ) : (
+                <span className="lobby-avatar">
+                  <PixelAvatar avatar={p.avatar ?? null} size={28} title={`${p.name}'s avatar`} />
+                </span>
+              )}
               {p.name}
               {p.id === room.hostId ? ' 👑' : ''}
               {p.connected ? '' : ' (away)'}

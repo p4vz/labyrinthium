@@ -33,14 +33,38 @@ function checkInvariants(state: GameState): void {
   } else {
     expect(carriers).toHaveLength(0);
   }
-  // finished games have a winner who exited with the loot
+  // finished games either crowned a winner who exited with the treasure,
+  // or everyone walked out and nobody won
   if (state.phase === 'finished') {
-    const winner = state.players.find((p) => p.id === state.winnerId);
-    expect(winner).toBeDefined();
-    expect(winner!.exited).toBe(true);
-    expect(winner!.hasTreasure).toBe(true);
+    if (state.winnerId !== null) {
+      const winner = state.players.find((p) => p.id === state.winnerId);
+      expect(winner).toBeDefined();
+      expect(winner!.exited).toBe(true);
+      expect(winner!.hasTreasure).toBe(true);
+    } else {
+      expect(state.players.every((p) => p.exited)).toBe(true);
+    }
   } else {
     expect(state.winnerId).toBeNull();
+  }
+  // loot conservation: every rare+ item baked into the map is exactly one of
+  // (on the ground | carried | banked); commons/coins only move map -> banked
+  const rareIds = (items: { rarity: string; id: string }[]) =>
+    items.filter((i) => i.rarity === 'rare' || i.rarity === 'epic' || i.rarity === 'legendary').map((i) => i.id);
+  const bakedRares = state.map.levels
+    .flatMap((l) => l.features)
+    .flatMap((f) => (f.type === 'cosmetic' ? rareIds([f.item]) : []))
+    .sort();
+  const trackedRares = [
+    ...rareIds(state.groundCosmetics.map((g) => g.item)),
+    ...state.players.flatMap((p) => rareIds(p.carriedRares)),
+    ...state.players.flatMap((p) => rareIds(p.banked.items)),
+  ].sort();
+  expect(trackedRares).toEqual(bakedRares);
+  for (const p of state.players) {
+    expect(p.banked.coins).toBeGreaterThanOrEqual(0);
+    // carried items are always rare+; commons bank instantly
+    expect(p.carriedRares.every((i) => i.rarity === 'rare' || i.rarity === 'epic' || i.rarity === 'legendary')).toBe(true);
   }
 }
 
@@ -69,6 +93,12 @@ const actionArb: fc.Arbitrary<PlayerAction> = fc.oneof(
   ) },
   { weight: 1, arbitrary: fc.constant<PlayerAction>({ type: 'placeMine' }) },
   { weight: 1, arbitrary: fc.constant<PlayerAction>({ type: 'pickup' }) },
+  { weight: 1, arbitrary: fc.constantFrom<PlayerAction>(
+    { type: 'leave', direction: 'N' },
+    { type: 'leave', direction: 'E' },
+    { type: 'leave', direction: 'S' },
+    { type: 'leave', direction: 'W' },
+  ) },
   { weight: 2, arbitrary: fc.constant<PlayerAction>({ type: 'endTurn' }) },
 );
 
@@ -97,16 +127,20 @@ describe('engine invariants under random play', () => {
             if (state.phase !== 'inProgress') break;
             const active = state.players[state.turnIndex]!;
             const action: PlayerAction = active.paralysis > 0 ? { type: 'skip' } : raw;
+            let result;
             try {
-              const result = applyAction(state, action);
-              state = result.state;
-              accepted.push(action);
-              checkInvariants(state);
+              result = applyAction(state, action);
             } catch (err) {
-              expect(err).toBeInstanceOf(InvalidActionError);
               // invalid actions must not have mutated anything: nothing to check,
               // applyAction validates before cloning.
+              expect(err).toBeInstanceOf(InvalidActionError);
+              continue;
             }
+            state = result.state;
+            accepted.push(action);
+            // outside the try so a broken invariant reports itself, not a
+            // misleading "not an InvalidActionError"
+            checkInvariants(state);
           }
           // exact replay
           let replay = initial;

@@ -263,9 +263,19 @@ export class BayesianBrain {
         this.observeCellHere({ river: {} });
         break;
       case 'riverDrift':
-        // the flow direction belongs to the cell we drift FROM
-        this.observeCellHere({ river: { dir: p.direction } });
-        this.relocate(step(this.loc, p.direction), 'drift');
+        if (p.direction !== undefined) {
+          // the flow direction belongs to the cell we drift FROM
+          this.observeCellHere({ river: { dir: p.direction } });
+          this.relocate(step(this.loc, p.direction), 'drift');
+        } else {
+          // hard rivers: the GM hides which way the current dragged us. We
+          // know only that we slid one cell downstream on this level — a
+          // small disorientation. If we were localized, the landing is one
+          // of our neighbors, so a fresh frame seeded with them re-localizes
+          // almost at once.
+          this.observeCellHere({ river: {} });
+          this.openFrame('river');
+        }
         break;
       case 'teleported': {
         this.observeCellHere({ pad: p.label !== undefined ? { label: p.label } : {} });
@@ -503,7 +513,8 @@ export class BayesianBrain {
         this.loc = { frame: existing, level: 0, x: 0, y: 0 };
         const key = '0,0';
         existing.visits.set(key, (existing.visits.get(key) ?? 0) + 1);
-        this.entryVia = kind === 'teleport' ? 'teleport' : kind === 'trapdoor' ? 'fall' : 'stairs';
+        this.entryVia =
+          kind === 'teleport' ? 'teleport' : kind === 'trapdoor' ? 'fall' : kind === 'river' ? 'drift' : 'stairs';
         this.entrySawRiver = false;
         this.entrySawStairs = null;
         this.probedDirs.clear();
@@ -514,7 +525,10 @@ export class BayesianBrain {
     const marginal = this.levelMarginal();
     const levelPrior = new Array<number>(levels).fill(0);
     if (kind === 'teleport') levelPrior.fill(1);
-    else {
+    else if (kind === 'river') {
+      // rivers never cross levels — the drift keeps us where we were
+      for (let l = 0; l < levels; l++) levelPrior[l] = marginal[l] ?? 0;
+    } else {
       const delta = kind === 'trapdoor' || stairsDir === 'D' ? 1 : -1;
       for (let l = 0; l < levels; l++) {
         const from = l - delta;
@@ -548,13 +562,24 @@ export class BayesianBrain {
         if (dest) frame.seeds.set(posKey(dest), Math.max(frame.seeds.get(posKey(dest)) ?? 1, 25));
       }
     }
+    if (kind === 'river' && fromAbs) {
+      // a blind drift lands exactly one cell downstream — pile the prior on
+      // the four neighbors of where we stood
+      for (const d of PLANAR_DIRECTIONS) {
+        const n = step(fromAbs, d);
+        if (this.world.inBounds(fromAbs.level, n)) {
+          frame.seeds.set(posKey({ level: fromAbs.level, ...n }), 40);
+        }
+      }
+    }
     this.frames.push(frame);
     if (this.frames.length > MAX_LIVE_FRAMES) {
       const idx = this.frames.findIndex((f) => f !== frame);
       if (idx >= 0) this.frames.splice(idx, 1);
     }
     this.loc = { frame, level: 0, x: 0, y: 0 };
-    this.entryVia = kind === 'teleport' ? 'teleport' : kind === 'trapdoor' ? 'fall' : 'stairs';
+    this.entryVia =
+          kind === 'teleport' ? 'teleport' : kind === 'trapdoor' ? 'fall' : kind === 'river' ? 'drift' : 'stairs';
     this.entrySawRiver = false;
     this.entrySawStairs = null;
     this.probedDirs.clear();

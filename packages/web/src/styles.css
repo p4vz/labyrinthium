@@ -341,6 +341,11 @@ h3 {
   gap: 4px;
   margin-left: 4px;
 }
+/* stamps for elements that are NOT in the current maze */
+.palette button.absent {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
 
 .map-col {
   flex: 1;
@@ -452,14 +457,14 @@ h3 {
 .action-bar {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 8px 16px;
+  gap: 10px;
+  padding: 5px 10px;
   border-top: 2px solid var(--accent-dark);
   background: var(--panel);
 }
 .turn-indicator {
-  font-size: 15px;
-  min-width: 190px;
+  font-size: 13px;
+  min-width: 150px;
 }
 .turn-indicator.my-turn {
   color: var(--good);
@@ -476,13 +481,17 @@ h3 {
 }
 .modes {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+}
+.modes button {
+  padding: 5px 8px;
+  font-size: 12.5px;
 }
 .dpad {
   display: grid;
   grid-template-areas: '. n . u' 'w . e d' '. s . .';
-  grid-template-columns: 34px 34px 34px 40px;
-  grid-template-rows: 28px 28px 28px;
+  grid-template-columns: 30px 30px 30px 36px;
+  grid-template-rows: 25px 25px 25px;
   gap: 3px;
 }
 .dpad button {
@@ -497,7 +506,7 @@ h3 {
 .dp-d { grid-area: d; }
 .inventory {
   margin-left: auto;
-  font-size: 14px;
+  font-size: 12.5px;
 }
 
 /* ------- modal / reveal ------- */
@@ -708,16 +717,26 @@ button.glow {
   border-radius: 0;
   border-left: 0;
   border-right: 0;
-  font-size: 12.5px;
-  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 12px;
   background: var(--panel-2);
+  flex-direction: column;
+  gap: 1px;
+}
+/* Rail collapsed on desktop: the ticker stands in for the hidden feed. */
+.event-ticker.always {
+  display: flex;
+}
+.ticker-line {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Rail collapsed on desktop: the ticker stands in for the hidden feed. */
-.event-ticker.always {
-  display: block;
+/* older lines fade so the newest reads first */
+.ticker-line:not(:last-child) {
+  opacity: 0.62;
 }
 .mobile-only {
   display: none;
@@ -728,29 +747,17 @@ button.glow {
   min-width: 200px;
 }
 
-/* ------- full-log bottom sheet (opened from the ticker) ------- */
-.log-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 3, 2, 0.55);
-  z-index: 24;
-}
-.log-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 25;
-  height: min(60vh, 480px);
-  background: var(--panel);
-  border-top: 2px solid var(--accent-dark);
-  border-radius: 14px 14px 0 0;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
+/* ------- full log, docked where the controls sit (opened from the
+   ticker) — the map and drawing toolbar stay visible and usable ------- */
+.log-dock {
   display: flex;
   flex-direction: column;
-  padding: 4px 10px 10px;
+  max-height: 36vh;
+  background: var(--panel);
+  border-top: 2px solid var(--accent-dark);
+  padding: 0 10px 8px;
 }
-.log-sheet .event-feed {
+.log-dock .event-feed {
   min-width: 0;
   border-top: 0;
   flex: 1;
@@ -830,18 +837,15 @@ button.glow {
   }
 
   .event-ticker {
-    display: block;
+    display: flex;
     width: 100%;
     text-align: left;
     border-radius: 0;
     border-left: 0;
     border-right: 0;
-    font-size: 12.5px;
-    padding: 6px 12px;
+    font-size: 12px;
+    padding: 4px 12px;
     background: var(--panel-2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .action-bar {
@@ -867,22 +871,41 @@ button.glow {
   .inventory small {
     display: none;
   }
+  /* condensed two-row layout: [turn · inventory] over [modes | dpad] */
+  .rare-chip {
+    order: 0;
+    flex: 1 1 100%;
+  }
+  .turn-indicator {
+    order: 1;
+    flex: 1 1 auto;
+  }
+  .inventory {
+    order: 2;
+    margin-left: auto;
+  }
   .modes {
+    order: 3;
+    flex-direction: row;
     flex-wrap: wrap;
-    flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+    flex: 1 1 52%;
+    min-width: 0;
+    align-content: center;
   }
   .modes button {
-    padding: 8px 10px;
-    font-size: 12.5px;
+    padding: 5px 7px;
+    font-size: 11.5px;
+    white-space: nowrap;
   }
   .dpad {
-    grid-template-columns: 44px 44px 44px 48px;
-    grid-template-rows: 34px 34px 34px;
-    gap: 4px;
+    order: 4;
+    grid-template-columns: 38px 38px 38px 42px;
+    grid-template-rows: 30px 30px 30px;
+    gap: 3px;
   }
   .dpad button {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .home {
@@ -951,6 +974,14 @@ button.glow {
     padding: 8px 6px;
     gap: 6px;
   }
+  /* the docked log takes the control column in landscape */
+  .log-dock {
+    grid-row: 2;
+    grid-column: 2;
+    max-height: none;
+    border-top: 0;
+    border-left: 2px solid var(--accent-dark);
+  }
   .player-map-svg {
     width: auto;
     max-height: calc(100dvh - 60px);
@@ -987,5 +1018,376 @@ button.glow {
   .dpad button {
     padding: 6px;
   }
+  /* keep the condensed control bar condensed on touch too */
+  .modes button {
+    padding: 6px 8px;
+  }
 }
 .bot-match-title { margin-top: 18px; font-size: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
+
+/* ------- character / cosmetics layer ------- */
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.good {
+  color: var(--good);
+}
+
+/* home profile card */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: auto;
+  max-width: 640px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+}
+.profile-card .avatar-button {
+  display: inline-flex !important;
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+  background: var(--header);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  line-height: 0;
+  cursor: pointer;
+}
+.profile-card .avatar-button:hover {
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 14px rgba(224, 144, 46, 0.25);
+}
+.profile-card .profile-meta {
+  flex: 1 1 220px;
+  min-width: 180px;
+  text-align: left;
+}
+.profile-card .profile-meta label {
+  display: block;
+}
+.profile-card .profile-meta input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.profile-card .profile-stats {
+  margin-top: 4px;
+}
+.profile-card > button:last-child {
+  width: auto !important;
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+}
+
+/* lobby runway */
+.player-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.lobby-avatar {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: var(--header);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.lobby-avatar.bot {
+  font-size: 18px;
+}
+
+/* wardrobe screen */
+.wardrobe {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+.wardrobe-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wardrobe-header h1 {
+  flex: 1;
+  margin: 0;
+  color: var(--accent);
+  text-shadow: 0 0 16px rgba(224, 144, 46, 0.35);
+}
+.wardrobe-header button {
+  width: auto;
+}
+.coin-balance {
+  background: var(--header);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+.wardrobe-error {
+  margin-top: 10px;
+  background: rgba(224, 91, 80, 0.12);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wardrobe-error button {
+  width: auto;
+  padding: 0 8px;
+}
+.wardrobe-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.wardrobe-tabs button {
+  width: auto;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent;
+}
+.wardrobe-tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--panel-2);
+}
+.wardrobe-equip,
+.wardrobe-collection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.avatar-stage {
+  text-align: center;
+}
+.avatar-stage svg {
+  background: var(--map-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.skin-row,
+.dye-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+.skin-dot {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-block !important;
+}
+.skin-dot.active {
+  border-color: var(--ink);
+  box-shadow: 0 0 8px rgba(226, 214, 189, 0.5);
+}
+.slot-card {
+  width: 300px;
+}
+.slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatch-tile {
+  width: 56px !important;
+  min-height: 56px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 4px !important;
+  margin: 0 !important;
+  cursor: pointer;
+}
+.swatch-tile.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(224, 144, 46, 0.35);
+}
+.swatch-tile.static {
+  cursor: default;
+  width: 72px !important;
+}
+.swatch-tile.undiscovered {
+  opacity: 0.6;
+}
+.swatch-none {
+  font-size: 20px;
+  color: var(--muted);
+}
+.swatch-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.15;
+}
+.dye-row {
+  justify-content: flex-start;
+}
+.sets-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.set-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.set-row.complete {
+  background: rgba(224, 144, 46, 0.1);
+}
+.set-row.complete .set-name {
+  color: var(--accent);
+}
+.wardrobe-shop .shop-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.shop-offer {
+  width: 170px;
+  text-align: center;
+  border-width: 2px;
+}
+.shop-offer .offer-name {
+  margin-top: 6px;
+  font-size: 13px;
+  min-height: 32px;
+}
+.shop-offer svg {
+  background: var(--map-bg);
+  border-radius: 6px;
+  padding: 4px;
+}
+.dye-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+}
+.account-card {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* at-risk loot chip + walk-out */
+.rare-chip {
+  background: rgba(224, 144, 46, 0.12);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+.rare-chip.pulse {
+  animation: rare-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rare-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(224, 144, 46, 0); }
+  50% { box-shadow: 0 0 14px rgba(224, 144, 46, 0.55); }
+}
+.leave-exit {
+  border-color: var(--accent-dark) !important;
+}
+
+/* end-of-game loot summary */
+.loot-summary {
+  margin: 10px 0;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.loot-summary h3 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+.loot-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-top: 1px solid rgba(70, 57, 43, 0.5);
+}
+.loot-row:first-of-type {
+  border-top: none;
+}
+.loot-name {
+  min-width: 110px;
+  font-weight: bold;
+}
+.loot-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.loot-item.rarity-common { color: #9b8a6f; }
+.loot-item.rarity-uncommon { color: var(--good); }
+.loot-item.rarity-rare { color: var(--water); }
+.loot-item.rarity-epic { color: var(--arcane); }
+.loot-item.rarity-legendary { color: var(--accent); }
+.loot-lost {
+  color: var(--bad);
+  font-style: italic;
+}
+
+/* body shape picker */
+.body-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+.body-pick {
+  width: 52px !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.body-pick.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(224, 144, 46, 0.35);
+}

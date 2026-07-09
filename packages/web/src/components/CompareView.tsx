@@ -14,6 +14,7 @@ const BAD = '#e05b50';
 const GRADED_STAMPS: Stamp[] = [
   'river',
   'teleport',
+  'tpExit',
   'stairs',
   'trapdoor',
   'mine',
@@ -80,6 +81,13 @@ export function compareLevel(map: MapDocument, level: number, belief: PlayerGrid
         if (f.cells.some((c) => c.x === x && c.y === y)) out.add('river');
       } else if (f.at.x === x && f.at.y === y) {
         out.add(f.type);
+      }
+    }
+    // A "teleport exit" claim is true where any one-way pad actually lands.
+    for (const lvl of map.levels) {
+      for (const f of lvl.features) {
+        if (f.type !== 'teleport' || f.mode !== 'oneWay') continue;
+        if (f.target.level === level && f.target.x === x && f.target.y === y) out.add('tpExit');
       }
     }
     if (map.spawns.treasure.level === level && map.spawns.treasure.x === x && map.spawns.treasure.y === y) {

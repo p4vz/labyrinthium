@@ -9,6 +9,7 @@ const STAMPS: { stamp: Stamp; label: string }[] = [
   { stamp: 'empty', label: 'nothing here' },
   { stamp: 'entrance', label: 'entrance' },
   { stamp: 'teleport', label: 'teleport' },
+  { stamp: 'tpExit', label: 'teleport exit' },
   { stamp: 'stairs', label: 'stairs' },
   { stamp: 'trapdoor', label: 'trap door' },
   { stamp: 'mine', label: 'mine' },
@@ -35,7 +36,35 @@ export function Palette(): JSX.Element {
   const clipboard = useMapStore((s) => s.clipboard);
   const pending = useMapStore((s) => s.pending);
   const wide = useMapStore((s) => s.paletteWide);
+  const started = useGameStore((s) => s.started);
   const store = useMapStore;
+
+  /** Is this element kind even in the current maze? (Outside a game —
+   * editor, replays — everything is available.) */
+  function inGame(stamp: Stamp): boolean {
+    const present = started?.featuresPresent;
+    if (!present) return true;
+    switch (stamp) {
+      case 'river':
+        return present.includes('river');
+      case 'teleport':
+      case 'tpExit':
+        return present.includes('teleport');
+      case 'stairs':
+        return present.includes('stairs');
+      case 'trapdoor':
+        return present.includes('trapdoor');
+      case 'mine':
+        // baked mines OR someone can still arm their own
+        return present.includes('mine') || started!.inventory.mines > 0;
+      case 'trap':
+        return present.includes('trap');
+      case 'monster':
+        return present.includes('monster');
+      default:
+        return true;
+    }
+  }
 
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const dragFrom = useRef<{ x: number; width: number } | null>(null);
@@ -53,13 +82,15 @@ export function Palette(): JSX.Element {
     label: React.ReactNode,
     onClick: () => void,
     title?: string,
+    disabled = false,
   ): JSX.Element {
     return (
       <button
         key={key}
-        className={active ? 'active' : ''}
+        className={`${active ? 'active' : ''}${disabled ? ' absent' : ''}`}
+        disabled={disabled}
         onClick={onClick}
-        title={title ?? (typeof label === 'string' ? label : undefined)}
+        title={disabled ? 'not in this labyrinth' : title ?? (typeof label === 'string' ? label : undefined)}
       >
         <span className="glyph">{glyph}</span>
         {showLabels && <span className="label">{label}</span>}
@@ -77,7 +108,8 @@ export function Palette(): JSX.Element {
         <span style={{ color: '#58a6d8' }}>➤</span>,
         <>river <small>(swipe the flow)</small></>,
         () => setTool({ kind: 'stamp', stamp: 'river', riverDir: riverDir ?? 'E' }),
-        'river — hold and swipe along the flow; a short swipe sets one cell',
+        'river — hold on a tile and swipe: that tile gets the flow direction',
+        !inGame('river'),
       )}
       {isStamp('river') && showLabels && (
         <div className="river-dirs">
@@ -94,7 +126,7 @@ export function Palette(): JSX.Element {
         </div>
       )}
       {STAMPS.map(({ stamp, label }) =>
-        btn(stamp, isStamp(stamp), STAMP_GLYPHS[stamp], label, () => setTool({ kind: 'stamp', stamp })),
+        btn(stamp, isStamp(stamp), STAMP_GLYPHS[stamp], label, () => setTool({ kind: 'stamp', stamp }), undefined, !inGame(stamp)),
       )}
       {btn('note', tool.kind === 'note', '✍', 'note', () => setTool({ kind: 'note' }))}
       {btn('erase', tool.kind === 'erase', '⌫', 'erase', () => setTool({ kind: 'erase' }))}

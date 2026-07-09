@@ -31,7 +31,8 @@ shell for all four tiers.)
 
 ## Localization (`frames.ts`)
 
-Every disorientation (teleport, trapdoor, stairs) opens a `FrameBelief` —
+Every disorientation (teleport, trapdoor, stairs, and — under the `hardRivers`
+house rule — a blind river drift) opens a `FrameBelief` —
 the machine equivalent of a human's auxiliary map sheet. Observations are
 recorded relative to the landing cell, and the frame maintains a posterior
 over every possible absolute placement of that origin:
@@ -41,7 +42,10 @@ over every possible absolute placement of that origin:
   there is no rotation ambiguity.
 - Constraints by frame kind: a trapdoor lands exactly one level down;
   stairs land on the known level (on a cell that must carry the mirrored
-  stairs); a teleport can land anywhere — but a previously-seen rune label
+  stairs); a blind river drift stays on the level and lands on a neighbour of
+  where you stood (the frame is seeded with those four cells, so it
+  re-localizes almost immediately); a teleport can land anywhere — but a
+  previously-seen rune label
   seeds its twin pad heavily, and labels are unique per teleport set, so
   riding the same rune twice while lost provably returns you to ground
   you've already charted.

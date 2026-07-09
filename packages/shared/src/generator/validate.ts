@@ -15,7 +15,8 @@ export interface MapIssue {
     | 'TREASURE_UNREACHABLE'
     | 'EXIT_UNREACHABLE_FROM_TREASURE'
     | 'TRAP_REGION'
-    | 'SPAWN_ON_HAZARD';
+    | 'SPAWN_ON_HAZARD'
+    | 'LOOT_ON_HAZARD';
   message: string;
   positions: Pos[];
 }
@@ -293,6 +294,18 @@ function structuralIssues(map: MapDocument): MapIssue[] {
               positions: [{ level: li, ...f.at }],
             });
           }
+        }
+      }
+      // Loot must sit on a plain resting cell so the scoop actually fires
+      // where the item is drawn (generator guarantees it; editors might not).
+      if (f.type === 'coins' || f.type === 'cosmetic') {
+        const others = featuresAt(level, f.at).filter((g) => g !== f);
+        if (others.some((g) => g.type === 'teleport' || g.type === 'trapdoor' || g.type === 'river' || g.type === 'mine' || g.type === 'trap')) {
+          issues.push({
+            code: 'LOOT_ON_HAZARD',
+            message: `${f.type} must sit on a plain cell`,
+            positions: [{ level: li, ...f.at }],
+          });
         }
       }
       if (f.type === 'trapdoor') {

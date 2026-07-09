@@ -10,12 +10,17 @@ export function ActionBar(): JSX.Element {
   const turnDeadline = useGameStore((s) => s.turnDeadline);
   const canAct = useGameStore((s) => s.canAct);
   const treasureUnderfoot = useGameStore((s) => s.treasureUnderfoot);
+  const haveTreasure = useGameStore((s) => s.haveTreasure);
+  const carriedRares = useGameStore((s) => s.carriedRares);
+  const exitAdjacent = useGameStore((s) => s.exitAdjacent);
+  const leftGame = useGameStore((s) => s.leftGame);
   const finished = useGameStore((s) => s.finished);
   const spectating = useGameStore((s) => s.spectating);
   const paused = useGameStore((s) => s.paused);
   const mode = useGameStore((s) => s.actionMode);
   const setMode = useGameStore((s) => s.setActionMode);
   const [now, setNow] = useState(Date.now());
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
     if (!turnDeadline) return;
@@ -30,9 +35,16 @@ export function ActionBar(): JSX.Element {
   const secondsLeft = turnDeadline ? Math.max(0, Math.ceil((turnDeadline - now) / 1000)) : null;
 
   const myTurn =
-    !spectating && !finished && !paused && started !== null && activePlayerId === started.yourPlayerId;
+    !spectating &&
+    !finished &&
+    !paused &&
+    !leftGame &&
+    started !== null &&
+    activePlayerId === started.yourPlayerId;
   const activeName =
     started?.turnOrder.find((p) => p.id === activePlayerId)?.name ?? '…';
+  const canLeave =
+    myTurn && (started?.rules.allowLeave ?? false) && exitAdjacent !== null && !haveTreasure;
 
   function act(direction: 'N' | 'E' | 'S' | 'W' | 'U' | 'D'): void {
     const action = actionFor(mode, direction);
@@ -46,15 +58,27 @@ export function ActionBar(): JSX.Element {
           ? 'game over'
           : paused
             ? '⏸ game paused by the observer'
-            : spectating
-              ? `watching — ${activeName}'s turn (t${turnNumber})`
-              : myTurn
-                ? `YOUR TURN (t${turnNumber})`
-                : `${activeName}'s turn (t${turnNumber})`}
+            : leftGame
+              ? 'you walked out — the race goes on below'
+              : spectating
+                ? `watching — ${activeName}'s turn (t${turnNumber})`
+                : myTurn
+                  ? `YOUR TURN (t${turnNumber})`
+                  : `${activeName}'s turn (t${turnNumber})`}
         {secondsLeft !== null && !finished && (
           <span className={`turn-clock ${secondsLeft <= 5 ? 'urgent' : ''}`}> ⏱ {secondsLeft}s</span>
         )}
       </div>
+
+      {carriedRares.length > 0 && !finished && !leftGame && (
+        <div
+          className={`rare-chip ${exitAdjacent ? 'pulse' : ''}`}
+          data-testid="rare-chip"
+          title={carriedRares.map((i) => `${i.name} (${i.rarity})`).join('\n')}
+        >
+          ✨ carrying {carriedRares.length} rare find{carriedRares.length > 1 ? 's' : ''} — walk out to keep {carriedRares.length > 1 ? 'them' : 'it'}
+        </div>
+      )}
 
       <div className="modes">
         <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>
@@ -100,7 +124,50 @@ export function ActionBar(): JSX.Element {
         >
           ⏭ end turn
         </button>
+        {canLeave && (
+          <button
+            data-testid="leave-exit-btn"
+            className="glow leave-exit"
+            onClick={() => setConfirmLeave(true)}
+            title="walk out through the exit beside you — forfeit the race, keep your rare finds"
+          >
+            🚪 walk out
+          </button>
+        )}
       </div>
+
+      {confirmLeave && exitAdjacent && (
+        <div className="modal-backdrop" data-testid="leave-confirm">
+          <div className="modal">
+            <h2>🚪 Walk out of the labyrinth?</h2>
+            <p>
+              You leave through the exit and <b>forfeit the race</b> — the game continues without
+              you.
+            </p>
+            {carriedRares.length > 0 ? (
+              <p>
+                You will keep forever:{' '}
+                <b>{carriedRares.map((i) => i.name).join(', ')}</b>
+              </p>
+            ) : (
+              <p className="hint">You carry no rare finds — you'd walk out with empty hands.</p>
+            )}
+            <div className="button-row modal-actions">
+              <button onClick={() => setConfirmLeave(false)}>stay and fight</button>
+              <button
+                data-testid="leave-confirm-btn"
+                className="primary"
+                onClick={() => {
+                  setConfirmLeave(false);
+                  send({ type: 'game.action', action: { type: 'leave', direction: exitAdjacent } });
+                }}
+              >
+                walk out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="dpad">
         <button disabled={!myTurn} data-testid="go-N" className="dp-n" onClick={() => act('N')}>▲</button>

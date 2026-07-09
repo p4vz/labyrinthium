@@ -50,7 +50,10 @@ export class OpponentTracker {
         this.shift(grids, world, p.direction, 'open');
         break;
       case 'riverDrift':
-        this.shift(grids, world, p.direction, 'river');
+        if (p.direction !== undefined) this.shift(grids, world, p.direction, 'river');
+        // hard rivers hide the direction: the opponent slid one cell some
+        // way downstream — spread their mass to the neighbourhood
+        else this.diffuse(grids);
         break;
       case 'bumpedWall':
       case 'bumpedGrate':
@@ -144,6 +147,33 @@ export class OpponentTracker {
             p = edge === 'open' ? 1 : edge === undefined ? 1 - world.pWall() : 0;
           }
           out[to.y * width + to.x]! += w * p;
+        }
+      }
+      grids[level] = out;
+    }
+    this.normalize(grids);
+  }
+
+  /** A blind, on-level nudge: bleed each cell's mass to its neighbours. */
+  private diffuse(grids: Float64Array[]): void {
+    for (let level = 0; level < grids.length; level++) {
+      const { width, height } = this.sizes[level]!;
+      const src = grids[level]!;
+      const out = new Float64Array(src.length);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const w = src[y * width + x]!;
+          if (w <= 0) continue;
+          const dests: Coord[] = [];
+          for (const d of ['N', 'E', 'S', 'W'] as const) {
+            const to = step({ x, y }, d);
+            if (to.x >= 0 && to.y >= 0 && to.x < width && to.y < height) dests.push(to);
+          }
+          if (dests.length === 0) {
+            out[y * width + x]! += w;
+            continue;
+          }
+          for (const to of dests) out[to.y * width + to.x]! += w / dests.length;
         }
       }
       grids[level] = out;

@@ -1,5 +1,6 @@
-import type { MapDocument, Pos } from '@labyrinthium/shared';
+import type { AvatarConfig, MapDocument, Pos } from '@labyrinthium/shared';
 import { doorGlyph, grateGlyph } from './MapGrid.js';
+import { PixelAvatar } from './PixelAvatar.js';
 
 // Same cell size as the players' hand-drawn maps, so an observer flipping
 // between the true map and belief maps sees everything at one scale.
@@ -20,10 +21,12 @@ const FEATURE_GLYPHS: Record<string, string> = {
   trapdoor: '⤵',
   mine: '💣',
   trap: '✖',
+  coins: '🪙',
+  cosmetic: '🎩',
 };
 
 export interface Overlay {
-  players?: { id: string; name: string; pos: Pos }[];
+  players?: { id: string; name: string; pos: Pos; avatar?: AvatarConfig; carriedRareCount?: number }[];
   monsters?: Pos[];
   treasure?: Pos | null;
 }
@@ -108,7 +111,11 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
           ? `stairs → L${f.to.level} (${f.to.x},${f.to.y})`
           : f.type === 'trapdoor'
             ? `trap door → L${f.to.level} (${f.to.x},${f.to.y})`
-            : f.type;
+            : f.type === 'cosmetic'
+              ? `${f.item.name} (${f.item.rarity})`
+              : f.type === 'coins'
+                ? `${f.amount} coins`
+                : f.type;
     parts.push(
       <text
         key={`f${f.type}${f.at.x},${f.at.y}`}
@@ -142,6 +149,50 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
     }
   }
 
+  // One-way teleport ARRIVAL spots: both sides of every teleport belong on
+  // the map. (Two-way twins are pad features and already drawn above.)
+  props.map.levels.forEach((srcLevel, srcIdx) => {
+    for (const f of srcLevel.features) {
+      if (f.type !== 'teleport' || f.mode !== 'oneWay') continue;
+      if (f.target.level !== props.level) continue;
+      const tx = px(f.target.x) + CS / 2;
+      const ty = py(f.target.y) + CS / 2;
+      parts.push(
+        <text
+          key={`tpx${srcIdx}:${f.at.x},${f.at.y}`}
+          x={tx}
+          y={ty}
+          fontSize={15}
+          fill="#9a86c9"
+          textAnchor="middle"
+          dominantBaseline="central"
+          pointerEvents="none"
+        >
+          ◉
+          <title>
+            {`teleport${f.label !== undefined ? ` №${f.label}` : ''} arrival — pad on L${srcIdx} (${f.at.x},${f.at.y})`}
+          </title>
+        </text>,
+      );
+      if (f.label !== undefined) {
+        parts.push(
+          <text
+            key={`tpxl${srcIdx}:${f.at.x},${f.at.y}`}
+            x={px(f.target.x) + 7}
+            y={py(f.target.y) + CS - 5}
+            fontSize={9}
+            fontWeight="bold"
+            fill="#9a86c9"
+            textAnchor="middle"
+            pointerEvents="none"
+          >
+            {f.label}
+          </text>,
+        );
+      }
+    }
+  });
+
   // Entrance / spawns on this level. The way in IS the way out — the gate is
   // an 'exit' edge on the entrance cell, drawn by the edge pass below.
   if (props.map.entrance.level === props.level) {
@@ -158,12 +209,32 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
   });
   props.overlay?.players?.forEach((p, i) => {
     if (p.pos.level === props.level) {
+      const cx = px(p.pos.x) + CS / 2;
+      const cy = py(p.pos.y) + CS / 2;
+      const seatColor = ['#e5793a', '#7a5fd0', '#2e9e44', '#d04f7a'][i % 4]!;
       parts.push(
         <g key={`pl${p.id}`} pointerEvents="none">
-          <circle cx={px(p.pos.x) + CS / 2} cy={py(p.pos.y) + CS / 2} r={11} fill={['#e5793a', '#7a5fd0', '#2e9e44', '#d04f7a'][i % 4]} opacity={0.85} />
-          <text x={px(p.pos.x) + CS / 2} y={py(p.pos.y) + CS / 2} fontSize={11} fill="#fff" textAnchor="middle" dominantBaseline="central">
-            {p.name.slice(0, 2)}
-          </text>
+          {p.avatar ? (
+            <>
+              {/* seat-color ring keeps the who-is-who system; the pawn is the avatar */}
+              <circle cx={cx} cy={cy} r={13} fill="#16110d" stroke={seatColor} strokeWidth={2} opacity={0.95} />
+              <g transform={`translate(${cx - 11}, ${cy - 11})`}>
+                <PixelAvatar avatar={p.avatar} size={22} title={p.name} />
+              </g>
+            </>
+          ) : (
+            <>
+              <circle cx={cx} cy={cy} r={11} fill={seatColor} opacity={0.85} />
+              <text x={cx} y={cy} fontSize={11} fill="#fff" textAnchor="middle" dominantBaseline="central">
+                {p.name.slice(0, 2)}
+              </text>
+            </>
+          )}
+          {(p.carriedRareCount ?? 0) > 0 && (
+            <text x={cx + 11} y={cy - 10} fontSize={11} textAnchor="middle" dominantBaseline="central">
+              ✨<title>{`carrying ${p.carriedRareCount} rare find(s)`}</title>
+            </text>
+          )}
         </g>,
       );
     }

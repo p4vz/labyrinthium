@@ -78,6 +78,28 @@ describe('bayesian bot on generated maps', () => {
     expect(r.won).toBe(true);
   });
 
+  it('hard rivers (blind drift): still sound, and re-localizes to win some', () => {
+    // With hardRivers on, every river crossing hides the direction — a
+    // disorientation the brain models with a same-level frame seeded on the
+    // neighbours. Soundness must survive it; the win rate naturally drops
+    // because blind currents are meant to be punishing.
+    let wins = 0;
+    for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']) {
+      const map = generateMap({ preset: 'medium', complexity: 'advanced', seed });
+      const r = driveGame({
+        map,
+        brains: { p1: { tier: 'hard', rng: seededRng(17) } },
+        maxTurns: 1500,
+        seed: `g-${seed}`,
+        config: { hardRivers: true },
+      });
+      expect(r.illegalActions).toEqual([]);
+      expect(r.mislocalizations).toBe(0);
+      if (r.won) wins++;
+    }
+    expect(wins).toBeGreaterThanOrEqual(2);
+  }, 120000);
+
   it('is deterministic: same seeds, same game, same outcome', () => {
     const map = generateMap({ preset: 'medium', complexity: 'advanced', seed: 'ai-det' });
     const run = (): { turns: number; winner: string | null } => {

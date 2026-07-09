@@ -1,4 +1,5 @@
 import type { Pos } from '../geometry.js';
+import type { CosmeticItem } from '../cosmetics/items.js';
 import type { MapDocument, MonsterAI } from '../map/document.js';
 import type { EdgeGrid } from '../map/grid.js';
 import { cloneEdgeGrid } from '../map/grid.js';
@@ -19,6 +20,14 @@ export interface PlayerState {
   paralysis: number;
   hasTreasure: boolean;
   exited: boolean;
+  /** rare+ cosmetics currently carried — at risk, dropped like the treasure */
+  carriedRares: CosmeticItem[];
+  /**
+   * This run's safely banked loot (commons/coins on pickup, rares on
+   * extraction). Lives in state so replays and the server agree byte-for-byte
+   * about who kept what. Purely aesthetic — nothing reads it during play.
+   */
+  banked: { items: CosmeticItem[]; coins: number };
 }
 
 export interface MonsterState {
@@ -51,6 +60,17 @@ export interface GameConfig {
   turnTimerSeconds: number;
   /** a shot player drops grenades/bullets/mines on their tile, not just treasure */
   dropAllOnShot: boolean;
+  /**
+   * Hard difficulty: the GM says the current dragged you but NOT which way —
+   * you must rediscover where you are. Easy (default) names the direction.
+   */
+  hardRivers: boolean;
+  /**
+   * Any player may walk out through an exit without the treasure, forfeiting
+   * the race but keeping (banking) the rare cosmetics they carry. The game
+   * continues for everyone else; if all players leave, nobody wins.
+   */
+  allowLeave: boolean;
   startingInventory: Inventory;
 }
 
@@ -63,6 +83,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   openInformation: true,
   turnTimerSeconds: 0,
   dropAllOnShot: false,
+  hardRivers: false,
+  allowLeave: true,
   startingInventory: { grenades: 2, bullets: 2, mines: 1 },
 };
 
@@ -84,6 +106,10 @@ export interface GameState {
   sprungTraps: Pos[];
   /** gear dropped on the floor (dropAllOnShot rule); picked up by walking on it */
   floorItems: { pos: Pos; items: Inventory }[];
+  /** cosmetics on the floor: baked spawns plus rares dropped by their carrier */
+  groundCosmetics: { pos: Pos; item: CosmeticItem }[];
+  /** un-scooped coin piles from the map bake */
+  coinPiles: { pos: Pos; amount: number }[];
   players: PlayerState[];
   turnIndex: number;
   turnNumber: number;
@@ -115,6 +141,16 @@ export function createGame(
     placedMines: [],
     sprungTraps: [],
     floorItems: [],
+    groundCosmetics: map.levels.flatMap((l, li) =>
+      l.features
+        .filter((f): f is Extract<(typeof l.features)[number], { type: 'cosmetic' }> => f.type === 'cosmetic')
+        .map((f) => ({ pos: { level: li, x: f.at.x, y: f.at.y }, item: { ...f.item } })),
+    ),
+    coinPiles: map.levels.flatMap((l, li) =>
+      l.features
+        .filter((f): f is Extract<(typeof l.features)[number], { type: 'coins' }> => f.type === 'coins')
+        .map((f) => ({ pos: { level: li, x: f.at.x, y: f.at.y }, amount: f.amount })),
+    ),
     players: players.map((p) => ({
       id: p.id,
       name: p.name,
@@ -123,6 +159,8 @@ export function createGame(
       paralysis: 0,
       hasTreasure: false,
       exited: false,
+      carriedRares: [],
+      banked: { items: [], coins: 0 },
     })),
     turnIndex: 0,
     turnNumber: 1,

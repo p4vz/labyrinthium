@@ -5,9 +5,11 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Db } from './persistence/db.js';
+import { ProfileService } from './profiles/service.js';
 import { RoomManager } from './rooms/roomManager.js';
 import { registerGameRoutes } from './routes/games.js';
 import { registerMapRoutes } from './routes/maps.js';
+import { registerProfileRoutes } from './routes/profiles.js';
 import { handleConnection } from './ws/connection.js';
 
 export interface BuildOptions {
@@ -20,7 +22,8 @@ export interface BuildOptions {
 export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
   const db = new Db(opts.dbPath ?? process.env.LABYRINTHIUM_DB ?? 'data/labyrinthium.sqlite');
-  const rooms = new RoomManager(db);
+  const profiles = new ProfileService(db);
+  const rooms = new RoomManager(db, profiles);
 
   await app.register(websocket);
 
@@ -28,6 +31,7 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
 
   registerMapRoutes(app, db);
   registerGameRoutes(app, db);
+  registerProfileRoutes(app, profiles);
 
   // Serve the built web client when it exists (single-binary deployment).
   const here = dirname(fileURLToPath(import.meta.url));
@@ -57,6 +61,7 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
   // Expose for tests.
   app.decorate('rooms', rooms);
   app.decorate('db', db);
+  app.decorate('profiles', profiles);
 
   return app;
 }
@@ -65,5 +70,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     rooms: RoomManager;
     db: Db;
+    profiles: ProfileService;
   }
 }

@@ -6,6 +6,9 @@ level dimensions and the entrance, and navigate blind — move, get told what yo
 found, and draw your own map as you go. First player to walk out of an exit
 carrying the treasure wins.
 
+Between runs you build a **persistent character**: a customizable pixel-art
+avatar dressed in cosmetic loot found inside the labyrinths (see below).
+
 Full game spec and roadmap: [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Packages
@@ -94,3 +97,35 @@ main map the moment the pattern matches — rolling the merge back if reality
 later contradicts it. The `expert` additionally dead-reckons every opponent
 from the open-information table-talk and shoots the probable treasure
 carrier. Design notes: [`docs/AI.md`](docs/AI.md).
+
+## Your character (cosmetics meta-progression)
+
+Every labyrinth also hides **aesthetic loot** — none of it changes gameplay,
+all of it builds your character:
+
+- A **guest profile** is created silently on your first visit (no login). Add
+  a username + password later in the Wardrobe to secure the same character
+  across devices.
+- **Coins** and **common/uncommon cosmetics** are banked to your profile the
+  moment you step on them.
+- **Rare+ cosmetics** spawn deep in the maze and are only yours if you carry
+  them OUT alive — win, or use the new **walk out** action to leave through an
+  exit without the treasure (you forfeit the race; the game goes on without
+  you). Get shot, mined, trapped, or mauled while carrying them and they drop
+  where you fall, free for anyone to steal. A house-rule checkbox
+  (`allowLeave`, on by default) can disable early walk-outs; if everyone walks
+  out, nobody wins.
+- The **Wardrobe** (Home → Wardrobe) is where you dress the avatar: 30
+  pixel-art templates (hats / outfits / trinkets) across 8 themed sets, 6 skin
+  tones, and 14 dye ramps. A collection log tracks which silhouettes you've
+  discovered, with provenance on every item (which maze, extracted alive,
+  when). A daily **shop** (rotates at midnight UTC, same stock for everyone)
+  turns coins into looks.
+- Your avatar shows on the Home screen, parades in the lobby, marks your pawn
+  on your hand-drawn map, and walks the true map in spectator view, the
+  end-of-game reveal, and replays.
+
+Names are procedurally rolled — commons are plain (“Straw Hat”), rares carry
+their origin (“Rune-etched Hood of the Drowned Hall”), legendaries are unique
+(“The Minotaur's Own Horns”). Item identities are deterministic per map seed,
+so re-farming the same seed can never duplicate a drop.
