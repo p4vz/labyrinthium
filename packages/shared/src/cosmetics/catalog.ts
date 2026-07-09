@@ -579,7 +579,7 @@ export const TRINKETS: CosmeticTemplate[] = [
     set: 'minotaur',
     legendaryName: 'The Ring the Bull Wore',
     y: 6,
-    rows: ['0000000330000000', '0000003003000000', '0000000340000000'],
+    rows: ['0000000330000000', '0000003003000000', '0000000440000000'],
   },
 ];
 
