@@ -58,7 +58,7 @@ export function Home(): JSX.Element {
             })
           }
         >
-          <PixelAvatar avatar={avatar} size={64} title="your avatar" />
+          <PixelAvatar avatar={avatar} size={64} hires title="your avatar" />
         </button>
         <div className="profile-meta">
           <label>
