@@ -29,16 +29,15 @@ const FALLBACK_SKIN: Ramp = ['#6b4630', '#d9a06e', '#e8bd8c', '#f4d8b0'];
 /** Composite the avatar into a 16×16 color grid; null = transparent. */
 function composite(avatar: AvatarConfig): ColorGrid {
   const grid: ColorGrid = Array.from({ length: 16 }, () => Array<string | null>(16).fill(null));
+  // Flat, deliberate color only — all shading comes from the authored ramp
+  // indices. (An earlier per-pixel "torchlight jitter" read as noise/stains
+  // at showcase sizes and was removed.)
   const paint = (y0: number, rows: string[], ramp: Ramp): void => {
     rows.forEach((row, dy) => {
       for (let x = 0; x < 16; x++) {
         const ch = row[x]!;
         if (ch === '0') continue;
-        const y = y0 + dy;
-        // subtle deterministic texture: some base pixels catch the torchlight
-        const idx = Number(ch) - 1;
-        const lit = idx === 1 && (x * 7 + y * 13) % 11 === 0;
-        grid[y]![x] = ramp[lit ? 2 : idx]!;
+        grid[y0 + dy]![x] = ramp[Number(ch) - 1]!;
       }
     });
   };
