@@ -245,6 +245,8 @@ export function Game(): JSX.Element {
 /** What everyone walked away with (or lost in the dark). */
 function LootSummary(): JSX.Element | null {
   const finished = useGameStore((s) => s.finished);
+  const started = useGameStore((s) => s.started);
+  const setInspect = useGameStore((s) => s.setInspect);
   if (!finished || finished.lootSummary.every((p) => p.bankedItems.length === 0 && p.coins === 0)) {
     return null;
   }
@@ -253,10 +255,21 @@ function LootSummary(): JSX.Element | null {
       <h3>The haul</h3>
       {finished.lootSummary.map((p) => (
         <div key={p.playerId} className="loot-row">
-          <span className="loot-name">
+          <button
+            className="loot-name as-link"
+            title={`view ${p.name}'s character and haul`}
+            onClick={() =>
+              setInspect({
+                name: p.name,
+                avatar: started?.turnOrder.find((t) => t.id === p.playerId)?.avatar ?? null,
+                haul: p.bankedItems,
+                own: p.playerId === started?.yourPlayerId,
+              })
+            }
+          >
             {p.name}
             {p.left ? ' 🚪' : ''}
-          </span>
+          </button>
           <span className="loot-detail">
             {p.coins > 0 && <span>🪙 {p.coins}</span>}
             {p.bankedItems.map((item) => (

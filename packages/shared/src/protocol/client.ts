@@ -26,7 +26,7 @@ export const gameRulesSchema = z
 
 export type GameRules = z.infer<typeof gameRulesSchema>;
 
-export const botDifficultySchema = z.enum(['easy', 'medium', 'hard']);
+export const botDifficultySchema = z.enum(['easy', 'medium', 'hard', 'expert']);
 export type BotDifficulty = z.infer<typeof botDifficultySchema>;
 
 /**

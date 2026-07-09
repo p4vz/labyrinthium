@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
+  BODIES,
   BODY_BITMAP,
   CONDITIONS,
+  bodyById,
   EPIC_CONDITIONS,
   FREE_PALETTES,
   ORIGINS,
@@ -13,6 +15,8 @@ import {
   SETS,
   SKIN_TONES,
   TEMPLATES,
+  UNDERWEAR_BITMAP,
+  UNDERWEAR_RAMP,
   cosmeticItemSchema,
   dailyShopStock,
   isRarePlus,
@@ -31,7 +35,11 @@ describe('catalog integrity', () => {
   });
 
   it('bitmaps are 16 wide, fit the 16-row frame, and use only chars 0-4', () => {
-    for (const t of [...TEMPLATES, { id: 'body', y: BODY_BITMAP.y, rows: BODY_BITMAP.rows }]) {
+    for (const t of [
+      ...TEMPLATES,
+      ...BODIES.map((b) => ({ id: `body-${b.id}`, y: b.bitmap.y, rows: b.bitmap.rows })),
+      ...BODIES.map((b) => ({ id: `underwear-${b.id}`, y: b.underwear.y, rows: b.underwear.rows })),
+    ]) {
       expect(t.rows.length, t.id).toBeGreaterThan(0);
       expect(t.y, t.id).toBeGreaterThanOrEqual(0);
       expect(t.y + t.rows.length, t.id).toBeLessThanOrEqual(16);
@@ -57,11 +65,30 @@ describe('catalog integrity', () => {
   });
 
   it('palettes and skin tones are 4-color ramps of hex colors', () => {
-    for (const ramp of [...Object.values(PALETTES), ...Object.values(SKIN_TONES)]) {
+    for (const ramp of [...Object.values(PALETTES), ...Object.values(SKIN_TONES), UNDERWEAR_RAMP]) {
       expect(ramp.length).toBe(4);
       for (const c of ramp) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
     }
     for (const free of FREE_PALETTES) expect(PALETTES[free]).toBeDefined();
+  });
+
+  it('body shapes share the head rows so every hat fits every build', () => {
+    expect(BODIES.length).toBeGreaterThanOrEqual(2);
+    const ids = BODIES.map((b) => b.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const headOf = (b: (typeof BODIES)[number]) => b.bitmap.rows.slice(0, 8 - b.bitmap.y);
+    const reference = headOf(BODIES[0]!);
+    for (const b of BODIES) {
+      expect(b.bitmap.y, b.id).toBe(BODIES[0]!.bitmap.y);
+      expect(headOf(b), b.id).toEqual(reference); // rows 2-7: crown to jaw
+    }
+    // fallback: unknown/absent ids resolve to the first shape
+    expect(bodyById(undefined).id).toBe('a');
+    expect(bodyById('nope').id).toBe('a');
+    expect(bodyById('b').id).toBe('b');
+    // and BODY_BITMAP stays an alias of shape 'a'
+    expect(BODY_BITMAP).toBe(BODIES[0]!.bitmap);
+    expect(UNDERWEAR_BITMAP).toBe(BODIES[0]!.underwear);
   });
 
   it('every slot has at least one common-eligible template (fallback pools)', () => {

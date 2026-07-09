@@ -1,9 +1,10 @@
-import type {
-  BotDifficulty,
-  EventPayload,
-  Inventory,
-  PlayerAction,
-  ServerMessage,
+import {
+  BayesianBrain,
+  type BotDifficulty,
+  type EventPayload,
+  type Inventory,
+  type PlayerAction,
+  type ServerMessage,
 } from '@labyrinthium/shared';
 
 type Dir = 'N' | 'E' | 'S' | 'W';
@@ -32,10 +33,16 @@ interface RelPos {
  *  - easy:   drunkard's walk.
  *  - medium: belief-map explorer — avoids known walls, prefers unvisited
  *            cells, runs for a known exit once it carries the treasure.
- *  - hard:   medium + grenades through repeatedly-bumped walls and takes
- *            the occasional pot shot down the corridor.
+ *  - hard:   Bayesian hypothesis tester (shared/src/ai): probes walls for
+ *            information, keeps a posterior over where every disoriented
+ *            region fits the map, and merges it back once it pattern-matches.
+ *  - expert: hard + dead-reckons opponents from the open-information
+ *            table-talk, shooting the probable treasure carrier and mining
+ *            its own trail when pursued.
  */
 export class BotController {
+  /** the Bayesian mind driving hard/expert; easy/medium use the legacy code */
+  private brain: BayesianBrain | null = null;
   private pos: RelPos | null = null;
   private frame = 0;
   private edges = new Map<string, 'open' | 'blocked' | 'reinforced'>();
@@ -64,6 +71,11 @@ export class BotController {
     if (this.timer) clearTimeout(this.timer);
   }
 
+  /** The room refused an action — the Bayesian brain learns from the "no". */
+  noteRejected(action: PlayerAction, code: string): void {
+    this.brain?.noteRejected(action, code);
+  }
+
   private levelSizes: { width: number; height: number }[] = [];
   private entrance: { level: number; x: number; y: number } | null = null;
   /** labeled teleport pads seen while still oriented (frame-0 coords) */
@@ -76,6 +88,19 @@ export class BotController {
     if (this.stopped) return;
     switch (msg.type) {
       case 'game.started':
+        if (this.difficulty === 'hard' || this.difficulty === 'expert') {
+          this.brain = new BayesianBrain({
+            tier: this.difficulty,
+            selfId: this.playerId,
+            levelSizes: msg.levelSizes,
+            entrance: msg.entrance,
+            exitSides: msg.exitSides,
+            inventory: msg.inventory,
+            rules: msg.rules,
+            playerIds: msg.turnOrder.map((p) => p.id),
+          });
+          break;
+        }
         this.pos = { frame: 0, x: 0, y: 0 };
         this.inventory = { ...msg.inventory };
         this.levelSizes = msg.levelSizes;
@@ -88,7 +113,10 @@ export class BotController {
         break;
       case 'game.events':
         for (const e of msg.events) {
-          if (e.visibility.kind === 'private' && e.visibility.playerId === this.playerId) {
+          if (this.brain) {
+            // the brain hears everything a player at the table would
+            this.brain.handleEvent(e);
+          } else if (e.visibility.kind === 'private' && e.visibility.playerId === this.playerId) {
             this.observe(e.payload);
           }
         }
@@ -98,6 +126,7 @@ export class BotController {
           this.lastTurnNumber = msg.turnNumber;
           this.bumpsThisTurn = 0;
         }
+        this.brain?.noteTurn(msg.turnNumber);
         this.canAct = msg.canAct;
         if (msg.activePlayerId === this.playerId) {
           // A human-ish pause keeps the game readable (and lets event
@@ -219,6 +248,7 @@ export class BotController {
   }
 
   decide(): PlayerAction {
+    if (this.brain) return this.brain.decide(this.canAct);
     const randomMove = (): PlayerAction => ({
       type: 'move',
       direction: DIRS[Math.floor(Math.random() * 4)]!,
@@ -319,6 +349,7 @@ export class BotController {
    * auxiliary map — exactly what a disoriented human would chart.
    */
   exportBeliefMaps(): unknown {
+    if (this.brain) return this.brain.exportBeliefMaps();
     if (!this.entrance || this.levelSizes.length === 0) return [];
     const e = this.entrance;
     const grids = this.levelSizes.map((size, li) => {
@@ -520,4 +551,5 @@ export const BOT_NAMES: Record<BotDifficulty, string[]> = {
   easy: ['Dizzy Bot', 'Wobbly Bot', 'Lost Bot'],
   medium: ['Scout Bot', 'Mapper Bot', 'Tracker Bot'],
   hard: ['Minotaur Bot', 'Warden Bot', 'Stalker Bot'],
+  expert: ['Bayes Bot', 'Oracle Bot', 'Theseus Bot'],
 };

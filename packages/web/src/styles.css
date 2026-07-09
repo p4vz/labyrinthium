@@ -663,12 +663,35 @@ h3 {
 }
 .bot-row {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
   font-size: 14px;
-  margin: 10px 0;
-  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.bot-row-label {
+  opacity: 0.75;
+}
+
+/* Even two-per-row grid so all four tiers line up no matter the width. */
+.bot-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.bot-buttons button {
+  width: 100%;
+  text-align: center;
+}
+
+/* expert is the standout tier — give it the torch-amber edge */
+.bot-buttons button.bot-expert {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 /* the pickup button glows when the GM says the loot is underfoot */
 button.glow {
@@ -1366,4 +1389,192 @@ button.glow {
 .loot-lost {
   color: var(--bad);
   font-style: italic;
+}
+
+/* body shape picker */
+.body-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+.body-pick {
+  width: 52px !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.body-pick.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(224, 144, 46, 0.35);
+}
+
+/* ------- character card (the showcase) ------- */
+.char-backdrop {
+  z-index: 60;
+}
+.char-modal {
+  max-width: 720px;
+  width: min(720px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.char-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.char-header h1 {
+  margin: 0 0 6px;
+  color: var(--accent);
+  text-shadow: 0 0 16px rgba(224, 144, 46, 0.35);
+}
+.char-close {
+  width: auto !important;
+  padding: 4px 10px;
+}
+.char-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.char-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 6px;
+  background:
+    radial-gradient(ellipse at 50% 90%, rgba(224, 144, 46, 0.10), transparent 65%),
+    var(--map-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.char-stage svg {
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
+}
+.char-floor {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+}
+.char-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.char-plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.char-plate.empty {
+  opacity: 0.55;
+}
+.char-plate-art {
+  width: 104px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--map-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.char-plate-none {
+  font-size: 30px;
+  color: var(--muted);
+}
+.char-plate-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.char-plate-slot {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.char-plate-name {
+  font-size: 13px;
+}
+.char-plate-dye {
+  font-size: 11px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: center;
+}
+.dye-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+.char-haul {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.char-haul h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+}
+.char-haul-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.char-haul-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 120px;
+  padding: 8px;
+  background: var(--map-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+  text-align: center;
+}
+.as-button {
+  cursor: pointer;
+}
+.loot-name.as-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  min-width: 110px;
+  text-align: left;
+  font-weight: bold;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline dotted var(--muted);
+}
+.loot-name.as-link:hover {
+  color: var(--accent);
 }
