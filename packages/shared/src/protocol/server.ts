@@ -81,7 +81,10 @@ export type ServerMessage =
   | {
       type: 'game.turn';
       activePlayerId: string;
+      /** internal per-turn counter (drives the client's turn-timer bookkeeping) */
       turnNumber: number;
+      /** the displayed ticker: one round = everyone has moved */
+      roundNumber: number;
       /** the active player's one action (shoot/grenade/mine/pickup) is still available */
       canAct: boolean;
     }

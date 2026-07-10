@@ -108,7 +108,12 @@ export interface GameState {
   coinPiles: { pos: Pos; amount: number }[];
   players: PlayerState[];
   turnIndex: number;
+  /** monotonic count of individual player turns (drives the timer + bot/AI
+   * clocks); NOT the displayed ticker — see roundNumber */
   turnNumber: number;
+  /** the displayed "turn" ticker: one round = every active player has taken
+   * a turn, so it ticks up once play wraps back through the order */
+  roundNumber: number;
   /** the active player already spent this turn's single action */
   actedThisTurn: boolean;
   /** turn-start river drift already resolved for the active player */
@@ -154,6 +159,7 @@ export function createGame(
     })),
     turnIndex: 0,
     turnNumber: 1,
+    roundNumber: 1,
     actedThisTurn: false,
     turnStartResolved: false,
     treasure: { carriedBy: null, pos: { ...map.spawns.treasure } },

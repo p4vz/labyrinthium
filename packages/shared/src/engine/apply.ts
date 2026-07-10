@@ -34,7 +34,9 @@ export function applyAction(prev: GameState, action: PlayerAction): ApplyResult 
   const ctx: EngineCtx = {
     state,
     emit(visibility: Visibility, payload: EventPayload) {
-      events.push({ seq: state.nextEventSeq++, turn: state.turnNumber, visibility, payload });
+      // Stamp with the round (the displayed ticker), so the game-master feed
+      // groups a whole round's chatter under one "t{n}".
+      events.push({ seq: state.nextEventSeq++, turn: state.roundNumber, visibility, payload });
     },
   };
   const player = activePlayer(state);
@@ -256,9 +258,10 @@ function driftAtTurnStart(ctx: EngineCtx, player: PlayerState): void {
   runEntryPipeline(ctx, player, { driftBudget: 0 });
 }
 
-/** @returns true when the turn is over. ONE movement declaration per turn:
- * whether you step through, bump a wall, or rattle a locked exit, calling a
- * direction was your move — the turn passes. */
+/** @returns true when the player actually relocated (or left) — that ends
+ * the turn. A blocked move (wall/grate/locked exit) is a free note: the turn
+ * stays open so you can try another direction. You still can't move twice —
+ * the first successful step ends the turn. */
 function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction): boolean {
   const { state } = ctx;
   const priv: Visibility = { kind: 'private', playerId: player.id };
@@ -283,12 +286,12 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
   switch (edge) {
     case 'wall':
     case 'reinforced':
-      // Bumping cannot tell a reinforced wall from a plain one.
+      // Bumping cannot tell a reinforced wall from a plain one — free note.
       ctx.emit(priv, { type: 'bumpedWall', direction });
-      return true;
+      return false;
     case 'grate':
       ctx.emit(priv, { type: 'bumpedGrate', direction });
-      return true;
+      return false;
     case 'exit':
       if (player.hasTreasure) {
         player.exited = true;
@@ -296,7 +299,7 @@ function resolveMove(ctx: EngineCtx, player: PlayerState, direction: Direction):
         return true;
       }
       ctx.emit(priv, { type: 'foundExit', direction });
-      return true;
+      return false;
     case 'open': {
       const next = step(player.pos, direction);
       player.pos = { ...player.pos, ...next };
@@ -399,11 +402,16 @@ function driftTreasure(state: GameState): void {
 }
 
 function advanceTurn(state: GameState): void {
+  const prevIndex = state.turnIndex;
   for (let i = 0; i < state.players.length; i++) {
     state.turnIndex = (state.turnIndex + 1) % state.players.length;
     if (!state.players[state.turnIndex]!.exited) break;
   }
   state.turnNumber++;
+  // The ticker counts rounds: it ticks up when play wraps back to (or past)
+  // the start of the order — i.e., every active player has had their turn.
+  // (In a solo game the index stays put, so every turn is its own round.)
+  if (state.turnIndex <= prevIndex) state.roundNumber++;
   state.actedThisTurn = false;
   state.turnStartResolved = false;
 }

@@ -117,6 +117,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
               type: 'game.turn',
               activePlayerId: active.id,
               turnNumber: found.room.state.turnNumber,
+              roundNumber: found.room.state.roundNumber,
               canAct: !found.room.state.actedThisTurn,
             });
           }
@@ -151,6 +152,7 @@ export function handleConnection(socket: WebSocket, rooms: RoomManager): void {
               type: 'game.turn',
               activePlayerId: active.id,
               turnNumber: room.state.turnNumber,
+              roundNumber: room.state.roundNumber,
               canAct: !room.state.actedThisTurn,
             });
           }

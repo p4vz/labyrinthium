@@ -88,15 +88,12 @@ test('coins bank on the floor, the prize hides in the treasure, and the winner w
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
   await bob.getByTestId('go-S').click();
 
-  await alice.getByTestId('go-E').click(); // Alice at (2,0), beside the exit
-  await bob.getByTestId('go-N').click();
+  await alice.getByTestId('go-E').click(); // Alice (1,0)→(2,0), beside the exit
+  await bob.getByTestId('go-N').click(); // Bob back to (0,0)
 
-  // Alice probes east: exit found — but the probe consumed her turn.
+  // Alice probes east: the exit is found. A blocked/locked move is a FREE
+  // note — her turn stays open, so she walks out on the same turn.
   await alice.getByTestId('go-E').click();
-  await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
-  await bob.getByTestId('go-S').click();
-
-  // Her next turn: the walk-out button is live (she still stands by the exit).
   await expect(alice.getByTestId('leave-exit-btn')).toBeVisible();
   await alice.getByTestId('leave-exit-btn').click();
   await expect(alice.getByTestId('leave-confirm')).toContainText('forfeit the race');
@@ -106,14 +103,15 @@ test('coins bank on the floor, the prize hides in the treasure, and the winner w
   await expect(alice.getByTestId('turn-indicator')).toContainText('you walked out');
   await expect(bob.getByTestId('turn-indicator')).toContainText('YOUR TURN');
 
-  // Bob fetches the treasure at (2,2) and wins — from (0,1).
-  await bob.getByTestId('go-E').click();
-  await bob.getByTestId('go-E').click();
-  await bob.getByTestId('go-S').click();
+  // Bob fetches the treasure at (2,2) and wins — from (0,0).
+  await bob.getByTestId('go-E').click(); // (1,0)
+  await bob.getByTestId('go-E').click(); // (2,0)
+  await bob.getByTestId('go-S').click(); // (2,1)
+  await bob.getByTestId('go-S').click(); // (2,2) — the treasure
   await bob.getByTestId('pickup-btn').click();
-  await bob.getByTestId('go-N').click();
-  await bob.getByTestId('go-N').click();
-  await bob.getByTestId('go-E').click();
+  await bob.getByTestId('go-N').click(); // (2,1)
+  await bob.getByTestId('go-N').click(); // (2,0)
+  await bob.getByTestId('go-E').click(); // out through the exit — win
 
   // The reveal shows the winner AND the haul: the treasure's hidden prize
   // belongs to Bob; Alice keeps her coins (and the door she left through).

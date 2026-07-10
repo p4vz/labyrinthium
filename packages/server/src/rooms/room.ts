@@ -346,6 +346,7 @@ export class Room {
       type: 'game.turn',
       activePlayerId: active.id,
       turnNumber: this.state.turnNumber,
+      roundNumber: this.state.roundNumber,
       canAct: !this.state.actedThisTurn,
     });
     this.sendSpectatorState();
@@ -426,7 +427,7 @@ export class Room {
       type: 'game.finished',
       winnerId: this.state.winnerId ?? '',
       winnerName: winner?.name ?? '',
-      turnNumber: this.state.turnNumber,
+      turnNumber: this.state.roundNumber, // display: which round it ended on
       mapReveal: this.map, // the big reveal: everyone finally sees the truth
       lootSummary,
     });

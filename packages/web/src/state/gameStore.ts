@@ -57,7 +57,10 @@ export interface GameStoreState {
     rules: ActiveRules;
   } | null;
   activePlayerId: string | null;
+  /** internal per-turn counter (keeps the turn-timer running across free probes) */
   turnNumber: number;
+  /** the displayed ticker: +1 once every player has taken a turn */
+  roundNumber: number;
   /** the active player's one action is still unspent this turn */
   canAct: boolean;
   /** the GM said the treasure lies under your feet (pickup available) */
@@ -154,6 +157,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   started: null,
   activePlayerId: null,
   turnNumber: 0,
+  roundNumber: 0,
   canAct: true,
   treasureUnderfoot: false,
   haveTreasure: false,
@@ -203,6 +207,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       started: null,
       activePlayerId: null,
       turnNumber: 0,
+      roundNumber: 0,
       canAct: true,
       treasureUnderfoot: false,
       haveTreasure: false,
@@ -257,10 +262,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
       case 'game.turn': {
         const timer = get().started?.rules.turnTimerSeconds ?? 0;
+        // The per-turn counter (not the round) identifies the same turn:
+        // a free probe re-announces it, so the clock keeps running.
         const sameTurn = msg.turnNumber === get().turnNumber;
         set({
           activePlayerId: msg.activePlayerId,
           turnNumber: msg.turnNumber,
+          roundNumber: msg.roundNumber,
           canAct: msg.canAct,
           // sub-actions re-announce the same turn: keep the clock running
           turnDeadline: sameTurn

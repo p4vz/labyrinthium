@@ -216,7 +216,7 @@ async function runInteractive(args: Args): Promise<void> {
         }
         break;
       case 'game.turn':
-        console.log(msg.activePlayerId === myId ? `--- turn ${msg.turnNumber}: YOUR MOVE ---` : `(turn ${msg.turnNumber}: waiting…)`);
+        console.log(msg.activePlayerId === myId ? `--- turn ${msg.roundNumber}: YOUR MOVE ---` : `(turn ${msg.roundNumber}: waiting…)`);
         break;
       case 'game.finished':
         console.log(`GAME OVER — ${msg.winnerName} wins on turn ${msg.turnNumber}.`);

@@ -6,7 +6,7 @@ import { actionFor, useGameStore } from '../state/gameStore.js';
 export function ActionBar(): JSX.Element {
   const started = useGameStore((s) => s.started);
   const activePlayerId = useGameStore((s) => s.activePlayerId);
-  const turnNumber = useGameStore((s) => s.turnNumber);
+  const turnNumber = useGameStore((s) => s.roundNumber);
   const turnDeadline = useGameStore((s) => s.turnDeadline);
   const canAct = useGameStore((s) => s.canAct);
   const treasureUnderfoot = useGameStore((s) => s.treasureUnderfoot);

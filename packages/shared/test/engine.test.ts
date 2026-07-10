@@ -10,23 +10,27 @@ describe('movement & walls', () => {
     expect(payloadTypes(events)).toContain('moved');
   });
 
-  it('one movement per turn: bumping a wall consumes the turn', () => {
+  it('a blocked move is a free note — the turn stays open for another try', () => {
     const map = testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E' }] });
     const state = startGame(map, 2);
     const { state: next, events } = turn(state, { type: 'move', direction: 'E' });
-    expect(next.players[0]!.pos).toMatchObject({ x: 0, y: 0 }); // didn't move…
+    expect(next.players[0]!.pos).toMatchObject({ x: 0, y: 0 });
     expect(payloadTypes(events)).toContain('bumpedWall');
-    // …but calling a direction WAS the move: the turn passes
-    expect(next.turnNumber).toBe(state.turnNumber + 1);
-    expect(next.turnIndex).not.toBe(state.turnIndex);
+    // no turn consumed: same turn, same active player — you can try again
+    expect(next.turnNumber).toBe(state.turnNumber);
+    expect(next.turnIndex).toBe(state.turnIndex);
+    // ...and the first successful step DOES end the turn (no moving twice)
+    const after = turn(next, { type: 'move', direction: 'S' });
+    expect(after.state.turnNumber).toBe(state.turnNumber + 1);
+    expect(after.state.turnIndex).not.toBe(state.turnIndex);
   });
 
-  it('one movement per turn: rattling a locked exit consumes the turn too', () => {
+  it('rattling a locked exit is also a free note', () => {
     const map = testMap({ exits: [{ at: { x: 0, y: 0 }, dir: 'N' }] });
     const state = startGame(map, 2);
     const { state: next, events } = turn(state, { type: 'move', direction: 'N' });
     expect(payloadTypes(events)).toContain('foundExit');
-    expect(next.turnNumber).toBe(state.turnNumber + 1);
+    expect(next.turnNumber).toBe(state.turnNumber); // turn stays open
   });
 
   it('reinforced walls bump exactly like plain walls (indistinguishable)', () => {
@@ -39,6 +43,26 @@ describe('movement & walls', () => {
     const map = testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E', state: 'grate' }] });
     const { events } = turn(startGame(map), { type: 'move', direction: 'E' });
     expect(payloadTypes(events)).toContain('bumpedGrate');
+  });
+
+  it('the round ticker only advances once every player has taken a turn', () => {
+    const state = startGame(testMap(), 3); // p1, p2, p3
+    expect(state.roundNumber).toBe(1);
+    // p1 moves — still round 1, now p2's turn
+    let s = turn(state, { type: 'move', direction: 'E' }).state;
+    expect(s.roundNumber).toBe(1);
+    // p2 moves — still round 1, now p3's turn
+    s = turn(s, { type: 'move', direction: 'E' }).state;
+    expect(s.roundNumber).toBe(1);
+    // p3 moves — the wrap back to p1 ticks the round
+    s = turn(s, { type: 'move', direction: 'E' }).state;
+    expect(s.roundNumber).toBe(2);
+    // free probes never advance the round even for a lone active player
+    const solo = startGame(testMap({ walls: [{ at: { x: 0, y: 0 }, dir: 'E' }] }), 1);
+    const bumped = turn(solo, { type: 'move', direction: 'E' }).state;
+    expect(bumped.roundNumber).toBe(1); // bump was free
+    const moved = turn(bumped, { type: 'move', direction: 'S' }).state;
+    expect(moved.roundNumber).toBe(2); // one solo move = one round
   });
 });
 

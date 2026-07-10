@@ -118,7 +118,7 @@ export function Replay(): JSX.Element {
               />
               <button onClick={() => setFrame(Math.min(frames.length - 1, frame + 1))}>▶</button>
               <span>
-                move {frame}/{frames.length - 1} · turn {cur.state.turnNumber}
+                move {frame}/{frames.length - 1} · turn {cur.state.roundNumber}
               </span>
               <button onClick={() => setRecord(null)}>choose another game</button>
             </div>
