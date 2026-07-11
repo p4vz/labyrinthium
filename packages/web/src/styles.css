@@ -1578,3 +1578,90 @@ button.glow {
 .loot-name.as-link:hover {
   color: var(--accent);
 }
+
+/* ------- the tutorial (the guided first game) ------- */
+.tutorial-invite {
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 14px rgba(224, 144, 46, 0.12);
+}
+.tutorial-card {
+  position: fixed;
+  top: 52px;
+  right: 12px;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--accent-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  /* above the finish reveal (30), under toasts (40) */
+  z-index: 35;
+}
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tutorial-tag {
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.tutorial-x {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+.tutorial-x:hover {
+  color: var(--bad);
+}
+.tutorial-card h3 {
+  margin: 6px 0 4px;
+  color: var(--ink);
+}
+.tutorial-card p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.tutorial-goal {
+  border-left: 3px solid var(--accent);
+  background: rgba(224, 144, 46, 0.08);
+  padding: 6px 8px;
+  border-radius: 0 6px 6px 0;
+  font-weight: bold;
+}
+.tutorial-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.tutorial-skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline dotted;
+}
+.tutorial-skip:hover {
+  color: var(--ink);
+}
+@media (max-width: 880px) {
+  /* phones: dock the coach above the action bar instead of the map corner */
+  .tutorial-card {
+    top: auto;
+    bottom: 150px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 42vh;
+  }
+}

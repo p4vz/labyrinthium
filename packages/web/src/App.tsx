@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { connect } from './net/ws.js';
 import { CharacterCard } from './components/CharacterCard.js';
 import { Toasts } from './components/Toasts.js';
+import { TutorialOverlay } from './components/TutorialOverlay.js';
 import { useGameStore } from './state/gameStore.js';
 import { useProfileStore } from './state/profileStore.js';
 import { Editor } from './screens/Editor.js';
@@ -41,6 +42,7 @@ export function App(): JSX.Element {
     <>
       {body}
       {/* overlays that ride above every screen */}
+      <TutorialOverlay />
       <CharacterCard />
       <Toasts />
     </>

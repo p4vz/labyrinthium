@@ -70,6 +70,15 @@ Using Claude Code? Open this repo and run **`/deploy-railway`** — it walks
 the whole Railway CLI setup (login, project, deploy, domain, volume) for you
 (see `.claude/commands/deploy-railway.md`).
 
+## New? Play the tutorial
+
+The home screen's **▶ Play the tutorial** button starts a guided first game:
+a tiny practice labyrinth with a coach card that walks you through the whole
+loop — bumping walls, drawing your map, riding a river, blasting a shortcut,
+lifting the treasure and escaping. It runs entirely in your browser (the same
+game engine, driven by a local game master), takes about five minutes, and
+ends with the usual map reveal. Source: `packages/web/src/tutorial/`.
+
 ## How a round works
 
 1. Someone creates a room (generated map — size × complexity × seed — or a

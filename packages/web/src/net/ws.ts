@@ -10,6 +10,16 @@ let socket: WebSocket | null = null;
 let retryDelay = 500;
 let intentionallyClosed = false;
 
+/**
+ * An in-browser game master (the tutorial) can claim the outbound channel:
+ * messages it handles never touch the socket, everything else flows on.
+ */
+let localHandler: ((msg: ClientMessage) => boolean) | null = null;
+
+export function setLocalHandler(handler: ((msg: ClientMessage) => boolean) | null): void {
+  localHandler = handler;
+}
+
 function wsUrl(): string {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${location.host}/ws`;
@@ -51,6 +61,7 @@ export function connect(): void {
 }
 
 export function send(msg: ClientMessage): void {
+  if (localHandler?.(msg)) return;
   if (socket?.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));
   } else {

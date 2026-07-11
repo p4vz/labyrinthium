@@ -4,6 +4,7 @@ import { PixelLogo } from '../components/PixelLogo.js';
 import { send } from '../net/ws.js';
 import { useGameStore } from '../state/gameStore.js';
 import { useProfileStore } from '../state/profileStore.js';
+import { useTutorialStore } from '../state/tutorialStore.js';
 
 export function Home(): JSX.Element {
   const connected = useGameStore((s) => s.connected);
@@ -83,6 +84,21 @@ export function Home(): JSX.Element {
       </div>
 
       <div className="home-cards">
+        <div className="card tutorial-invite">
+          <h2>🎓 New here?</h2>
+          <p className="hint">
+            Learn by playing: a guided run through a tiny practice labyrinth — walk blind, draw
+            your map, blast a wall, steal the treasure. Five minutes, no server, no opponents.
+          </p>
+          <button
+            className="primary"
+            data-testid="tutorial-btn"
+            onClick={() => useTutorialStore.getState().start()}
+          >
+            ▶ Play the tutorial
+          </button>
+        </div>
+
         <div className="card">
           <h2>Create a game</h2>
           <label>
