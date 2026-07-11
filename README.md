@@ -6,14 +6,15 @@ hidden labyrinth for everyone else.
 
 ## About
 
-I was a little kid when I first learned this game, and it stuck with me. Growing
-up, I taught it to my friends, and we'd spend hours drawing mazes and hunting for
-each other's treasure with nothing but a pen and a pad of squared paper. It's one
-of those games that costs nothing and never gets old. This one has real history
-behind it, too: it was born in the Soviet Union in the 1970s, spread kid-to-kid
-across the country — in classrooms, at summer camps, on long train rides — and
-was passed down entirely by word of mouth, never from a box or a rulebook. It
-found its way to me the same way, and now I get to keep it going.
+I was a little kid when my dad taught me this game, and the two of us would play
+it together — nothing but a pen and a pad of squared paper between us. It stuck
+with me. Growing up, I taught it to my friends, and we'd spend hours drawing
+mazes and hunting for each other's treasure. It's one of those games that costs
+nothing and never gets old. This one has real history behind it, too: it was born
+in the Soviet Union in the 1970s, spread kid-to-kid across the country — in
+classrooms, at summer camps, on long train rides — and was passed down entirely
+by word of mouth, never from a box or a rulebook. That's exactly how it reached
+me, handed down from my dad, and now I get to keep it going.
 
 I'm looking forward to teaching it to my own kids one day and playing it around
 the table with them. In the meantime, my friends are scattered all over the
