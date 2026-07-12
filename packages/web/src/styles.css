@@ -1665,3 +1665,30 @@ button.glow {
     max-height: 42vh;
   }
 }
+.tutorial-map {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 4px;
+}
+.tutorial-map svg {
+  max-width: 100%;
+  height: auto;
+  transition: opacity 1.4s ease, filter 1.4s ease;
+}
+/* the vanish step: the same picture drains away before the player's eyes */
+.tutorial-map.vanished svg {
+  opacity: 0.06;
+  filter: grayscale(1);
+}
+.tutorial-map-lost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  color: var(--muted);
+  opacity: 0.8;
+  pointer-events: none;
+}

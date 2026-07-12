@@ -14,7 +14,16 @@ test('the tutorial walks a newcomer from blank map to victory', async ({ page })
   await expect(card).toBeVisible();
   await expect(card).toContainText('Welcome to the labyrinth');
   await page.getByTestId('tutorial-next').click();
-  await expect(card).toContainText('Your tools');
+
+  // the bare sample map, everything visible…
+  await expect(card).toContainText('A sample labyrinth');
+  await expect(page.getByTestId('tutorial-map')).toBeVisible();
+  await expect(page.getByTestId('tutorial-map').locator('svg')).toBeVisible();
+  await page.getByTestId('tutorial-next').click();
+
+  // …then it hides: same picture, drained away
+  await expect(card).toContainText('Now the maze hides');
+  await expect(page.getByTestId('tutorial-map')).toHaveClass(/vanished/);
   await page.getByTestId('tutorial-next').click();
 
   // lesson: blocked moves are free — walk into the south wall

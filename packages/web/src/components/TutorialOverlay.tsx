@@ -1,6 +1,12 @@
+import { TrueMapView } from './TrueMapView.js';
 import { useGameStore } from '../state/gameStore.js';
 import { useTutorialStore } from '../state/tutorialStore.js';
+import { tutorialMap } from '../tutorial/map.js';
 import { TUTORIAL_STEPS } from '../tutorial/steps.js';
+
+/** the bare practice maze shown on the sample-map card (stable identity so
+ * the vanish step CSS-fades the SAME svg instead of remounting it) */
+const SAMPLE_MAP = tutorialMap();
 
 /**
  * The tutorial coach: a card riding over the game screen with the current
@@ -34,6 +40,15 @@ export function TutorialOverlay(): JSX.Element | null {
         </button>
       </div>
       <h3>{step.title}</h3>
+      {step.visual && (
+        <div
+          className={`tutorial-map ${step.visual === 'vanish' ? 'vanished' : ''}`}
+          data-testid="tutorial-map"
+        >
+          <TrueMapView map={SAMPLE_MAP} level={0} />
+          {step.visual === 'vanish' && <span className="tutorial-map-lost">?</span>}
+        </div>
+      )}
       {step.body.map((p, i) => (
         <p key={i}>{p}</p>
       ))}

@@ -30,6 +30,12 @@ export interface TutorialStep {
   goal?: string;
   /** auto-advance when true; only objective steps have one */
   done?(ctx: TutorialCtx): boolean;
+  /**
+   * A picture on the card: 'trueMap' shows the practice maze with nothing
+   * hidden; 'vanish' shows the same picture fading to nothing — the moment
+   * the player learns the maze will be invisible from here on.
+   */
+  visual?: 'trueMap' | 'vanish';
 }
 
 const E = TUTORIAL_ENTRANCE; // the pawn starts here: (0, 2)
@@ -42,20 +48,31 @@ function inTreasureCorridor(ctx: TutorialCtx): boolean {
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    id: 'welcome',
+    id: 'rules',
     title: 'Welcome to the labyrinth',
     body: [
-      'The computer has drawn a maze it will never show you. You walk it blind: declare a move, and the game master tells you — and only you — what happened.',
-      'This is a practice run: a tiny 5×5 maze, nobody else inside, no dangers. Everything you learn here is the real game.',
+      'The game master has drawn a maze it will never show you. Somewhere inside lies a treasure 💰 — the first player to walk out through an exit carrying it wins.',
+      'A turn is simple: at most ONE action (shoot, grenade, arm a mine, or pick up), then ONE step. Walking into a wall costs nothing — the GM says a wall is there, and you may try another way the same turn.',
+      'This is a practice run: a tiny 5×5 maze, nobody else inside, no dangers.',
     ],
   },
   {
-    id: 'tour',
-    title: 'Your tools',
+    id: 'sample-map',
+    title: 'A sample labyrinth',
+    visual: 'trueMap',
     body: [
-      'The dark grid in the middle is YOUR map — blank graph paper. Nothing ever appears on it unless you draw it.',
-      'Left rail: drawing tools. Bottom: your actions and the walk pad. The game master speaks in the ticker at the bottom — tap it to read the full log.',
-      'Your pawn 🧍 stands on the entrance 🏁. The dashed green gate behind you is also the EXIT: first one to walk out carrying the treasure wins.',
+      'Here is the very maze you are about to enter — with nothing hidden. The gate at the entrance 🏁 is also the EXIT (dashed green). A river runs north. Coins 🪙 wait behind a wall, and the treasure 💰 lies beside them.',
+      'Take a good look.',
+    ],
+  },
+  {
+    id: 'vanish',
+    title: 'Now the maze hides',
+    visual: 'vanish',
+    body: [
+      'Gone. This is how you will really see it: not at all. The maze stays hidden — you explore it blind and rediscover every wall, one answer from the game master at a time.',
+      'The big grid behind this card is YOUR map: blank graph paper. Nothing ever appears on it unless you draw it — the left rail holds your pencils, the bottom bar your legs, and the GM speaks in the ticker at the bottom (tap it for the full log).',
+      'Your pawn 🧍 waits on the entrance 🏁, the green gate at your back.',
     ],
   },
   {
@@ -71,7 +88,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'draw-wall',
     title: 'Draw what you learned',
     body: [
-      "The GM's words scroll away — your map is your memory. The ▦ walls tool is already selected.",
+      "That answer is how the hidden maze reaches you — and the GM's words scroll away, so your map is your memory. Every mark mirrors something the GM said: it said 'wall south', so draw a wall south of the pawn. The ▦ walls tool is already selected.",
       '(Tapping an edge again cycles the mark: wall → open → grate → exit — stop on the thick wall line.)',
     ],
     goal: "Tap the bottom edge of your pawn's cell so a bright wall line appears.",
@@ -112,7 +129,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'bump-east',
     title: 'Onward',
     body: [
-      'Somewhere in these halls lies the treasure 💰. The GM will tell you when it is under your feet — never before.',
+      'You saw where the treasure 💰 lies: past this river, behind walls, to the east. In a real game nobody shows you — the GM only tells you when it is under your feet.',
     ],
     goal: 'Try walking east — press ▶.',
     done: (ctx) => ctx.sawEvent('bumpedWall', 'E') || inTreasureCorridor(ctx),
@@ -164,10 +181,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'escape',
     title: 'Run for daylight',
     body: [
-      'Now walk it out through an EXIT. You know exactly one: the green gate you came in by.',
-      'The way back: ◀ ◀ ◀ west (through the rubble, past the river mouth), then ▼ south, then ◀ west through the gate. The river cannot grab you — its mouth has no downstream.',
+      'Now it is your game: walk the treasure out through an EXIT. You know exactly one — the green gate you came in by. Your own drawings (and that one long look at the bare maze) are all the light you have.',
+      '(Lost? West through the rubble, west past the river mouth — its mouth has no downstream to grab you — west again, then south, then west out the gate.)',
     ],
-    goal: 'Carry the treasure out through the green gate.',
+    goal: 'Find your way back and carry the treasure out through the green gate.',
     done: (ctx) => ctx.finished,
   },
   {

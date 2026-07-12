@@ -80,9 +80,14 @@ describe('the scripted route satisfies every lesson, in order', () => {
     const h = harness();
     const move = (d: PlanarDirection) => h.act({ type: 'move', direction: d });
 
-    // info cards have no completion check — they wait for a click
-    expect(step('welcome').done).toBeUndefined();
-    expect(step('tour').done).toBeUndefined();
+    // the opening: rules, the bare sample map, then the map vanishes —
+    // info cards with no completion check; they wait for a click
+    expect(step('rules').done).toBeUndefined();
+    expect(step('sample-map').done).toBeUndefined();
+    expect(step('vanish').done).toBeUndefined();
+    // …and the reveal/vanish pair carries the picture
+    expect(step('sample-map').visual).toBe('trueMap');
+    expect(step('vanish').visual).toBe('vanish');
 
     // bump: walking south answers with a wall, and the turn survives
     expect(step('bump').done!(h.ctx())).toBe(false);
