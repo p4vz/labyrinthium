@@ -6,20 +6,16 @@ hidden labyrinth for everyone else.
 
 ## About
 
-I was a little kid when my dad taught me this game, and the two of us would play
-it together — nothing but a pen and a pad of squared paper between us. It stuck
-with me. Growing up, I taught it to my friends, and we'd spend hours drawing
-mazes and hunting for each other's treasure. It's one of those games that costs
-nothing and never gets old. This one has real history behind it, too: it was born
-in the Soviet Union in the 1970s, spread kid-to-kid across the country — in
-classrooms, at summer camps, on long train rides — and was passed down entirely
-by word of mouth, never from a box or a rulebook. That's exactly how it reached
-me, handed down from my dad, and now I get to keep it going.
+My dad taught me this game when I was little, and we played it all the time,
+just the two of us with a pen and some squared paper. Later I taught it to my
+friends and we played it for years. It's a good one. It actually goes back to
+the Soviet Union in the 1970s, and it was never something you bought in a store.
+Kids just taught it to other kids, at school or at summer camp or on long train
+rides, and that's how my dad learned it and how I did too.
 
-I'm looking forward to teaching it to my own kids one day and playing it around
-the table with them. In the meantime, my friends are scattered all over the
-place, so I built this online version so we can still play together no matter how
-far apart we are. Please enjoy!
+Someday I want to teach it to my own kids and play it with them. For now, my
+friends are spread out all over, so I made this online version so we can still
+play together. Hope you enjoy it.
 
 ## What it is
 
