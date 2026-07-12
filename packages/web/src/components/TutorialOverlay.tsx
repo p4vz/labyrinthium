@@ -1,7 +1,7 @@
 import { TrueMapView } from './TrueMapView.js';
 import { useGameStore } from '../state/gameStore.js';
 import { useTutorialStore } from '../state/tutorialStore.js';
-import { tutorialMap } from '../tutorial/map.js';
+import { tutorialMap, TUTORIAL_ARSENAL } from '../tutorial/map.js';
 import { TUTORIAL_STEPS } from '../tutorial/steps.js';
 
 /** the bare practice maze shown on the sample-map card (stable identity so
@@ -45,7 +45,7 @@ export function TutorialOverlay(): JSX.Element | null {
           className={`tutorial-map ${step.visual === 'vanish' ? 'vanished' : ''}`}
           data-testid="tutorial-map"
         >
-          <TrueMapView map={SAMPLE_MAP} level={0} />
+          <TrueMapView map={SAMPLE_MAP} level={0} overlay={{ items: [TUTORIAL_ARSENAL.pos] }} />
           {step.visual === 'vanish' && <span className="tutorial-map-lost">?</span>}
         </div>
       )}

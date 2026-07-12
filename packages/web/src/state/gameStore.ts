@@ -314,6 +314,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         // The GM confirmed we physically moved (walk or river current):
         // advance the "you" pawn on the player's maps automatically.
         for (const e of msg.events) {
+          // Keep the displayed kit live: your own declared shot/bomb/mine
+          // spends a piece the moment the GM repeats the declaration.
+          if (e.payload.type === 'actionAnnounced' && e.payload.playerId === me) {
+            const a = e.payload.action;
+            const spent =
+              a === 'shoot' ? 'bullets' : a === 'grenade' ? 'grenades' : a === 'placeMine' ? 'mines' : null;
+            const s = get().started;
+            if (spent && s) {
+              set({
+                started: {
+                  ...s,
+                  inventory: { ...s.inventory, [spent]: Math.max(0, s.inventory[spent] - 1) },
+                },
+              });
+            }
+          }
           if (e.visibility.kind !== 'private' || e.visibility.playerId !== me) continue;
           if (e.payload.type === 'moved' || e.payload.type === 'riverDrift') {
             // On hard difficulty riverDrift carries no direction — the pawn
@@ -342,6 +358,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             // the treasure cracked open in your hands — the prize is yours
             const loot = get().runLoot;
             set({ runLoot: { ...loot, items: [...loot.items, e.payload.item] } });
+          } else if (e.payload.type === 'itemsFound') {
+            // gear scooped off the floor joins the kit
+            const s = get().started;
+            if (s) {
+              set({
+                started: {
+                  ...s,
+                  inventory: {
+                    grenades: s.inventory.grenades + e.payload.grenades,
+                    bullets: s.inventory.bullets + e.payload.bullets,
+                    mines: s.inventory.mines + e.payload.mines,
+                  },
+                },
+              });
+            }
           } else if (e.payload.type === 'coinsFound') {
             const loot = get().runLoot;
             set({ runLoot: { ...loot, coins: loot.coins + e.payload.amount } });

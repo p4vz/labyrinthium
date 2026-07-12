@@ -11,7 +11,7 @@ import {
   type PresentFeature,
   type ServerMessage,
 } from '@labyrinthium/shared';
-import { tutorialMap } from './map.js';
+import { tutorialMap, TUTORIAL_ARSENAL } from './map.js';
 
 export const TUTORIAL_ROOM_CODE = 'TUTORIAL';
 export const TUTORIAL_PLAYER_ID = 'tutorial-you';
@@ -37,6 +37,12 @@ export class TutorialGM {
       { ...DEFAULT_CONFIG },
       'tutorial',
     );
+    // The arsenal: gear waiting on the floor, exactly as if a previous
+    // adventurer had dropped it — walking over it scoops the lot.
+    this.state.floorItems.push({
+      pos: { ...TUTORIAL_ARSENAL.pos },
+      items: { ...TUTORIAL_ARSENAL.items },
+    });
   }
 
   start(): void {

@@ -1,7 +1,8 @@
 import type { PlayerGrid } from '../state/playerMap.js';
 import {
-  TUTORIAL_ENTRANCE,
+  TUTORIAL_ARSENAL,
   TUTORIAL_COINS,
+  TUTORIAL_ENTRANCE,
   TUTORIAL_RIVER_CELLS,
 } from './map.js';
 
@@ -39,11 +40,16 @@ export interface TutorialStep {
 }
 
 const E = TUTORIAL_ENTRANCE; // the pawn starts here: (0, 2)
-const RIVER_HEAD = TUTORIAL_RIVER_CELLS[0]; // (1, 2) — drifted FROM here
+const RIVER_ENTRY = TUTORIAL_RIVER_CELLS[0]; // (0, 1) — first stepped in here
 
-/** the player broke through (or walked around) into the treasure corridor */
-function inTreasureCorridor(ctx: TutorialCtx): boolean {
-  return ctx.pos !== null && ctx.pos.y === 1 && ctx.pos.x >= 2;
+/** north bank reached (the row above the river) */
+function onNorthBank(ctx: TutorialCtx): boolean {
+  return ctx.pos !== null && ctx.pos.y === 0;
+}
+
+/** inside (or past) the treasure vault in the north-east corner */
+function inVault(ctx: TutorialCtx): boolean {
+  return ctx.hasTreasure || (ctx.pos !== null && ctx.pos.x === 4 && ctx.pos.y === 0);
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -61,7 +67,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'A sample labyrinth',
     visual: 'trueMap',
     body: [
-      'Here is the very maze you are about to enter — with nothing hidden. The gate at the entrance 🏁 is also the EXIT (dashed green). A river runs north. Coins 🪙 wait behind a wall, and the treasure 💰 lies beside them.',
+      'Here is the very maze you are about to enter — with nothing hidden, and almost no walls: roam wherever you like. The gate at the entrance 🏁 is also the EXIT (dashed green).',
+      'A river crosses the whole maze, west side to east side, flowing east. On the north bank: an arsenal 🎒 of dropped gear, and the treasure 💰 sealed in a one-wall vault. Coins 🪙 glitter in the south-east.',
       'Take a good look.',
     ],
   },
@@ -96,76 +103,78 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       ctx.grid !== null && ctx.grid.h[(E.y + 1) * ctx.grid.width + E.x] === 'wall',
   },
   {
-    id: 'step-east',
+    id: 'step-north',
     title: 'Take a real step',
     body: [
       'A successful step ends your turn (in a real game, the others move between your turns). Bumps are free; steps are spent.',
+      'You saw the river one row north. Step into it anyway — feel what it does.',
     ],
-    goal: 'Walk east — press ▶.',
-    done: (ctx) => ctx.sawEvent('moved', 'E'),
+    goal: 'Walk north — press ▲.',
+    done: (ctx) => ctx.sawEvent('riverDrift'),
   },
   {
     id: 'river',
     title: 'The river takes you',
     body: [
-      'You stepped into WATER. Rivers run through these mazes: every time you enter a river tile — or start your turn in one — the current drags you one tile downstream.',
-      'The GM said it dragged you north, so you now stand at the river\'s mouth, one tile further than you meant to go. Losing people is the river\'s favorite trick: chart it, or it will fool you twice.',
+      'You stepped into WATER and the current dragged you one tile east. That is the rule: every time you ENTER a river tile, the current pushes you one tile downstream.',
+      'Worse: START a turn standing in the river and it drags you again before you do anything. A river you have not charted can carry you clean off your own map.',
     ],
   },
   {
     id: 'draw-river',
     title: 'Chart the river',
     body: [
-      'Pick the ➤ river tool in the left rail. The N/E/S/W buttons under it set the flow for a tap — or simply swipe across the tile in the direction of the current (north, here).',
+      'Pick the ➤ river tool in the left rail. The N/E/S/W buttons under it set the flow for a tap — or simply swipe across the tile in the direction of the current (east, here).',
     ],
-    goal: 'Mark the tile you drifted from — one south of your pawn — as river.',
+    goal: 'Mark the tile you first stepped into — one west of your pawn — as river.',
     done: (ctx) => {
       if (!ctx.grid) return false;
-      const cell = ctx.grid.cells[RIVER_HEAD.y * ctx.grid.width + RIVER_HEAD.x];
+      const cell = ctx.grid.cells[RIVER_ENTRY.y * ctx.grid.width + RIVER_ENTRY.x];
       return cell?.stamps.includes('river') ?? false;
     },
   },
   {
-    id: 'bump-east',
-    title: 'Onward',
+    id: 'ride-out',
+    title: 'Get out of the water',
     body: [
-      'You saw where the treasure 💰 lies: past this river, behind walls, to the east. In a real game nobody shows you — the GM only tells you when it is under your feet.',
+      'You are still IN the river, so your next turn opens with the current dragging you once more. Let it — then step out onto the north bank, where you saw the 🎒 lying.',
     ],
-    goal: 'Try walking east — press ▶.',
-    done: (ctx) => ctx.sawEvent('bumpedWall', 'E') || inTreasureCorridor(ctx),
+    goal: 'Press ▲ — one more drag east, then the step north lands you ashore.',
+    done: (ctx) => ctx.sawEvent('itemsFound') || onNorthBank(ctx),
+  },
+  {
+    id: 'arsenal',
+    title: 'An arsenal!',
+    body: [
+      `The 🎒 marks gear lying loose on the floor — an arsenal. Whoever steps on a stash takes ALL of it: yours just grew by 💥×${TUTORIAL_ARSENAL.items.grenades} 🔫×${TUTORIAL_ARSENAL.items.bullets} 💣×${TUTORIAL_ARSENAL.items.mines} — watch the kit counter at the bottom right.`,
+      'In real games, gear also hits the floor when its owner is shot (under the drop-all house rule) — and lies there for anyone.',
+    ],
+  },
+  {
+    id: 'bump-east',
+    title: 'The vault',
+    body: [
+      'You saw where the treasure 💰 sleeps: the far end of this bank, behind a single wall. In a real game nobody shows you — the GM only tells you when it is under your feet.',
+    ],
+    goal: 'Walk east along the bank until a wall stops you.',
+    done: (ctx) => ctx.sawEvent('bumpedWall', 'E') || inVault(ctx),
   },
   {
     id: 'grenade',
     title: 'When walls argue, argue back',
     body: [
-      'Your starting kit sits bottom-right: 💥×2 grenades, 🔫×2 bullets, 💣×1 mine. A grenade blows a plain wall to rubble.',
-      'Using one is your ONE action this turn — but you may still move after it. That is the rhythm of every turn: at most one action, then one step.',
+      'A grenade blows a plain wall to rubble. Using one is your ONE action this turn — but you may still move after it. That is the rhythm of every turn: at most one action, then one step.',
     ],
-    goal: 'Select 💥 grenade, then press ▶ to blast the wall east of you.',
-    done: (ctx) => ctx.sawEvent('wallDestroyed') || inTreasureCorridor(ctx),
-  },
-  {
-    id: 'through',
-    title: 'Walk the rubble',
-    body: [
-      'After an action the mode snaps back to 🚶 walk, so the pad is safe to press again.',
-    ],
-    goal: 'Step east through the hole — press ▶.',
-    done: (ctx) => ctx.sawEvent('coinsFound') || inTreasureCorridor(ctx),
-  },
-  {
-    id: 'coins',
-    title: 'Loot!',
-    body: [
-      `You scooped 🪙 ${TUTORIAL_COINS.amount} coins just by stepping on them. Coins and cosmetics are aesthetic loot — they never change the game.`,
-      'In real runs, coins bank straight to your character (spend them in the Wardrobe); rarer finds must be CARRIED out alive. Practice loot stays in the practice maze.',
-    ],
+    goal: 'Select 💥 grenade, then press ▶ to blast the vault open.',
+    done: (ctx) => ctx.sawEvent('wallDestroyed') || inVault(ctx),
   },
   {
     id: 'find-treasure',
     title: 'It glitters ahead',
-    body: ['Keep going — the GM will sing out when you stand on it.'],
-    goal: 'Walk east once more — press ▶.',
+    body: [
+      'After an action the mode snaps back to 🚶 walk, so the pad is safe to press again.',
+    ],
+    goal: 'Step east into the vault — press ▶.',
     done: (ctx) => ctx.sawEvent('treasureHere') || ctx.hasTreasure,
   },
   {
@@ -178,11 +187,20 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     done: (ctx) => ctx.hasTreasure,
   },
   {
+    id: 'coins-home',
+    title: 'Head for home',
+    body: [
+      'Down is the fast way back: the river directly below you is its MOUTH — no downstream left, so the current cannot grab you. And you saw coins 🪙 glittering one row further.',
+      'Coins and cosmetics are aesthetic loot: they bank the instant you touch them and never change the game (in real runs they fill your Wardrobe; practice loot stays here).',
+    ],
+    goal: 'Press ▼ twice — across the river mouth, onto the coins.',
+    done: (ctx) => ctx.sawEvent('coinsFound') || (ctx.pos !== null && ctx.pos.y >= 2),
+  },
+  {
     id: 'escape',
     title: 'Run for daylight',
     body: [
-      'Now it is your game: walk the treasure out through an EXIT. You know exactly one — the green gate you came in by. Your own drawings (and that one long look at the bare maze) are all the light you have.',
-      '(Lost? West through the rubble, west past the river mouth — its mouth has no downstream to grab you — west again, then south, then west out the gate.)',
+      'Now it is your game: walk the treasure out through an EXIT. You know exactly one — the green gate you came in by, due west along the open floor.',
     ],
     goal: 'Find your way back and carry the treasure out through the green gate.',
     done: (ctx) => ctx.finished,

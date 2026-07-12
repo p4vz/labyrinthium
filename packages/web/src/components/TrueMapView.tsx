@@ -28,6 +28,8 @@ export interface Overlay {
   players?: { id: string; name: string; pos: Pos; avatar?: AvatarConfig }[];
   monsters?: Pos[];
   treasure?: Pos | null;
+  /** gear stashes on the floor (an arsenal — walking over one takes it all) */
+  items?: Pos[];
 }
 
 export interface TrueMapViewProps {
@@ -203,6 +205,9 @@ export function TrueMapView(props: TrueMapViewProps): JSX.Element {
   const monsters = props.overlay?.monsters ?? props.map.spawns.monsters.map((m) => m.at);
   monsters.forEach((m, i) => {
     if (m.level === props.level) parts.push(cellGlyph(`monster${i}`, px(m.x), py(m.y), '👹'));
+  });
+  props.overlay?.items?.forEach((it, i) => {
+    if (it.level === props.level) parts.push(cellGlyph(`items${i}`, px(it.x), py(it.y), '🎒'));
   });
   props.overlay?.players?.forEach((p, i) => {
     if (p.pos.level === props.level) {

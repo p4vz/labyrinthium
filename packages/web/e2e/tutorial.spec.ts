@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test';
 
 /**
  * The guided first game, clicked through end to end in a real browser:
- * bump a wall, draw it, ride the river, chart it, grenade the shortcut,
- * scoop the coins, lift the treasure, walk out, graduate. The whole game
- * master runs in the page — the server only serves the static app.
+ * rules, the bare sample map, the vanishing act, then play — bump a wall,
+ * draw it, ride the river, chart it, scoop the arsenal, grenade the vault,
+ * lift the treasure, run home over the coins, walk out, graduate. The whole
+ * game master runs in the page — the server only serves the static app.
  */
 test('the tutorial walks a newcomer from blank map to victory', async ({ page }) => {
   await page.goto('/');
@@ -36,41 +37,50 @@ test('the tutorial walks a newcomer from blank map to victory', async ({ page })
   await expect(card).toContainText('Draw what you learned');
   await page.locator('[data-edge="h:0,3"]').click({ force: true });
 
-  // lesson: a real step — the river drags you north
+  // lesson: a real step — the river drags you east
   await expect(card).toContainText('Take a real step');
-  await page.getByTestId('go-E').click();
+  await page.getByTestId('go-N').click();
   await expect(card).toContainText('The river takes you');
   await page.getByTestId('tutorial-next').click();
 
   // lesson: chart the river with the river tool
   await expect(card).toContainText('Chart the river');
   await page.getByTitle(/^river — hold on a tile/).click();
-  await page.locator('[data-cell="1,2"]').click();
+  await page.locator('[data-cell="0,1"]').click();
 
-  // lesson: find the grenade wall the hard way
-  await expect(card).toContainText('Onward');
+  // lesson: turn-start drift, then step ashore onto the arsenal
+  await expect(card).toContainText('Get out of the water');
+  await page.getByTestId('go-N').click();
+  await expect(card).toContainText('An arsenal!');
+  // the whole stash joined the kit, live in the bottom-right counter
+  await expect(page.getByTestId('inventory')).toContainText('💥×4 · 🔫×4 · 💣×2');
+  await page.getByTestId('tutorial-next').click();
+
+  // lesson: walk the bank until the vault wall answers
+  await expect(card).toContainText('The vault');
+  await page.getByTestId('go-E').click();
   await page.getByTestId('go-E').click();
 
-  // lesson: one action per turn — blast it, then still walk through
+  // lesson: one action per turn — blast the vault, then still walk in
   await expect(card).toContainText('argue back');
   await page.getByRole('button', { name: '💥 grenade' }).click();
   await page.getByTestId('go-E').click();
-  await expect(card).toContainText('Walk the rubble');
-  await page.getByTestId('go-E').click();
-
-  // lesson: loot banks on touch
-  await expect(card).toContainText('Loot!');
-  await page.getByTestId('tutorial-next').click();
-
-  // lesson: the treasure announces itself, lifting it costs the action
   await expect(card).toContainText('It glitters ahead');
   await page.getByTestId('go-E').click();
+
+  // lesson: lifting the treasure costs the action
   await expect(card).toContainText('Lift it');
   await page.getByTestId('pickup-btn').click();
 
-  // lesson: carry it home — west, west, west, south, out the gate
+  // lesson: home over the river mouth, scooping the coins
+  await expect(card).toContainText('Head for home');
+  await page.getByTestId('go-S').click();
+  await page.getByTestId('go-S').click();
+  await expect(page.getByTestId('event-ticker')).toContainText('25 coin');
+
+  // the last leg is the player's own: due west and out the gate
   await expect(card).toContainText('Run for daylight');
-  for (const dir of ['W', 'W', 'W', 'S', 'W'] as const) {
+  for (const dir of ['W', 'W', 'W', 'W', 'W'] as const) {
     await page.getByTestId(`go-${dir}`).click();
   }
 

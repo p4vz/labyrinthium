@@ -166,7 +166,7 @@ export function ActionBar(): JSX.Element {
       {started && !spectating && (
         <div className="inventory" data-testid="inventory">
           💥×{started.inventory.grenades} · 🔫×{started.inventory.bullets} · 💣×{started.inventory.mines}
-          <small> (starting kit)</small>
+          <small> (your kit)</small>
         </div>
       )}
     </div>
