@@ -1,0 +1,11 @@
+node_modules
+packages/*/node_modules
+packages/*/dist
+packages/web/test-results
+packages/web/playwright-report
+data
+*.sqlite
+*.log
+.git
+.github
+docs

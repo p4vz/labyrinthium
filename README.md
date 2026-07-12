@@ -1,114 +1,131 @@
-# Labyrinthium — the Soviet paper-and-pencil game "Лабиринт"
+# Labyrinthium
 
-A write-up of the pen-and-paper maze game (Russian: **Лабиринт**, also known as
-**"Terra Incognita"**), the **maze-master** variant — one leader runs a single
-hidden labyrinth for everyone else.
+A web clone of the classic pencil-and-paper game **Labyrinth**: the computer is
+the game master. It holds a secret multi-level maze; players know only the
+level dimensions and the entrance, and navigate blind — move, get told what you
+found, and draw your own map as you go. First player to walk out of an exit
+carrying the treasure wins.
 
-## About
+Between runs you build a **persistent character**: a customizable pixel-art
+avatar dressed in cosmetic loot found inside the labyrinths (see below).
 
-My dad taught me this game when I was little, and we played it all the time,
-just the two of us with a pen and some squared paper. Later I taught it to my
-friends and we played it for years. It's a good one. It actually goes back to
-the Soviet Union in the 1970s, and it was never something you bought in a store.
-Kids just taught it to other kids, at school or at summer camp or on long train
-rides, and that's how my dad learned it and how I did too.
+Full game spec and roadmap: [`docs/PLAN.md`](docs/PLAN.md).
 
-I just taught it to my oldest kid, and we had a blast playing together. It's
-been fun passing it on the same way my dad did with me. My friends are spread
-out all over these days, so I made this online version so we can still play too.
-Hope you enjoy it.
+## Packages
 
-## What it is
+| package | what |
+|---|---|
+| `@labyrinthium/shared` | Pure, deterministic game engine + map generator + protocol schemas (zod) + the Bayesian bot brain ([`docs/AI.md`](docs/AI.md)). No framework deps; runs on the server, in tests, and in the browser (replay viewer). |
+| `@labyrinthium/server` | Fastify + WebSocket game server: rooms, sessions/reconnect, spectators, SQLite persistence, map CRUD/generate/validate + game-history REST API, serves the built web app. |
+| `@labyrinthium/web` | The browser client: lobby, game HUD with the manual mapping UI (stamp palette, level tabs, auxiliary maps with copy/paste/merge and undo/redo), map editor, replay viewer. |
+| `@labyrinthium/cli` | Terminal client & random-bot harness for smoke-testing games. |
 
-Played on squared/graph paper (бумага в клетку). Walls sit on the lines
-*between* cells, forming a maze that only the game master can see. Everyone else
-explores it **blind**, one move at a time, building a map in their head (and on
-their own sheet) from what the master tells them.
+## Quick start
 
-It's a memory + deduction + light combat game. All you need is paper and a pen.
+```bash
+pnpm install
+pnpm -r build
+pnpm -r test
 
-## Roles
+# run everything: the server also serves the built web app
+pnpm dev            # open http://localhost:8080
 
-- **Game master / leader (ведущий):** designs the labyrinth in secret, sets the
-  rules, and announces the result of every move. Plays as referee, not as a
-  competitor.
-- **Players (any number):** try to find the treasure and carry it out of the
-  labyrinth before the others.
+# frontend dev with hot reload (proxies /api and /ws to :8080)
+pnpm --filter @labyrinthium/web dev   # open http://localhost:5173
 
-## Setup (done by the master, kept hidden)
+# browser end-to-end tests (real chromium, two players to a win)
+pnpm --filter @labyrinthium/web test:e2e
 
-The master draws a grid and places:
+# generate a map from the shell
+curl -s -X POST localhost:8080/api/maps/generate \
+  -H 'content-type: application/json' \
+  -d '{"preset":"medium","complexity":"advanced","seed":"demo"}'
 
-- **Outer wall** around the whole labyrinth ("стена лабиринта").
-- **Inner walls** on the borders between cells to form the maze.
-- **Treasure (клад):** the objective. Grab it and exit to win.
-- **Exits:** one or more openings in the outer wall.
-- **Special cells** (see below).
+# play from two terminals instead of the browser
+pnpm --filter @labyrinthium/cli start -- --create --name alice
+pnpm --filter @labyrinthium/cli start -- --join <ROOMCODE> --name bob
 
-Players start with a small combat loadout (commonly **3 each** of bullets,
-daggers, explosives — restocked at an Arsenal).
+# or watch two bots stumble around
+pnpm --filter @labyrinthium/cli start -- --smoke
+```
 
-## Turn
+## Deploying (Railway)
 
-On your turn you may **move one cell** up / down / left / right (no diagonals),
-or skip. You can't move through a wall. After you move, the master tells you
-**what your new cell is** (empty, or a special cell). You may also **shoot**
-before/after moving.
+The repo ships a `Dockerfile` and `railway.json`, so deployment is:
 
-## Special cells
+1. Railway → **New Project → Deploy from GitHub repo** → pick this repo.
+   Railway detects the Dockerfile and builds the whole game (server + web
+   client) into one service.
+2. Networking → **Generate Domain**. That URL is the game: share
+   `https://<your-app>.up.railway.app` and play. WebSockets work out of the
+   box; the platform's `PORT` variable is respected and `/health` is the
+   healthcheck.
+3. Optional: add a **Volume** mounted at `/data` to keep finished-game
+   history (the replay archive) across deploys. Without it, replays reset on
+   each deploy — live games are unaffected either way.
 
-| Cell | Effect |
-|------|--------|
-| **Empty** | Nothing happens. |
-| **Arsenal (Арсенал)** | Restocks your ammo — 3 bullets, 3 daggers, 3 explosives. |
-| **River (Река)** | You're swept **two cells downstream** (past one cell) in the current's direction. |
-| **Wormhole / pit (Червоточина / Яма / Дырка)** | Teleports you: next turn you start from a *different, fixed* pit. The master knows the pairing; you don't. |
-| **Treasure (Клад)** | Pick it up; now carry it to an exit. |
-| **Exit (Выход)** | Leave the labyrinth. Exiting **with the treasure** wins. |
+Any other Docker host (Fly.io, Render, a VPS) works the same way.
 
-## Combat
+Using Claude Code? Open this repo and run **`/deploy-railway`** — it walks
+the whole Railway CLI setup (login, project, deploy, domain, volume) for you
+(see `.claude/commands/deploy-railway.md`).
 
-- **Shot (Выстрел):** on your turn, call a direction (up/down/left/right, or your
-  own cell). The bullet travels until it hits a wall or a player. If it reaches a
-  player with no wall between you, the master announces the hit and that player
-  **loses a life**.
-- Daggers and explosives are the close-range / wall-breaking equivalents,
-  restocked at Arsenals.
+## How a round works
 
-## Goal
+1. Someone creates a room (generated map — size × complexity × seed — or a
+   hand-built map id from the editor) and shares the 6-letter room code.
+2. Players join from their own devices. Nobody sees the map — each player
+   gets a blank grid (they know only the level dimensions and the entrance)
+   and draws their own beliefs: walls, rivers, teleports, notes.
+3. On your turn: walk, shoot, throw a grenade, or arm a mine. The game
+   master (the server) tells you privately what happened; everyone hears
+   public events ("a shot rang out…").
+4. Teleported or dropped through a trap door? Open an auxiliary map, chart
+   the unknown region, and merge it onto your main map once you recognize
+   where you are.
+5. First player to walk out of an exit carrying the treasure wins — then the
+   real map is revealed, and the whole game can be replayed move by move.
 
-Be the first to **take the treasure and exit the labyrinth** with it.
+## AI players
 
----
+Rooms can be filled with bots (lobby buttons, or "watch a bot match" on the
+home screen). `easy` stumbles, `medium` keeps a tidy map, and `hard` /
+`expert` are Bayesian hypothesis testers: they spend free wall-bumps on
+probes chosen to split their live hypotheses, keep a posterior over every
+possible placement of each post-teleport region, and merge it onto their
+main map the moment the pattern matches — rolling the merge back if reality
+later contradicts it. The `expert` additionally dead-reckons every opponent
+from the open-information table-talk and shoots the probable treasure
+carrier. Design notes: [`docs/AI.md`](docs/AI.md).
 
-## History / origin
+## Your character (cosmetics meta-progression)
 
-- Created in the **USSR in the 1970s**. It's **folk culture** — no single named
-  inventor; it emerged and spread orally rather than as a published product.
-- Extremely popular with **schoolchildren, high-school, and university students**
-  across the Soviet Union in the 1970s–80s.
-- Spread **peer to peer**: in classrooms, at Pioneer summer camps, on long train
-  rides, between siblings and friends. It needed nothing but a pen and a squared
-  notebook — which is exactly why it thrived.
+Every labyrinth also hides **aesthetic loot** — none of it changes gameplay,
+all of it builds your character:
 
-If you learned it as a kid in Russia, the most likely path is that a parent
-picked it up the same way in *their* childhood — from a schoolmate, a camp
-friend, or an older relative — and passed it down.
+- A **guest profile** is created silently on your first visit (no login). Add
+  a username + password later in the Wardrobe to secure the same character
+  across devices.
+- **Coins** and **common/uncommon cosmetics** are banked to your profile the
+  moment you step on them.
+- **Rare+ cosmetics** spawn deep in the maze and are only yours if you carry
+  them OUT alive — win, or use the new **walk out** action to leave through an
+  exit without the treasure (you forfeit the race; the game goes on without
+  you). Get shot, mined, trapped, or mauled while carrying them and they drop
+  where you fall, free for anyone to steal. A house-rule checkbox
+  (`allowLeave`, on by default) can disable early walk-outs; if everyone walks
+  out, nobody wins.
+- The **Wardrobe** (Home → Wardrobe) is where you dress the avatar: 29
+  pixel-art templates (hats / outfits / trinkets) across 8 themed sets, 6 skin
+  tones, and 14 dye ramps. A collection log tracks which silhouettes you've
+  discovered, with provenance on every item (which maze, extracted alive,
+  when). A daily **shop** (rotates at midnight UTC, same stock for everyone)
+  turns coins into looks.
+- Your avatar shows on the Home screen, parades in the lobby, marks your pawn
+  on your hand-drawn map, and walks the true map in spectator view, the
+  end-of-game reveal, and replays.
 
-## Similar games
-
-- **Battleship / Морской бой** — the closest cousin; the other classic Soviet
-  squared-paper hidden-information duel.
-- **Black Box** (Eric Solomon, 1976) — probe a hidden layout by deduction.
-- **Das verrückte Labyrinth / Labyrinth** (Ravensburger) — same maze theme,
-  different (shifting-tile) mechanic.
-- Other Soviet squared-paper games from the same tradition: Точки (Dots),
-  Балда, Виселица (Hangman), Крестики-нолики (Tic-tac-toe).
-
-## Sources
-
-- [Labyrinth (paper-and-pencil game) — Wikipedia](https://en.wikipedia.org/wiki/Labyrinth_(paper-and-pencil_game))
-- [Лабиринт (игра на бумаге) — Циклопедия](https://cyclowiki.org/wiki/%D0%9B%D0%B0%D0%B1%D0%B8%D1%80%D0%B8%D0%BD%D1%82_(%D0%B8%D0%B3%D1%80%D0%B0_%D0%BD%D0%B0_%D0%B1%D1%83%D0%BC%D0%B0%D0%B3%D0%B5))
-- [«Морской бой» и «Лабиринт»: полные правила игры — sibmama.ru](https://sibmama.ru/labir-morskoi-boi.htm)
-- [Игры на бумаге «Лабиринт» — ТЕРРАКИД](https://terrakid.ru/%D0%B8%D0%B3%D1%80%D1%8B-%D0%BD%D0%B0-%D0%B1%D1%83%D0%BC%D0%B0%D0%B3%D0%B5-%D0%BB%D0%B0%D0%B1%D0%B8%D1%80%D0%B8%D0%BD%D1%82/)
-- [10 Soviet tabletop games — Russia Beyond](https://www.rbth.com/lifestyle/334597-soviet-tabletop-games)
+Names are procedurally rolled — commons are plain (“Straw Hat”), rares carry
+their origin (“Rune-etched Hood of the Drowned Hall”), legendaries are unique
+(“The Minotaur's Own Horns”). Item identities are deterministic per map seed,
+so re-farming the same seed can never duplicate a drop.
