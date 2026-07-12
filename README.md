@@ -13,9 +13,10 @@ the Soviet Union in the 1970s, and it was never something you bought in a store.
 Kids just taught it to other kids, at school or at summer camp or on long train
 rides, and that's how my dad learned it and how I did too.
 
-Someday I want to teach it to my own kids and play it with them. For now, my
-friends are spread out all over, so I made this online version so we can still
-play together. Hope you enjoy it.
+I just taught it to my oldest kid, and we had a blast playing together. It's
+been fun passing it on the same way my dad did with me. My friends are spread
+out all over these days, so I made this online version so we can still play too.
+Hope you enjoy it.
 
 ## What it is
 
