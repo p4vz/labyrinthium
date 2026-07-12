@@ -25,6 +25,7 @@ export function Home(): JSX.Element {
   const [seed, setSeed] = useState('');
   const [mapId, setMapId] = useState('');
   const [showRules, setShowRules] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [botCount, setBotCount] = useState(2);
   const [botLevel, setBotLevel] = useState<'easy' | 'medium' | 'hard' | 'expert' | 'mixed'>('medium');
   const [openInfo, setOpenInfo] = useState(true);
@@ -44,6 +45,9 @@ export function Home(): JSX.Element {
         draw your own map. First one out with the treasure wins.
       </p>
       <div className={`conn-dot ${connected ? 'up' : 'down'}`}>{connected ? 'connected' : 'connecting…'}</div>
+      <button className="about-link" data-testid="about-btn" onClick={() => setShowAbout(true)}>
+        About this game
+      </button>
 
       <div className="profile-card card" data-testid="profile-card">
         <button
@@ -279,6 +283,45 @@ export function Home(): JSX.Element {
           <button onClick={() => setScreen('replay')}>Replay a finished game</button>
         </div>
       </div>
+
+      {showAbout && (
+        <div
+          className="modal-backdrop"
+          data-testid="about-modal"
+          onClick={() => setShowAbout(false)}
+        >
+          <div className="modal about-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="about-header">
+              <h1>About Labyrinthium</h1>
+              <button className="char-close" onClick={() => setShowAbout(false)} aria-label="close">
+                ✕
+              </button>
+            </header>
+            <p>
+              My dad taught me this game when I was little, and we played it all the time, just the
+              two of us with a pen and some squared paper. Later I taught it to my friends and we
+              played it for years. It's a good one. It actually goes back to the Soviet Union in the
+              1970s, and it was never something you bought in a store. Kids just taught it to other
+              kids, at school or at summer camp or on long train rides, and that's how my dad
+              learned it and how I did too.
+            </p>
+            <p>
+              I just taught it to my oldest kid, and we had a blast playing together. It's been fun
+              passing it on the same way my dad did with me. My friends are spread out all over these
+              days, so I made this online version so we can still play too. Hope you enjoy it.
+            </p>
+            <p>
+              Here's how it works: one player is the game master and draws a maze in secret — here
+              the computer does that job. Everyone else starts blind, knowing only the size of the
+              grid and where they walked in. On your turn you take one step, and the game master
+              tells you what you ran into: an open cell, a wall, a river that sweeps you along, a
+              trap that drops you somewhere else, or the treasure. You draw your own map as you go
+              from what you're told. Find the treasure, carry it to an exit, and be the first one
+              out to win.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
